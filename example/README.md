@@ -6,27 +6,17 @@ A comprehensive example app demonstrating all features of the FluQuery package.
 
 ### Prerequisites
 
-- Flutter SDK 3.38.5 or higher
-- Dart SDK 3.0 or higher
-- Docker (optional, for running the backend in a container)
+- Flutter SDK 3.7.0 or higher
+- Dart SDK 3.2.0 or higher
 
 ### Running the Backend
 
-The example app requires a backend server to be running. You have two options:
-
-#### Option 1: Run with Dart directly
+The example app requires a backend server to be running:
 
 ```bash
 cd backend
 dart pub get
 dart run bin/server.dart
-```
-
-#### Option 2: Run with Docker
-
-```bash
-cd backend
-docker-compose up --build
 ```
 
 The server will start at `http://localhost:8080`.
@@ -139,7 +129,8 @@ example/
 │   │   ├── dependent_queries_example.dart
 │   │   ├── polling_example.dart
 │   │   ├── optimistic_update_example.dart
-│   │   └── race_condition_example.dart
+│   │   ├── race_condition_example.dart
+│   │   └── advanced_features_example.dart
 │   └── main.dart                # App entry point
 └── pubspec.yaml
 ```

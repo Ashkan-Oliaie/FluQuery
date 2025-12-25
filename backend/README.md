@@ -9,9 +9,7 @@ A simple REST API backend for testing the FluQuery Flutter package.
 - Simulated network delays (200-800ms)
 - Full CRUD operations
 
-## Running Locally
-
-### With Dart
+## Running the Server
 
 ```bash
 cd backend
@@ -19,19 +17,7 @@ dart pub get
 dart run bin/server.dart
 ```
 
-### With Docker
-
-```bash
-cd backend
-docker-compose up --build
-```
-
-Or build and run manually:
-
-```bash
-docker build -t fluquery-backend .
-docker run -p 8080:8080 fluquery-backend
-```
+The server will start at `http://localhost:8080`.
 
 ## API Endpoints
 
@@ -73,4 +59,3 @@ curl -X PUT http://localhost:8080/api/todos/1 \
   -H "Content-Type: application/json" \
   -d '{"completed": true}'
 ```
-
