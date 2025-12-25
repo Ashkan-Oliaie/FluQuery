@@ -29,7 +29,7 @@ class QueryClientConfig {
 /// Default query options with const constructor
 class DefaultQueryOptions {
   final StaleTime staleTime;
-  final GcTime gcTime;
+  final CacheTime cacheTime;
   final bool refetchOnWindowFocus;
   final bool refetchOnReconnect;
   final bool refetchOnMount;
@@ -39,7 +39,7 @@ class DefaultQueryOptions {
 
   const DefaultQueryOptions({
     this.staleTime = StaleTime.zero,
-    this.gcTime = GcTime.defaultTime,
+    this.cacheTime = CacheTime.defaultTime,
     this.refetchOnWindowFocus = true,
     this.refetchOnReconnect = true,
     this.refetchOnMount = true,
@@ -131,7 +131,7 @@ class QueryClient {
       queryKey: queryKey,
       queryFn: queryFn,
       staleTime: staleTime ?? _config.defaultOptions.staleTime,
-      gcTime: _config.defaultOptions.gcTime,
+      cacheTime: _config.defaultOptions.cacheTime,
       retry: _config.defaultOptions.retry,
       retryDelay: _config.defaultOptions.retryDelay,
     );
@@ -517,7 +517,7 @@ class QueryClient {
       queryKey: queryKey,
       queryFn: queryFn,
       staleTime: staleTime ?? _config.defaultOptions.staleTime,
-      gcTime: _config.defaultOptions.gcTime,
+      cacheTime: _config.defaultOptions.cacheTime,
     );
 
     final query = _queryCache.build<TData, TError>(options: options);

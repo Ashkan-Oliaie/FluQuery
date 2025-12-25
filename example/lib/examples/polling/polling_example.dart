@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:fluquery/fluquery.dart';
 import '../../api/api_client.dart';
+import '../../constants/query_keys.dart';
 import '../shared/shared.dart';
 import 'widgets/polling_controls.dart';
 import 'widgets/time_display.dart';
@@ -17,7 +18,7 @@ class PollingExample extends HookWidget {
     final accentColor = Theme.of(context).colorScheme.primary;
 
     final timeQuery = useQuery<ServerTime, Object>(
-      queryKey: ['server-time'],
+      queryKey: QueryKeys.serverTime,
       queryFn: (_) => ApiClient.getServerTime(),
       refetchInterval: isPolling.value ? pollInterval.value : null,
       staleTime: StaleTime.zero,

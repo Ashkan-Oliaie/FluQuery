@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:fluquery/fluquery.dart';
 import '../../api/api_client.dart';
+import '../../constants/query_keys.dart';
 import '../shared/shared.dart';
 import 'widgets/posts_stats_bar.dart';
 import 'widgets/post_card.dart';
@@ -15,7 +16,7 @@ class InfiniteQueryExample extends HookWidget {
     final accentColor = Theme.of(context).colorScheme.primary;
 
     final postsQuery = useInfiniteQuery<PostsPage, Object, int>(
-      queryKey: ['posts'],
+      queryKey: QueryKeys.posts,
       queryFn: (ctx) async {
         final page = (ctx.pageParam as int?) ?? 1;
         return ApiClient.getPosts(page: page, limit: 10);

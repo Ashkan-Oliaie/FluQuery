@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:fluquery/fluquery.dart';
 import '../../../api/api_client.dart';
+import '../../../constants/query_keys.dart';
 import '../hooks/use_todo_mutations.dart';
 import 'subtask_tile.dart';
 import 'activity_tile.dart';
@@ -26,14 +27,14 @@ class TodoDetailsModal extends HookWidget {
 
     // Query for full todo details
     final detailsQuery = useQuery<TodoDetails, Object>(
-      queryKey: ['todo-details', todoId],
+      queryKey: QueryKeys.todoDetailsFor(todoId),
       queryFn: (_) => ApiClient.getTodoDetails(todoId),
       staleTime: const StaleTime(Duration(minutes: 1)),
     );
 
     // Separate query for activities (auto-refreshes in background)
     final activitiesQuery = useQuery<List<Activity>, Object>(
-      queryKey: ['todo-activities', todoId],
+      queryKey: QueryKeys.activitiesFor(todoId),
       queryFn: (_) => ApiClient.getTodoActivities(todoId),
       staleTime: const StaleTime(Duration(seconds: 30)),
       refetchInterval: const Duration(seconds: 30),
@@ -149,7 +150,7 @@ class _DetailsContent extends StatelessWidget {
         _Header(
             title: details.title,
             onRefresh: () => client.invalidateQueries(
-                  queryKey: ['todo-details', todoId],
+                  queryKey: QueryKeys.todoDetailsFor(todoId),
                   refetch: RefetchType.active,
                 )),
         const SizedBox(height: 16),

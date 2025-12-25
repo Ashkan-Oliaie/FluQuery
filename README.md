@@ -36,6 +36,36 @@ dependencies:
   flutter_hooks: ^0.20.5
 ```
 
+## 📱 Example App
+
+Check out the [example](./example) directory for a comprehensive demo app showcasing:
+
+- ✅ Basic queries with loading/error states
+- ✅ Mutations with cache invalidation  
+- ✅ Infinite scroll pagination
+- ✅ Dependent/sequential queries
+- ✅ Polling/realtime updates
+- ✅ Optimistic updates with rollback
+- ✅ Race condition handling
+
+### Running the Example
+
+1. **Start the backend server:**
+   ```bash
+   cd backend
+   dart pub get
+   dart run bin/server.dart
+   ```
+   The server runs at `http://localhost:8080`
+
+2. **Run the Flutter app:**
+   ```bash
+   cd example
+   flutter pub get
+   flutter run -d chrome  # or any other platform
+   ```
+
+
 ## 🚀 Quick Start
 
 ### 1. Setup QueryClientProvider
@@ -464,34 +494,6 @@ queryKey: ['user', userId, 'posts', { 'status': 'active' }]
 | `mutate` | `Function` | Trigger the mutation |
 | `reset` | `Function` | Reset mutation state |
 
-## 📱 Example App
-
-Check out the [example](./example) directory for a comprehensive demo app showcasing:
-
-- ✅ Basic queries with loading/error states
-- ✅ Mutations with cache invalidation  
-- ✅ Infinite scroll pagination
-- ✅ Dependent/sequential queries
-- ✅ Polling/realtime updates
-- ✅ Optimistic updates with rollback
-- ✅ Race condition handling
-
-### Running the Example
-
-1. **Start the backend server:**
-   ```bash
-   cd backend
-   dart pub get
-   dart run bin/server.dart
-   ```
-   The server runs at `http://localhost:8080`
-
-2. **Run the Flutter app:**
-   ```bash
-   cd example
-   flutter pub get
-   flutter run -d chrome  # or any other platform
-   ```
 
 ## 🗺️ Roadmap
 

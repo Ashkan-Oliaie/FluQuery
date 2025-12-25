@@ -21,8 +21,8 @@ class QueryBuilder<TData, TError> extends StatefulWidget {
   /// Time after which data is considered stale
   final StaleTime staleTime;
 
-  /// Time after which inactive query data is garbage collected
-  final GcTime gcTime;
+  /// How long inactive query data remains in cache before removal
+  final CacheTime cacheTime;
 
   /// Whether the query is enabled
   final bool enabled;
@@ -42,7 +42,7 @@ class QueryBuilder<TData, TError> extends StatefulWidget {
     required this.queryFn,
     required this.builder,
     this.staleTime = StaleTime.zero,
-    this.gcTime = GcTime.defaultTime,
+    this.cacheTime = CacheTime.defaultTime,
     this.enabled = true,
     this.refetchInterval,
     this.retry = 3,
@@ -80,7 +80,7 @@ class _QueryBuilderState<TData, TError>
       queryKey: widget.queryKey,
       queryFn: widget.queryFn,
       staleTime: widget.staleTime,
-      gcTime: widget.gcTime,
+      cacheTime: widget.cacheTime,
       enabled: widget.enabled,
       refetchInterval: widget.refetchInterval,
       retry: widget.retry,

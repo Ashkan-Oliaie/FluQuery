@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:fluquery/fluquery.dart';
 import '../../api/api_client.dart';
+import '../../constants/query_keys.dart';
 import '../shared/shared.dart';
 import 'widgets/user_selector.dart';
 import 'widgets/user_card.dart';
@@ -15,13 +16,13 @@ class DependentQueriesExample extends HookWidget {
     final selectedUserId = useState<int?>(null);
 
     final userQuery = useQuery<User, Object>(
-      queryKey: ['user', selectedUserId.value],
+      queryKey: QueryKeys.userFor(selectedUserId.value ?? 0),
       queryFn: (_) => ApiClient.getUser(selectedUserId.value!),
       enabled: selectedUserId.value != null,
     );
 
     final postsQuery = useQuery<List<Post>, Object>(
-      queryKey: ['user-posts', selectedUserId.value],
+      queryKey: QueryKeys.userPostsFor(selectedUserId.value ?? 0),
       queryFn: (_) => ApiClient.getUserPosts(selectedUserId.value!),
       enabled: selectedUserId.value != null && userQuery.isSuccess,
     );

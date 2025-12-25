@@ -65,7 +65,7 @@ class Query<TData, TError> {
   QueryState<TData, TError> _state;
   QueryOptions<TData, TError>? _options;
   CancellationToken? _currentCancellationToken;
-  Timer? _gcTimer;
+  Timer? _cacheTimer;
 
   // Use dynamic to avoid web type issues with callbacks
   final List<void Function(dynamic)> _observers = [];
@@ -141,12 +141,17 @@ class Query<TData, TError> {
   void addObserver(void Function(dynamic) observer) {
     _observers.add(observer);
     _stopGc();
+    FluQueryLogger.debug(
+        'Query.addObserver: $queryKey - observers=${_observers.length}');
   }
 
   /// Remove an observer
   void removeObserver(void Function(dynamic) observer) {
     _observers.remove(observer);
+    FluQueryLogger.debug(
+        'Query.removeObserver: $queryKey - observers=${_observers.length}');
     if (!hasObservers) {
+      FluQueryLogger.debug('Query.removeObserver: scheduling GC for $queryKey');
       _scheduleGc();
     }
   }
@@ -289,20 +294,26 @@ class Query<TData, TError> {
 
   /// Schedule garbage collection
   void _scheduleGc() {
-    _gcTimer?.cancel();
-    final gcTime = _options?.gcTime ?? GcTime.defaultTime;
-    if (gcTime == GcTime.infinity) return;
+    _cacheTimer?.cancel();
+    final cacheTime = _options?.cacheTime ?? CacheTime.defaultTime;
+    FluQueryLogger.debug(
+        'Query._scheduleGc: $queryKey - cacheTime=${cacheTime.duration}');
+    if (cacheTime == CacheTime.infinity) {
+      FluQueryLogger.debug('Query._scheduleGc: $queryKey - infinity, skipping');
+      return;
+    }
 
-    _gcTimer = Timer(gcTime.duration, () {
-      FluQueryLogger.debug('Query garbage collected: $queryKey');
+    _cacheTimer = Timer(cacheTime.duration, () {
+      FluQueryLogger.debug(
+          'Query cache expired: $queryKey - hasObservers=$hasObservers');
       _onGc?.call(this);
     });
   }
 
-  /// Stop garbage collection timer
+  /// Stop cache expiration timer
   void _stopGc() {
-    _gcTimer?.cancel();
-    _gcTimer = null;
+    _cacheTimer?.cancel();
+    _cacheTimer = null;
   }
 
   /// Callback for garbage collection
@@ -316,7 +327,7 @@ class Query<TData, TError> {
   /// Destroy the query
   void destroy() {
     cancel();
-    _gcTimer?.cancel();
+    _cacheTimer?.cancel();
     _observers.clear();
   }
 

@@ -77,7 +77,7 @@ class InfiniteQueryOptions<TData, TError, TPageParam> {
   final GetNextPageParamFn<TData, TPageParam>? getNextPageParam;
   final GetPreviousPageParamFn<TData, TPageParam>? getPreviousPageParam;
   final StaleTime staleTime;
-  final GcTime gcTime;
+  final CacheTime cacheTime;
   final bool refetchOnWindowFocus;
   final bool refetchOnReconnect;
   final int retry;
@@ -92,7 +92,7 @@ class InfiniteQueryOptions<TData, TError, TPageParam> {
     this.getNextPageParam,
     this.getPreviousPageParam,
     this.staleTime = StaleTime.zero,
-    this.gcTime = GcTime.defaultTime,
+    this.cacheTime = CacheTime.defaultTime,
     this.refetchOnWindowFocus = true,
     this.refetchOnReconnect = true,
     this.retry = 3,

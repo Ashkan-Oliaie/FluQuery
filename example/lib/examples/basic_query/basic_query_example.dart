@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:fluquery/fluquery.dart';
 import '../../api/api_client.dart';
+import '../../constants/query_keys.dart';
 import '../shared/shared.dart';
 import 'widgets/status_bar.dart';
 
@@ -14,14 +15,12 @@ class BasicQueryExample extends HookWidget {
     final accentColor = Theme.of(context).colorScheme.primary;
 
     final todosQuery = useQuery<List<Todo>, Object>(
-      queryKey: ['todos'],
+      queryKey: QueryKeys.todos,
       queryFn: (_) => ApiClient.getTodos(),
-      staleTime: const StaleTime(Duration(seconds: 20)),
+      staleTime: const StaleTime(Duration(minutes: 20)),
       retry: 3,
-      refetchInterval: const Duration(seconds: 15),
-      refetchOnWindowFocus: true,
-      refetchOnMount: true,
-      refetchOnReconnect: true,
+      cacheTime: CacheTime(Duration(seconds: 10)),
+      refetchOnWindowFocus: true, // Remove from cache 10s after no observers
     );
 
     return Scaffold(
@@ -33,7 +32,7 @@ class BasicQueryExample extends HookWidget {
             tooltip: 'Invalidate Cache',
             onPressed: () {
               client.invalidateQueries(
-                queryKey: ['todos'],
+                queryKey: QueryKeys.todos,
                 refetch: RefetchType.active,
               );
               ScaffoldMessenger.of(context).showSnackBar(

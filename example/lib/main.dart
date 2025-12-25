@@ -4,6 +4,7 @@ import 'package:fluquery/fluquery.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'api/api_client.dart';
+import 'constants/query_keys.dart';
 import 'examples/basic_query/basic_query_example.dart';
 import 'examples/mutation/mutation_example.dart';
 import 'examples/infinite_query/infinite_query_example.dart';
@@ -28,7 +29,7 @@ class GlobalConfigStore {
     if (_store != null && !_store!.isDisposed) return;
 
     _store = client.createStore<AppConfig, Object>(
-      queryKey: ['app-config'],
+      queryKey: QueryKeys.appConfig,
       queryFn: (_) => ApiClient.getConfig(),
       staleTime: const StaleTime(Duration(seconds: 30)),
       refetchInterval: const Duration(seconds: 10),

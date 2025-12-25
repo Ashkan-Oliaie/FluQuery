@@ -124,15 +124,36 @@ class StaleTime {
   }
 }
 
-/// Garbage collection time configuration
-class GcTime {
+/// How long unused/inactive query data remains in cache.
+///
+/// When a query has no active observers (no widgets using it),
+/// this duration determines how long the cached data is kept
+/// before being removed (garbage collected).
+///
+/// This is useful for:
+/// - Keeping data available for quick navigation back to a page
+/// - Freeing memory by removing stale unused data
+///
+/// Note: This is NOT the same as staleTime. Data can be "stale" but still
+/// cached. CacheTime only applies when NO components are using the query.
+class CacheTime {
   final Duration duration;
 
-  const GcTime(this.duration);
+  const CacheTime(this.duration);
 
-  static const GcTime defaultTime = GcTime(Duration(minutes: 5));
-  static const GcTime infinity = GcTime(Duration(days: 365 * 100));
+  /// Remove from cache immediately when no observers
+  static const CacheTime zero = CacheTime(Duration.zero);
+
+  /// Default: keep in cache for 5 minutes after last observer
+  static const CacheTime defaultTime = CacheTime(Duration(minutes: 5));
+
+  /// Never remove from cache automatically
+  static const CacheTime infinity = CacheTime(Duration(days: 365 * 100));
 }
+
+/// @deprecated Use [CacheTime] instead. Will be removed in v2.0.0.
+@Deprecated('Use CacheTime instead')
+typedef GcTime = CacheTime;
 
 /// Placeholder data configuration
 sealed class PlaceholderData<T> {

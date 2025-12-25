@@ -271,9 +271,15 @@ class QueryObserver<TData, TError> {
     _stopRefetchInterval();
 
     if (_options.refetchInterval != null && _options.enabled) {
+      FluQueryLogger.debug(
+          'QueryObserver: starting refetchInterval=${_options.refetchInterval} for ${_options.queryKey}');
       _refetchIntervalTimer = Timer.periodic(
         _options.refetchInterval!,
-        (_) => refetch(),
+        (_) {
+          FluQueryLogger.debug(
+              'QueryObserver: refetchInterval triggered for ${_options.queryKey}');
+          refetch();
+        },
       );
     }
   }

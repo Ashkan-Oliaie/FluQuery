@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:fluquery/fluquery.dart';
 import '../../../api/api_client.dart';
+import '../../../constants/query_keys.dart';
 
 /// Individual todo list item with per-item subtask count fetch
 ///
@@ -24,7 +25,7 @@ class TodoListItem extends HookWidget {
 
     // Per-item query for subtask count - each todo has its own cached query
     final subtasksQuery = useQuery<List<Subtask>, Object>(
-      queryKey: ['subtasks', todo.id],
+      queryKey: QueryKeys.subtasksFor(todo.id),
       queryFn: (_) => ApiClient.getSubtasks(todo.id),
       staleTime: const StaleTime(Duration(minutes: 5)),
     );

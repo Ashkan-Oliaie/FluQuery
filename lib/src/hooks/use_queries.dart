@@ -9,7 +9,7 @@ class QueryConfig<TData, TError> {
   final QueryKey queryKey;
   final QueryFn<TData> queryFn;
   final StaleTime staleTime;
-  final GcTime gcTime;
+  final CacheTime cacheTime;
   final bool enabled;
   final int retry;
 
@@ -17,7 +17,7 @@ class QueryConfig<TData, TError> {
     required this.queryKey,
     required this.queryFn,
     this.staleTime = StaleTime.zero,
-    this.gcTime = GcTime.defaultTime,
+    this.cacheTime = CacheTime.defaultTime,
     this.enabled = true,
     this.retry = 3,
   });
@@ -37,7 +37,7 @@ List<QueryResult<dynamic, dynamic>> useQueries({
         queryKey: config.queryKey,
         queryFn: config.queryFn,
         staleTime: config.staleTime,
-        gcTime: config.gcTime,
+        cacheTime: config.cacheTime,
         enabled: config.enabled,
         retry: config.retry,
       );

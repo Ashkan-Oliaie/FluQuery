@@ -11,8 +11,10 @@ class QueryOptions<TData, TError> {
   /// Time after which data is considered stale
   final StaleTime staleTime;
 
-  /// Time after which inactive query data is garbage collected
-  final GcTime gcTime;
+  /// How long inactive query data remains in cache before being removed.
+  /// When no components are observing a query, this determines how long
+  /// the cached data is kept before garbage collection.
+  final CacheTime cacheTime;
 
   /// Whether to refetch on window focus
   final bool refetchOnWindowFocus;
@@ -63,7 +65,7 @@ class QueryOptions<TData, TError> {
     required this.queryKey,
     this.queryFn,
     this.staleTime = StaleTime.zero,
-    this.gcTime = GcTime.defaultTime,
+    this.cacheTime = CacheTime.defaultTime,
     this.refetchOnWindowFocus = true,
     this.refetchOnReconnect = true,
     this.refetchOnMount = true,
@@ -86,7 +88,7 @@ class QueryOptions<TData, TError> {
     QueryKey? queryKey,
     QueryFn<TData>? queryFn,
     StaleTime? staleTime,
-    GcTime? gcTime,
+    CacheTime? cacheTime,
     bool? refetchOnWindowFocus,
     bool? refetchOnReconnect,
     bool? refetchOnMount,
@@ -107,7 +109,7 @@ class QueryOptions<TData, TError> {
       queryKey: queryKey ?? this.queryKey,
       queryFn: queryFn ?? this.queryFn,
       staleTime: staleTime ?? this.staleTime,
-      gcTime: gcTime ?? this.gcTime,
+      cacheTime: cacheTime ?? this.cacheTime,
       refetchOnWindowFocus: refetchOnWindowFocus ?? this.refetchOnWindowFocus,
       refetchOnReconnect: refetchOnReconnect ?? this.refetchOnReconnect,
       refetchOnMount: refetchOnMount ?? this.refetchOnMount,
@@ -131,7 +133,7 @@ class QueryOptions<TData, TError> {
 /// Default query options factory
 class DefaultQueryOptions {
   StaleTime staleTime;
-  GcTime gcTime;
+  CacheTime cacheTime;
   bool refetchOnWindowFocus;
   bool refetchOnReconnect;
   bool refetchOnMount;
@@ -143,7 +145,7 @@ class DefaultQueryOptions {
 
   DefaultQueryOptions({
     this.staleTime = StaleTime.zero,
-    this.gcTime = GcTime.defaultTime,
+    this.cacheTime = CacheTime.defaultTime,
     this.refetchOnWindowFocus = true,
     this.refetchOnReconnect = true,
     this.refetchOnMount = true,
@@ -161,7 +163,7 @@ class DefaultQueryOptions {
       queryKey: options.queryKey,
       queryFn: options.queryFn,
       staleTime: options.staleTime,
-      gcTime: options.gcTime,
+      cacheTime: options.cacheTime,
       refetchOnWindowFocus: options.refetchOnWindowFocus,
       refetchOnReconnect: options.refetchOnReconnect,
       refetchOnMount: options.refetchOnMount,

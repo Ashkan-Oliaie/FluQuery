@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fluquery/fluquery.dart';
 import '../../../api/api_client.dart';
+import '../../../constants/query_keys.dart';
 
 /// All mutations for todo operations
 class TodoMutations {
@@ -40,10 +41,11 @@ TodoMutations useTodoMutations({
   // Helper to update a subtask in cache
   void updateSubtaskInCache(int subtaskId, Subtask Function(Subtask) updater) {
     // Update in todo-details cache
-    final details = client.getQueryData<TodoDetails>(['todo-details', todoId]);
+    final details =
+        client.getQueryData<TodoDetails>(QueryKeys.todoDetailsFor(todoId));
     if (details != null) {
       client.setQueryData(
-          ['todo-details', todoId],
+          QueryKeys.todoDetailsFor(todoId),
           TodoDetails(
             id: details.id,
             title: details.title,
@@ -63,10 +65,11 @@ TodoMutations useTodoMutations({
     }
 
     // Update in subtasks list cache
-    final subtasks = client.getQueryData<List<Subtask>>(['subtasks', todoId]);
+    final subtasks =
+        client.getQueryData<List<Subtask>>(QueryKeys.subtasksFor(todoId));
     if (subtasks != null) {
       client.setQueryData(
-        ['subtasks', todoId],
+        QueryKeys.subtasksFor(todoId),
         subtasks.map((s) => s.id == subtaskId ? updater(s) : s).toList(),
       );
     }
@@ -74,10 +77,11 @@ TodoMutations useTodoMutations({
 
   // Helper to add subtask to cache
   void addSubtaskToCache(Subtask subtask) {
-    final details = client.getQueryData<TodoDetails>(['todo-details', todoId]);
+    final details =
+        client.getQueryData<TodoDetails>(QueryKeys.todoDetailsFor(todoId));
     if (details != null) {
       client.setQueryData(
-          ['todo-details', todoId],
+          QueryKeys.todoDetailsFor(todoId),
           TodoDetails(
             id: details.id,
             title: details.title,
@@ -94,18 +98,21 @@ TodoMutations useTodoMutations({
           ));
     }
 
-    final subtasks = client.getQueryData<List<Subtask>>(['subtasks', todoId]);
+    final subtasks =
+        client.getQueryData<List<Subtask>>(QueryKeys.subtasksFor(todoId));
     if (subtasks != null) {
-      client.setQueryData(['subtasks', todoId], [...subtasks, subtask]);
+      client
+          .setQueryData(QueryKeys.subtasksFor(todoId), [...subtasks, subtask]);
     }
   }
 
   // Helper to remove subtask from cache
   void removeSubtaskFromCache(int subtaskId) {
-    final details = client.getQueryData<TodoDetails>(['todo-details', todoId]);
+    final details =
+        client.getQueryData<TodoDetails>(QueryKeys.todoDetailsFor(todoId));
     if (details != null) {
       client.setQueryData(
-          ['todo-details', todoId],
+          QueryKeys.todoDetailsFor(todoId),
           TodoDetails(
             id: details.id,
             title: details.title,
@@ -122,10 +129,11 @@ TodoMutations useTodoMutations({
           ));
     }
 
-    final subtasks = client.getQueryData<List<Subtask>>(['subtasks', todoId]);
+    final subtasks =
+        client.getQueryData<List<Subtask>>(QueryKeys.subtasksFor(todoId));
     if (subtasks != null) {
       client.setQueryData(
-        ['subtasks', todoId],
+        QueryKeys.subtasksFor(todoId),
         subtasks.where((s) => s.id != subtaskId).toList(),
       );
     }
@@ -165,10 +173,10 @@ TodoMutations useTodoMutations({
     mutationFn: (priority) => ApiClient.updateTodoPriority(todoId, priority),
     onSuccess: (_, newPriority, __) {
       final details =
-          client.getQueryData<TodoDetails>(['todo-details', todoId]);
+          client.getQueryData<TodoDetails>(QueryKeys.todoDetailsFor(todoId));
       if (details != null) {
         client.setQueryData(
-            ['todo-details', todoId],
+            QueryKeys.todoDetailsFor(todoId),
             TodoDetails(
               id: details.id,
               title: details.title,

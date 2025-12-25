@@ -79,7 +79,7 @@ class QueryStore<TData, TError> {
       queryKey: queryKey,
       queryFn: queryFn,
       staleTime: staleTime,
-      gcTime: GcTime.infinity, // Never garbage collect stores
+      cacheTime: CacheTime.infinity, // Never remove stores from cache
       retry: retry,
       retryDelay: retryDelay,
       refetchOnWindowFocus: refetchOnWindowFocus,
