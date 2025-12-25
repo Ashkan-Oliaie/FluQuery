@@ -9,19 +9,28 @@ class ActivityTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accentColor = Theme.of(context).colorScheme.primary;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF2A2A3E).withAlpha(128),
+        color: isDark
+            ? Color.lerp(const Color(0xFF2A2A3E), accentColor, 0.05)
+                ?.withAlpha(180)
+            : Color.lerp(Colors.grey.shade100, accentColor, 0.03),
         borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: accentColor.withAlpha(isDark ? 20 : 12),
+        ),
       ),
       child: Row(
         children: [
           Icon(
             _activityIcon(activity.action),
             size: 16,
-            color: _activityColor(activity.action),
+            color: _activityColor(activity.action, accentColor),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -30,13 +39,18 @@ class ActivityTile extends StatelessWidget {
               children: [
                 Text(
                   activity.description,
-                  style: const TextStyle(color: Colors.white, fontSize: 13),
+                  style: TextStyle(
+                    color: isDark ? Colors.white : Colors.black87,
+                    fontSize: 13,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   _formatTimeAgo(activity.timestamp),
                   style: TextStyle(
-                      color: Colors.white.withAlpha(128), fontSize: 11),
+                    color: isDark ? Colors.white54 : Colors.black38,
+                    fontSize: 11,
+                  ),
                 ),
               ],
             ),
@@ -70,11 +84,11 @@ class ActivityTile extends StatelessWidget {
     }
   }
 
-  Color _activityColor(String action) {
+  Color _activityColor(String action, Color accentColor) {
     switch (action) {
       case 'created':
       case 'subtask_added':
-        return const Color(0xFF6366F1);
+        return accentColor;
       case 'completed':
       case 'subtask_completed':
         return const Color(0xFF10B981);
@@ -83,7 +97,7 @@ class ActivityTile extends StatelessWidget {
       case 'priority_changed':
         return const Color(0xFFF59E0B);
       default:
-        return Colors.white54;
+        return Colors.grey;
     }
   }
 

@@ -1,20 +1,55 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:fluquery/fluquery.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'api/api_client.dart';
-import 'examples/basic_query_example.dart';
-import 'examples/mutation_example.dart';
-import 'examples/infinite_query_example.dart';
-import 'examples/dependent_queries_example.dart';
-import 'examples/polling_example.dart';
-import 'examples/optimistic_update_example.dart';
-import 'examples/race_condition_example.dart';
-import 'examples/advanced_features_example.dart';
+import 'examples/basic_query/basic_query_example.dart';
+import 'examples/mutation/mutation_example.dart';
+import 'examples/infinite_query/infinite_query_example.dart';
+import 'examples/dependent_queries/dependent_queries_example.dart';
+import 'examples/polling/polling_example.dart';
+import 'examples/optimistic_update/optimistic_update_example.dart';
+import 'examples/race_condition/race_condition_example.dart';
+import 'examples/advanced_features/advanced_features_example.dart';
 import 'examples/nested_queries/screens/todo_list_screen.dart';
+import 'examples/global_store/global_store_example.dart';
 
 void main() {
   runApp(const FluQueryExampleApp());
+}
+
+/// Global config store manager - accessible from anywhere
+class GlobalConfigStore {
+  static QueryStore<AppConfig, Object>? _store;
+  static final ValueNotifier<AppConfig?> configNotifier = ValueNotifier(null);
+
+  static void init(QueryClient client) {
+    if (_store != null && !_store!.isDisposed) return;
+
+    _store = client.createStore<AppConfig, Object>(
+      queryKey: ['app-config'],
+      queryFn: (_) => ApiClient.getConfig(),
+      staleTime: const StaleTime(Duration(seconds: 30)),
+      refetchInterval: const Duration(seconds: 10),
+    );
+
+    // Sync to ValueNotifier for Theme rebuilds
+    _store!.subscribe((state) {
+      final data = state.rawData;
+      if (data != null) {
+        configNotifier.value = data as AppConfig;
+      }
+    });
+  }
+
+  static QueryStore<AppConfig, Object>? get store => _store;
+  static AppConfig? get config => configNotifier.value;
+
+  static void dispose() {
+    _store?.dispose();
+    _store = null;
+  }
 }
 
 class FluQueryExampleApp extends StatefulWidget {
@@ -39,10 +74,14 @@ class _FluQueryExampleAppState extends State<FluQueryExampleApp> {
         logLevel: LogLevel.debug,
       ),
     );
+
+    // Initialize global config store
+    GlobalConfigStore.init(_queryClient);
   }
 
   @override
   void dispose() {
+    GlobalConfigStore.dispose();
     _queryClient.dispose();
     super.dispose();
   }
@@ -51,51 +90,337 @@ class _FluQueryExampleAppState extends State<FluQueryExampleApp> {
   Widget build(BuildContext context) {
     return QueryClientProvider(
       client: _queryClient,
-      child: MaterialApp(
-        title: 'FluQuery Examples',
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          useMaterial3: true,
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: const Color(0xFF6366F1),
-            brightness: Brightness.dark,
+      // Listen to config changes and rebuild theme
+      child: ValueListenableBuilder<AppConfig?>(
+        valueListenable: GlobalConfigStore.configNotifier,
+        builder: (context, config, child) {
+          final isDark = config?.theme != 'light';
+          return MaterialApp(
+            title: 'FluQuery Examples',
+            debugShowCheckedModeBanner: false,
+            themeMode: isDark ? ThemeMode.dark : ThemeMode.light,
+            theme: _buildTheme(config, false),
+            darkTheme: _buildTheme(config, true),
+            // Wrap all routes with the global header
+            builder: (context, child) {
+              return Material(
+                color: Theme.of(context).scaffoldBackgroundColor,
+                child: Column(
+                  children: [
+                    // Global persistent header
+                    GlobalConfigBar(config: config),
+                    // Page content
+                    Expanded(child: child ?? const SizedBox()),
+                  ],
+                ),
+              );
+            },
+            home: const ExamplesHomePage(),
+          );
+        },
+      ),
+    );
+  }
+
+  ThemeData _buildTheme(AppConfig? config, bool isDark) {
+    final accentColor = _getAccentColor(config?.accentColor ?? 'indigo');
+
+    return ThemeData(
+      useMaterial3: true,
+      brightness: isDark ? Brightness.dark : Brightness.light,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: accentColor,
+        brightness: isDark ? Brightness.dark : Brightness.light,
+      ),
+      scaffoldBackgroundColor:
+          isDark ? const Color(0xFF0F0F1A) : Colors.grey[100],
+      textTheme: GoogleFonts.spaceGroteskTextTheme(
+        isDark ? ThemeData.dark().textTheme : ThemeData.light().textTheme,
+      ).copyWith(
+        headlineLarge: GoogleFonts.orbitron(
+          fontSize: _getFontSize(config?.fontSize, 28),
+          fontWeight: FontWeight.bold,
+          color: isDark ? Colors.white : Colors.black87,
+        ),
+        headlineMedium: GoogleFonts.orbitron(
+          fontSize: _getFontSize(config?.fontSize, 20),
+          fontWeight: FontWeight.w600,
+          color: isDark ? Colors.white : Colors.black87,
+        ),
+      ),
+      cardTheme: CardThemeData(
+        color: isDark ? const Color(0xFF1A1A2E) : Colors.white,
+        elevation: isDark ? 0 : 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(
+            color: isDark ? const Color(0x1AFFFFFF) : Colors.grey.shade200,
           ),
-          scaffoldBackgroundColor: const Color(0xFF0F0F1A),
-          textTheme: GoogleFonts.spaceGroteskTextTheme(
-            ThemeData.dark().textTheme,
-          ).copyWith(
-            headlineLarge: GoogleFonts.orbitron(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-            headlineMedium: GoogleFonts.orbitron(
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
-            ),
-          ),
-          cardTheme: CardThemeData(
-            color: const Color(0xFF1A1A2E),
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-              side: const BorderSide(color: Color(0x1AFFFFFF)),
-            ),
-          ),
-          appBarTheme: AppBarTheme(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            titleTextStyle: GoogleFonts.orbitron(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
+        ),
+      ),
+      appBarTheme: AppBarTheme(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        titleTextStyle: GoogleFonts.orbitron(
+          fontSize: _getFontSize(config?.fontSize, 20),
+          fontWeight: FontWeight.bold,
+          color: isDark ? Colors.white : Colors.black87,
+        ),
+        iconTheme: IconThemeData(
+          color: isDark ? Colors.white70 : Colors.black54,
+        ),
+      ),
+    );
+  }
+
+  Color _getAccentColor(String colorName) {
+    switch (colorName) {
+      case 'purple':
+        return const Color(0xFF8B5CF6);
+      case 'teal':
+        return const Color(0xFF14B8A6);
+      case 'orange':
+        return const Color(0xFFF59E0B);
+      case 'pink':
+        return const Color(0xFFEC4899);
+      case 'blue':
+        return const Color(0xFF3B82F6);
+      case 'indigo':
+      default:
+        return const Color(0xFF6366F1);
+    }
+  }
+
+  double _getFontSize(String? size, double base) {
+    switch (size) {
+      case 'small':
+        return base * 0.85;
+      case 'large':
+        return base * 1.15;
+      case 'medium':
+      default:
+        return base;
+    }
+  }
+}
+
+/// Global config bar that appears at the top of ALL pages
+class GlobalConfigBar extends HookWidget {
+  final AppConfig? config;
+
+  const GlobalConfigBar({super.key, this.config});
+
+  @override
+  Widget build(BuildContext context) {
+    final store = GlobalConfigStore.store;
+    final isFetching = useState(store?.isFetching ?? false);
+    final isPaused = useState(false);
+
+    // Subscribe to store state for fetching indicator
+    useEffect(() {
+      if (store == null) return null;
+      final unsub = store.subscribe((state) {
+        isFetching.value = state.isFetching;
+      });
+      return unsub;
+    }, [store]);
+
+    final isDark = config?.theme != 'light';
+    final accentColor = _getAccentColor(config?.accentColor ?? 'indigo');
+
+    return Material(
+      color: isDark ? const Color(0xFF1A1A2E) : Colors.white,
+      child: Container(
+        padding: EdgeInsets.only(
+          top: MediaQuery.of(context).padding.top + 4,
+          left: 12,
+          right: 12,
+          bottom: 4,
+        ),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+              color: accentColor.withAlpha(60),
+              width: 1,
             ),
           ),
         ),
-        home: const ExamplesHomePage(),
+        child: Row(
+          children: [
+            // Config indicator
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: accentColor.withAlpha(25),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: accentColor.withAlpha(80)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: accentColor,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: accentColor.withAlpha(100),
+                          blurRadius: 4,
+                          spreadRadius: 1,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    config?.accentColor.toUpperCase() ?? 'LOADING',
+                    style: TextStyle(
+                      color: accentColor,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            // Theme indicator
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? Colors.white.withAlpha(10)
+                    : Colors.black.withAlpha(10),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    isDark ? Icons.dark_mode : Icons.light_mode,
+                    size: 14,
+                    color: isDark ? Colors.white60 : Colors.black54,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    config?.theme.toUpperCase() ?? '-',
+                    style: TextStyle(
+                      color: isDark ? Colors.white60 : Colors.black54,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            // Version badge
+            if (config != null)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? Colors.white.withAlpha(8)
+                      : Colors.black.withAlpha(8),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  'v${config!.version}',
+                  style: TextStyle(
+                    color: isDark ? Colors.white38 : Colors.black38,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            const Spacer(),
+            // Fetching indicator
+            if (isFetching.value)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: SizedBox(
+                  width: 12,
+                  height: 12,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: accentColor,
+                  ),
+                ),
+              ),
+            // Pause/Resume button
+            GestureDetector(
+              onTap: () {
+                if (isPaused.value) {
+                  store?.resumeRefetching();
+                } else {
+                  store?.stopRefetching();
+                }
+                isPaused.value = !isPaused.value;
+              },
+              child: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? Colors.white.withAlpha(10)
+                      : Colors.black.withAlpha(10),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  isPaused.value ? Icons.play_arrow : Icons.pause,
+                  size: 14,
+                  color: isPaused.value
+                      ? const Color(0xFF22C55E)
+                      : (isDark ? Colors.white54 : Colors.black45),
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            // Randomize button
+            GestureDetector(
+              onTap: () async {
+                try {
+                  final newConfig = await ApiClient.randomizeConfig();
+                  store?.setData(newConfig);
+                } catch (_) {}
+              },
+              child: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: accentColor.withAlpha(20),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.shuffle,
+                  size: 14,
+                  color: accentColor,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
+  }
+
+  Color _getAccentColor(String colorName) {
+    switch (colorName) {
+      case 'purple':
+        return const Color(0xFF8B5CF6);
+      case 'teal':
+        return const Color(0xFF14B8A6);
+      case 'orange':
+        return const Color(0xFFF59E0B);
+      case 'pink':
+        return const Color(0xFFEC4899);
+      case 'blue':
+        return const Color(0xFF3B82F6);
+      case 'indigo':
+      default:
+        return const Color(0xFF6366F1);
+    }
   }
 }
 
@@ -117,29 +442,39 @@ class _ExamplesHomePageState extends State<ExamplesHomePage> {
   }
 
   void _showSettingsDialog() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A2E),
+        backgroundColor: isDark ? const Color(0xFF1A1A2E) : Colors.white,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: Color(0x1AFFFFFF)),
+          side: BorderSide(
+            color: isDark ? const Color(0x1AFFFFFF) : Colors.grey.shade200,
+          ),
         ),
         title: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: const Color(0xFF6366F1).withAlpha(40),
+                color: Theme.of(context).colorScheme.primary.withAlpha(40),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(Icons.settings,
-                  color: Color(0xFF6366F1), size: 20),
+              child: Icon(
+                Icons.settings,
+                color: Theme.of(context).colorScheme.primary,
+                size: 20,
+              ),
             ),
             const SizedBox(width: 12),
-            const Text(
+            Text(
               'Backend Settings',
-              style: TextStyle(color: Colors.white, fontSize: 18),
+              style: TextStyle(
+                color: isDark ? Colors.white : Colors.black87,
+                fontSize: 18,
+              ),
             ),
           ],
         ),
@@ -150,7 +485,7 @@ class _ExamplesHomePageState extends State<ExamplesHomePage> {
             Text(
               'Backend URL',
               style: TextStyle(
-                color: Colors.white.withAlpha(153),
+                color: isDark ? Colors.white60 : Colors.black54,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
@@ -158,17 +493,23 @@ class _ExamplesHomePageState extends State<ExamplesHomePage> {
             const SizedBox(height: 8),
             TextField(
               controller: _backendUrlController,
-              style: const TextStyle(color: Colors.white),
+              style: TextStyle(color: isDark ? Colors.white : Colors.black87),
               decoration: InputDecoration(
                 hintText: 'http://localhost:8080',
-                hintStyle: TextStyle(color: Colors.white.withAlpha(77)),
+                hintStyle: TextStyle(
+                  color: isDark ? Colors.white30 : Colors.black26,
+                ),
                 filled: true,
-                fillColor: Colors.white.withAlpha(13),
+                fillColor:
+                    isDark ? Colors.white.withAlpha(13) : Colors.grey.shade100,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
                 ),
-                prefixIcon: const Icon(Icons.link, color: Color(0xFF6366F1)),
+                prefixIcon: Icon(
+                  Icons.link,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
               ),
             ),
             const SizedBox(height: 16),
@@ -190,7 +531,7 @@ class _ExamplesHomePageState extends State<ExamplesHomePage> {
                       Text(
                         'Start backend first:',
                         style: TextStyle(
-                          color: Colors.orange.shade200,
+                          color: Colors.orange.shade700,
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
                         ),
@@ -223,7 +564,9 @@ class _ExamplesHomePageState extends State<ExamplesHomePage> {
             onPressed: () => Navigator.pop(context),
             child: Text(
               'Cancel',
-              style: TextStyle(color: Colors.white.withAlpha(153)),
+              style: TextStyle(
+                color: isDark ? Colors.white60 : Colors.black54,
+              ),
             ),
           ),
           ElevatedButton(
@@ -234,12 +577,12 @@ class _ExamplesHomePageState extends State<ExamplesHomePage> {
                 SnackBar(
                   content: Text(
                       'Backend URL updated to ${_backendUrlController.text}'),
-                  backgroundColor: const Color(0xFF6366F1),
+                  backgroundColor: Theme.of(context).colorScheme.primary,
                 ),
               );
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF6366F1),
+              backgroundColor: Theme.of(context).colorScheme.primary,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
@@ -253,176 +596,195 @@ class _ExamplesHomePageState extends State<ExamplesHomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accentColor = Theme.of(context).colorScheme.primary;
+
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF0F0F1A),
-              Color(0xFF1A1A2E),
-              Color(0xFF0F0F1A),
-            ],
-          ),
+        decoration: BoxDecoration(
+          gradient: isDark
+              ? const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFF0F0F1A),
+                    Color(0xFF1A1A2E),
+                    Color(0xFF0F0F1A),
+                  ],
+                )
+              : LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Colors.grey.shade50,
+                    Colors.white,
+                    Colors.grey.shade100,
+                  ],
+                ),
         ),
-        child: SafeArea(
-          child: CustomScrollView(
-            slivers: [
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(12),
+        child: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                accentColor,
+                                accentColor.withAlpha(180),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.bolt,
+                            color: Colors.white,
+                            size: 28,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Text(
+                          'FluQuery',
+                          style: Theme.of(context).textTheme.headlineLarge,
+                        ),
+                        const Spacer(),
+                        IconButton(
+                          onPressed: _showSettingsDialog,
+                          icon: Container(
+                            padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                              ),
-                              borderRadius: BorderRadius.circular(12),
+                              color: isDark
+                                  ? Colors.white.withAlpha(26)
+                                  : Colors.black.withAlpha(13),
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                            child: const Icon(
-                              Icons.bolt,
-                              color: Colors.white,
-                              size: 28,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Text(
-                            'FluQuery',
-                            style: Theme.of(context).textTheme.headlineLarge,
-                          ),
-                          const Spacer(),
-                          IconButton(
-                            onPressed: _showSettingsDialog,
-                            icon: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withAlpha(26),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Icon(
-                                Icons.settings,
-                                color: Colors.white70,
-                                size: 20,
-                              ),
+                            child: Icon(
+                              Icons.settings,
+                              color: isDark ? Colors.white70 : Colors.black54,
+                              size: 20,
                             ),
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Powerful async state management for Flutter',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.white.withAlpha(153),
                         ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Powerful async state management for Flutter',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: isDark ? Colors.white60 : Colors.black54,
                       ),
-                      const SizedBox(height: 32),
-                      const Text(
-                        'EXAMPLES',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF6366F1),
-                          letterSpacing: 2,
-                        ),
+                    ),
+                    const SizedBox(height: 32),
+                    Text(
+                      'EXAMPLES',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: accentColor,
+                        letterSpacing: 2,
                       ),
-                    ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  _ExampleCard(
+                    icon: Icons.search,
+                    title: 'Basic Query',
+                    description:
+                        'Fetch and cache data with automatic refetching',
+                    color: const Color(0xFF22C55E),
+                    onTap: () => _navigate(context, const BasicQueryExample()),
                   ),
-                ),
+                  _ExampleCard(
+                    icon: Icons.edit,
+                    title: 'Mutations',
+                    description:
+                        'Create, update, and delete with cache invalidation',
+                    color: const Color(0xFFF59E0B),
+                    onTap: () => _navigate(context, const MutationExample()),
+                  ),
+                  _ExampleCard(
+                    icon: Icons.list,
+                    title: 'Infinite Query',
+                    description: 'Paginated/infinite scroll with load more',
+                    color: const Color(0xFF3B82F6),
+                    onTap: () =>
+                        _navigate(context, const InfiniteQueryExample()),
+                  ),
+                  _ExampleCard(
+                    icon: Icons.account_tree,
+                    title: 'Dependent Queries',
+                    description: 'Sequential queries that depend on each other',
+                    color: const Color(0xFFEC4899),
+                    onTap: () =>
+                        _navigate(context, const DependentQueriesExample()),
+                  ),
+                  _ExampleCard(
+                    icon: Icons.refresh,
+                    title: 'Polling',
+                    description: 'Auto-refresh data at regular intervals',
+                    color: const Color(0xFF14B8A6),
+                    onTap: () => _navigate(context, const PollingExample()),
+                  ),
+                  _ExampleCard(
+                    icon: Icons.flash_on,
+                    title: 'Optimistic Updates',
+                    description: 'Instant UI updates with rollback on error',
+                    color: const Color(0xFF8B5CF6),
+                    onTap: () =>
+                        _navigate(context, const OptimisticUpdateExample()),
+                  ),
+                  _ExampleCard(
+                    icon: Icons.sync_problem,
+                    title: 'Race Conditions',
+                    description: 'Automatic handling of concurrent requests',
+                    color: const Color(0xFFEC4899),
+                    onTap: () =>
+                        _navigate(context, const RaceConditionExample()),
+                  ),
+                  _ExampleCard(
+                    icon: Icons.auto_awesome,
+                    title: 'Advanced Features',
+                    description: 'Select, keepPreviousData, and more',
+                    color: const Color(0xFF14B8A6),
+                    onTap: () =>
+                        _navigate(context, const AdvancedFeaturesExample()),
+                  ),
+                  _ExampleCard(
+                    icon: Icons.account_tree,
+                    title: 'Nested Queries',
+                    description:
+                        'Complex list → detail with subtasks & activities',
+                    color: const Color(0xFFA855F7),
+                    onTap: () =>
+                        _navigate(context, const NestedQueriesScreen()),
+                  ),
+                  _ExampleCard(
+                    icon: Icons.storage,
+                    title: 'Global Store',
+                    description:
+                        'Persistent store with background polling across pages',
+                    color: const Color(0xFFEF4444),
+                    onTap: () => _navigate(context, const GlobalStoreExample()),
+                  ),
+                  const SizedBox(height: 24),
+                ]),
               ),
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                sliver: SliverList(
-                  delegate: SliverChildListDelegate([
-                    _ExampleCard(
-                      icon: Icons.search,
-                      title: 'Basic Query',
-                      description:
-                          'Fetch and cache data with automatic refetching',
-                      color: const Color(0xFF22C55E),
-                      onTap: () =>
-                          _navigate(context, const BasicQueryExample()),
-                    ),
-                    _ExampleCard(
-                      icon: Icons.edit,
-                      title: 'Mutations',
-                      description:
-                          'Create, update, and delete with cache invalidation',
-                      color: const Color(0xFFF59E0B),
-                      onTap: () => _navigate(context, const MutationExample()),
-                    ),
-                    _ExampleCard(
-                      icon: Icons.list,
-                      title: 'Infinite Query',
-                      description: 'Paginated/infinite scroll with load more',
-                      color: const Color(0xFF3B82F6),
-                      onTap: () =>
-                          _navigate(context, const InfiniteQueryExample()),
-                    ),
-                    _ExampleCard(
-                      icon: Icons.account_tree,
-                      title: 'Dependent Queries',
-                      description:
-                          'Sequential queries that depend on each other',
-                      color: const Color(0xFFEC4899),
-                      onTap: () =>
-                          _navigate(context, const DependentQueriesExample()),
-                    ),
-                    _ExampleCard(
-                      icon: Icons.refresh,
-                      title: 'Polling',
-                      description: 'Auto-refresh data at regular intervals',
-                      color: const Color(0xFF14B8A6),
-                      onTap: () => _navigate(context, const PollingExample()),
-                    ),
-                    _ExampleCard(
-                      icon: Icons.flash_on,
-                      title: 'Optimistic Updates',
-                      description: 'Instant UI updates with rollback on error',
-                      color: const Color(0xFF8B5CF6),
-                      onTap: () =>
-                          _navigate(context, const OptimisticUpdateExample()),
-                    ),
-                    const SizedBox(height: 12),
-                    _ExampleCard(
-                      icon: Icons.sync_problem,
-                      title: 'Race Conditions',
-                      description: 'Automatic handling of concurrent requests',
-                      color: const Color(0xFFEC4899),
-                      onTap: () =>
-                          _navigate(context, const RaceConditionExample()),
-                    ),
-                    const SizedBox(height: 12),
-                    _ExampleCard(
-                      icon: Icons.auto_awesome,
-                      title: 'Advanced Features',
-                      description: 'Select, keepPreviousData, and more',
-                      color: const Color(0xFF14B8A6),
-                      onTap: () =>
-                          _navigate(context, const AdvancedFeaturesExample()),
-                    ),
-                    const SizedBox(height: 12),
-                    _ExampleCard(
-                      icon: Icons.account_tree,
-                      title: 'Nested Queries',
-                      description:
-                          'Complex list → detail with subtasks & activities',
-                      color: const Color(0xFFA855F7),
-                      onTap: () =>
-                          _navigate(context, const NestedQueriesScreen()),
-                    ),
-                    const SizedBox(height: 24),
-                  ]),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -453,6 +815,12 @@ class _ExampleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accentColor = Theme.of(context).colorScheme.primary;
+
+    // Blend accent with item's own color for a themed look
+    final blendedColor = Color.lerp(color, accentColor, 0.3)!;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Material(
@@ -463,19 +831,42 @@ class _ExampleCard extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: const Color(0xFF1A1A2E),
+              // Card background gets a subtle tint from global accent
+              color: isDark
+                  ? Color.lerp(const Color(0xFF1A1A2E), accentColor, 0.05)
+                  : Color.lerp(Colors.white, accentColor, 0.03),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0x1AFFFFFF)),
+              border: Border.all(
+                color: isDark
+                    ? accentColor.withAlpha(40)
+                    : accentColor.withAlpha(25),
+              ),
+              boxShadow: isDark
+                  ? [
+                      BoxShadow(
+                        color: accentColor.withAlpha(15),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ]
+                  : [
+                      BoxShadow(
+                        color: accentColor.withAlpha(20),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
             ),
             child: Row(
               children: [
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: color.withAlpha(38),
+                    color: blendedColor.withAlpha(38),
                     borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: blendedColor.withAlpha(60)),
                   ),
-                  child: Icon(icon, color: color, size: 24),
+                  child: Icon(icon, color: blendedColor, size: 24),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -484,10 +875,10 @@ class _ExampleCard extends StatelessWidget {
                     children: [
                       Text(
                         title,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                          color: isDark ? Colors.white : Colors.black87,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -495,7 +886,7 @@ class _ExampleCard extends StatelessWidget {
                         description,
                         style: TextStyle(
                           fontSize: 13,
-                          color: Colors.white.withAlpha(128),
+                          color: isDark ? Colors.white54 : Colors.black45,
                         ),
                       ),
                     ],
@@ -504,7 +895,7 @@ class _ExampleCard extends StatelessWidget {
                 Icon(
                   Icons.arrow_forward_ios,
                   size: 16,
-                  color: Colors.white.withAlpha(77),
+                  color: accentColor.withAlpha(isDark ? 100 : 80),
                 ),
               ],
             ),

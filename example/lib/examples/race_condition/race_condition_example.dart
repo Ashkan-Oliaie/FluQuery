@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:fluquery/fluquery.dart';
-import '../api/api_client.dart';
+import '../../api/api_client.dart';
 
 /// Race Condition Examples - demonstrates different scenarios
 class RaceConditionExample extends HookWidget {
@@ -10,12 +10,15 @@ class RaceConditionExample extends HookWidget {
   @override
   Widget build(BuildContext context) {
     final tabController = useTabController(initialLength: 3);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accentColor = Theme.of(context).colorScheme.primary;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Race Condition Handling'),
         bottom: TabBar(
           controller: tabController,
+          indicatorColor: accentColor,
           tabs: const [
             Tab(icon: Icon(Icons.search), text: 'Search'),
             Tab(icon: Icon(Icons.filter_list), text: 'Filters'),
@@ -24,12 +27,18 @@ class RaceConditionExample extends HookWidget {
         ),
       ),
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF0F0F1A), Color(0xFF1A1A2E)],
-          ),
+        decoration: BoxDecoration(
+          gradient: isDark
+              ? const LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xFF0F0F1A), Color(0xFF1A1A2E)],
+                )
+              : LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Colors.grey.shade50, Colors.white],
+                ),
         ),
         child: TabBarView(
           controller: tabController,
@@ -44,7 +53,6 @@ class RaceConditionExample extends HookWidget {
   }
 }
 
-/// Tab 1: Search-as-you-type race condition demo
 class _SearchRaceConditionDemo extends HookWidget {
   const _SearchRaceConditionDemo();
 
@@ -54,6 +62,8 @@ class _SearchRaceConditionDemo extends HookWidget {
     final searchTerm = useState('');
     final client = useQueryClient();
     final requestHistory = useState<List<_RequestLog>>([]);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accentColor = Theme.of(context).colorScheme.primary;
 
     final searchQuery = useQuery<List<User>, Object>(
       queryKey: ['users', 'search', searchTerm.value],
@@ -68,10 +78,8 @@ class _SearchRaceConditionDemo extends HookWidget {
         ];
 
         try {
-          // Shorter queries are slower (race condition demo)
           final delay = Duration(
               milliseconds: 500 + (10 - query.length.clamp(0, 10)) * 100);
-
           if (ctx.signal?.isCancelled == true) throw QueryCancelledException();
           await Future.delayed(delay);
           if (ctx.signal?.isCancelled == true) throw QueryCancelledException();
@@ -105,74 +113,73 @@ class _SearchRaceConditionDemo extends HookWidget {
                 'Watch how FluQuery automatically discards stale results!',
           ),
           const SizedBox(height: 16),
-
-          // Search input
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
-              color: const Color(0xFF1A1A2E),
+              color: isDark
+                  ? Color.lerp(const Color(0xFF1A1A2E), accentColor, 0.05)
+                  : Color.lerp(Colors.white, accentColor, 0.03),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0x1AFFFFFF)),
+              border:
+                  Border.all(color: accentColor.withAlpha(isDark ? 40 : 25)),
             ),
             child: Row(
               children: [
-                const Icon(Icons.search, color: Colors.white54),
+                Icon(Icons.search,
+                    color: isDark ? Colors.white54 : Colors.black45),
                 const SizedBox(width: 12),
                 Expanded(
                   child: TextField(
                     controller: searchController,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(
+                    style: TextStyle(
+                        color: isDark ? Colors.white : Colors.black87),
+                    decoration: InputDecoration(
                       hintText: 'Type to search users...',
-                      hintStyle: TextStyle(color: Colors.white38),
+                      hintStyle: TextStyle(
+                          color: isDark ? Colors.white38 : Colors.black26),
                       border: InputBorder.none,
                     ),
                     onChanged: (value) {
                       if (searchTerm.value.isNotEmpty) {
                         client.cancelQueries(
-                          queryKey: ['users', 'search', searchTerm.value],
-                        );
+                            queryKey: ['users', 'search', searchTerm.value]);
                       }
                       searchTerm.value = value;
                     },
                   ),
                 ),
                 if (searchQuery.isFetching)
-                  const SizedBox(
+                  SizedBox(
                     width: 20,
                     height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: accentColor),
                   ),
               ],
             ),
           ),
           const SizedBox(height: 16),
-
-          // Request history
           _RequestHistoryCard(history: requestHistory.value),
           const SizedBox(height: 16),
-
-          // Results
-          _buildResults(searchQuery, searchTerm.value),
+          _buildResults(context, searchQuery, searchTerm.value),
         ],
       ),
     );
   }
 
-  Widget _buildResults(
+  Widget _buildResults(BuildContext context,
       QueryResult<List<User>, Object> query, String searchTerm) {
+    final accentColor = Theme.of(context).colorScheme.primary;
+
     if (searchTerm.isEmpty) {
-      return const _EmptyState(
-        icon: Icons.search,
-        text: 'Start typing to search',
-      );
+      return _EmptyState(icon: Icons.search, text: 'Start typing to search');
     }
 
     if (query.isLoading) {
-      return const Center(
+      return Center(
         child: Padding(
-          padding: EdgeInsets.all(32),
-          child: CircularProgressIndicator(),
+          padding: const EdgeInsets.all(32),
+          child: CircularProgressIndicator(color: accentColor),
         ),
       );
     }
@@ -186,25 +193,21 @@ class _SearchRaceConditionDemo extends HookWidget {
         );
       }
       return _EmptyState(
-        icon: Icons.error_outline,
-        text: 'Error: ${query.error}',
-        color: Colors.red,
-      );
+          icon: Icons.error_outline,
+          text: 'Error: ${query.error}',
+          color: Colors.red);
     }
 
     final users = query.data ?? [];
     if (users.isEmpty) {
       return _EmptyState(
-        icon: Icons.person_off,
-        text: 'No users found for "$searchTerm"',
-      );
+          icon: Icons.person_off, text: 'No users found for "$searchTerm"');
     }
 
     return _UserList(users: users);
   }
 }
 
-/// Tab 2: Filter change race condition demo
 class _FilterRaceConditionDemo extends HookWidget {
   const _FilterRaceConditionDemo();
 
@@ -212,15 +215,15 @@ class _FilterRaceConditionDemo extends HookWidget {
   Widget build(BuildContext context) {
     final selectedFilter = useState<String>('all');
     final client = useQueryClient();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accentColor = Theme.of(context).colorScheme.primary;
 
     final todosQuery = useQuery<List<Todo>, Object>(
       queryKey: ['todos', 'filtered', selectedFilter.value],
       queryFn: (ctx) async {
-        // Simulate variable response times based on filter
         final delays = {'all': 800, 'completed': 400, 'pending': 1200};
         await Future.delayed(
             Duration(milliseconds: delays[selectedFilter.value] ?? 500));
-
         if (ctx.signal?.isCancelled == true) throw QueryCancelledException();
 
         final todos = await ApiClient.getTodos();
@@ -247,19 +250,22 @@ class _FilterRaceConditionDemo extends HookWidget {
                 'With keepPreviousData, the UI stays responsive!',
           ),
           const SizedBox(height: 16),
-
-          // Filter buttons
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFF1A1A2E),
+              color: isDark
+                  ? Color.lerp(const Color(0xFF1A1A2E), accentColor, 0.05)
+                  : Color.lerp(Colors.white, accentColor, 0.03),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0x1AFFFFFF)),
+              border:
+                  Border.all(color: accentColor.withAlpha(isDark ? 40 : 25)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Filter:', style: TextStyle(color: Colors.white70)),
+                Text('Filter:',
+                    style: TextStyle(
+                        color: isDark ? Colors.white70 : Colors.black54)),
                 const SizedBox(height: 8),
                 Row(
                   children: [
@@ -292,33 +298,30 @@ class _FilterRaceConditionDemo extends HookWidget {
                   ],
                 ),
                 if (todosQuery.isPreviousData)
-                  const Padding(
-                    padding: EdgeInsets.only(top: 8),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
                     child: Text(
                       '📍 Showing previous data while loading...',
-                      style: TextStyle(color: Colors.orange, fontSize: 11),
+                      style: TextStyle(color: accentColor, fontSize: 11),
                     ),
                   ),
               ],
             ),
           ),
           const SizedBox(height: 16),
-
-          // Results
           if (todosQuery.isLoading && !todosQuery.isPreviousData)
-            const Center(
+            Center(
               child: Padding(
-                padding: EdgeInsets.all(32),
-                child: CircularProgressIndicator(),
+                padding: const EdgeInsets.all(32),
+                child: CircularProgressIndicator(color: accentColor),
               ),
             )
           else
             Opacity(
               opacity: todosQuery.isPreviousData ? 0.6 : 1.0,
               child: _TodoList(
-                todos: todosQuery.data ?? [],
-                isFetching: todosQuery.isFetching,
-              ),
+                  todos: todosQuery.data ?? [],
+                  isFetching: todosQuery.isFetching),
             ),
         ],
       ),
@@ -326,7 +329,6 @@ class _FilterRaceConditionDemo extends HookWidget {
   }
 }
 
-/// Tab 3: Manual cancellation demo
 class _ManualCancellationDemo extends HookWidget {
   const _ManualCancellationDemo();
 
@@ -334,14 +336,14 @@ class _ManualCancellationDemo extends HookWidget {
   Widget build(BuildContext context) {
     final client = useQueryClient();
     final requestKey = useState(0);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accentColor = Theme.of(context).colorScheme.primary;
 
     final slowQuery = useQuery<String, Object>(
       queryKey: ['slow-query', requestKey.value],
       queryFn: (ctx) async {
         for (int i = 0; i < 10; i++) {
-          if (ctx.signal?.isCancelled == true) {
-            throw QueryCancelledException();
-          }
+          if (ctx.signal?.isCancelled == true) throw QueryCancelledException();
           await Future.delayed(const Duration(seconds: 1));
         }
         return 'Completed after 10 seconds!';
@@ -363,8 +365,6 @@ class _ManualCancellationDemo extends HookWidget {
                 'Use CancellationToken to check if the query should stop.',
           ),
           const SizedBox(height: 24),
-
-          // Control buttons
           Center(
             child: Column(
               children: [
@@ -374,7 +374,7 @@ class _ManualCancellationDemo extends HookWidget {
                   icon: const Icon(Icons.play_arrow),
                   label: const Text('Start 10s Query'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
+                    backgroundColor: accentColor,
                     padding: const EdgeInsets.symmetric(
                         horizontal: 32, vertical: 16),
                   ),
@@ -383,8 +383,7 @@ class _ManualCancellationDemo extends HookWidget {
                 ElevatedButton.icon(
                   onPressed: slowQuery.isFetching
                       ? () => client.cancelQueries(
-                            queryKey: ['slow-query', requestKey.value],
-                          )
+                          queryKey: ['slow-query', requestKey.value])
                       : null,
                   icon: const Icon(Icons.cancel),
                   label: const Text('Cancel Query'),
@@ -398,14 +397,15 @@ class _ManualCancellationDemo extends HookWidget {
             ),
           ),
           const SizedBox(height: 32),
-
-          // Status
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFF1A1A2E),
+              color: isDark
+                  ? Color.lerp(const Color(0xFF1A1A2E), accentColor, 0.05)
+                  : Color.lerp(Colors.white, accentColor, 0.03),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0x1AFFFFFF)),
+              border:
+                  Border.all(color: accentColor.withAlpha(isDark ? 40 : 25)),
             ),
             child: Column(
               children: [
@@ -421,12 +421,12 @@ class _ManualCancellationDemo extends HookWidget {
                                   ? Icons.error
                                   : Icons.radio_button_unchecked,
                       color: slowQuery.isFetching
-                          ? Colors.blue
+                          ? accentColor
                           : slowQuery.isSuccess
                               ? Colors.green
                               : slowQuery.isError
                                   ? Colors.red
-                                  : Colors.white38,
+                                  : (isDark ? Colors.white38 : Colors.black26),
                       size: 48,
                     ),
                   ],
@@ -444,19 +444,19 @@ class _ManualCancellationDemo extends HookWidget {
                               : 'Click Start to begin',
                   style: TextStyle(
                     color: slowQuery.isFetching
-                        ? Colors.blue
+                        ? accentColor
                         : slowQuery.isSuccess
                             ? Colors.green
                             : slowQuery.isError
                                 ? Colors.orange
-                                : Colors.white54,
+                                : (isDark ? Colors.white54 : Colors.black45),
                     fontSize: 16,
                   ),
                   textAlign: TextAlign.center,
                 ),
                 if (slowQuery.isFetching) ...[
                   const SizedBox(height: 16),
-                  const LinearProgressIndicator(),
+                  LinearProgressIndicator(color: accentColor),
                 ],
               ],
             ),
@@ -491,20 +491,18 @@ class _RequestLog {
   final DateTime? endTime;
   final _Status status;
 
-  _RequestLog({
-    required this.query,
-    required this.startTime,
-    this.endTime,
-    required this.status,
-  });
+  _RequestLog(
+      {required this.query,
+      required this.startTime,
+      this.endTime,
+      required this.status});
 
   _RequestLog copyWith({DateTime? endTime, _Status? status}) {
     return _RequestLog(
-      query: query,
-      startTime: startTime,
-      endTime: endTime ?? this.endTime,
-      status: status ?? this.status,
-    );
+        query: query,
+        startTime: startTime,
+        endTime: endTime ?? this.endTime,
+        status: status ?? this.status);
   }
 
   Duration? get duration => endTime?.difference(startTime);
@@ -517,20 +515,25 @@ class _RequestHistoryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accentColor = Theme.of(context).colorScheme.primary;
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1A2E),
+        color: isDark
+            ? Color.lerp(const Color(0xFF1A1A2E), accentColor, 0.04)
+            : Color.lerp(Colors.white, accentColor, 0.02),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0x1AFFFFFF)),
+        border: Border.all(color: accentColor.withAlpha(isDark ? 35 : 20)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Request History',
             style: TextStyle(
-                color: Colors.white70,
+                color: isDark ? Colors.white70 : Colors.black54,
                 fontWeight: FontWeight.bold,
                 fontSize: 12),
           ),
@@ -538,17 +541,17 @@ class _RequestHistoryCard extends StatelessWidget {
           SizedBox(
             height: 80,
             child: history.isEmpty
-                ? const Center(
+                ? Center(
                     child: Text('Type to see requests...',
-                        style: TextStyle(color: Colors.white38)),
-                  )
+                        style: TextStyle(
+                            color: isDark ? Colors.white38 : Colors.black26)))
                 : ListView.builder(
                     reverse: true,
                     itemCount: history.length,
                     itemBuilder: (context, index) {
                       final log = history[history.length - 1 - index];
                       final color = switch (log.status) {
-                        _Status.pending => Colors.blue,
+                        _Status.pending => accentColor,
                         _Status.success => Colors.green,
                         _Status.cancelled => Colors.orange,
                         _Status.error => Colors.red,
@@ -569,12 +572,12 @@ class _RequestHistoryCard extends StatelessWidget {
                                 style: TextStyle(color: color, fontSize: 12)),
                             const Spacer(),
                             if (log.duration != null)
-                              Text(
-                                '${log.duration!.inMilliseconds}ms',
-                                style: TextStyle(
-                                    color: Colors.white.withAlpha(128),
-                                    fontSize: 10),
-                              ),
+                              Text('${log.duration!.inMilliseconds}ms',
+                                  style: TextStyle(
+                                      color: isDark
+                                          ? Colors.white54
+                                          : Colors.black38,
+                                      fontSize: 10)),
                           ],
                         ),
                       );
@@ -597,28 +600,34 @@ class _InfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accentColor = Theme.of(context).colorScheme.primary;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E3A5F),
+        color: accentColor.withAlpha(isDark ? 25 : 15),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue.withAlpha(77)),
+        border: Border.all(color: accentColor.withAlpha(77)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, color: Colors.blue, size: 20),
+              Icon(icon, color: accentColor, size: 20),
               const SizedBox(width: 8),
               Text(title,
-                  style: const TextStyle(
-                      color: Colors.white, fontWeight: FontWeight.bold)),
+                  style: TextStyle(
+                      color: isDark ? Colors.white : Colors.black87,
+                      fontWeight: FontWeight.bold)),
             ],
           ),
           const SizedBox(height: 8),
           Text(description,
-              style: const TextStyle(color: Colors.white70, fontSize: 12)),
+              style: TextStyle(
+                  color: isDark ? Colors.white70 : Colors.black54,
+                  fontSize: 12)),
         ],
       ),
     );
@@ -631,7 +640,7 @@ class _EmptyState extends StatelessWidget {
   final Color color;
 
   const _EmptyState(
-      {required this.icon, required this.text, this.color = Colors.white54});
+      {required this.icon, required this.text, this.color = Colors.grey});
 
   @override
   Widget build(BuildContext context) {
@@ -658,21 +667,26 @@ class _UserList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accentColor = Theme.of(context).colorScheme.primary;
+
     return Column(
       children: users.map((user) {
         return Container(
           margin: const EdgeInsets.only(bottom: 8),
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: const Color(0xFF1A1A2E),
+            color: isDark
+                ? Color.lerp(const Color(0xFF1A1A2E), accentColor, 0.04)
+                : Color.lerp(Colors.white, accentColor, 0.02),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0x1AFFFFFF)),
+            border: Border.all(color: accentColor.withAlpha(isDark ? 30 : 18)),
           ),
           child: Row(
             children: [
               CircleAvatar(
-                backgroundColor:
-                    Colors.primaries[user.id % Colors.primaries.length],
+                backgroundColor: Color.lerp(accentColor,
+                    Colors.primaries[user.id % Colors.primaries.length], 0.5),
                 radius: 20,
                 child: Text(user.name[0],
                     style: const TextStyle(color: Colors.white)),
@@ -683,10 +697,12 @@ class _UserList extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(user.name,
-                        style: const TextStyle(color: Colors.white)),
+                        style: TextStyle(
+                            color: isDark ? Colors.white : Colors.black87)),
                     Text(user.email,
                         style: TextStyle(
-                            color: Colors.white.withAlpha(128), fontSize: 12)),
+                            color: isDark ? Colors.white54 : Colors.black45,
+                            fontSize: 12)),
                   ],
                 ),
               ),
@@ -706,6 +722,9 @@ class _TodoList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accentColor = Theme.of(context).colorScheme.primary;
+
     if (todos.isEmpty) {
       return const _EmptyState(icon: Icons.inbox, text: 'No todos');
     }
@@ -716,13 +735,16 @@ class _TodoList extends StatelessWidget {
         Row(
           children: [
             Text('${todos.length} items',
-                style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                style: TextStyle(
+                    color: isDark ? Colors.white54 : Colors.black45,
+                    fontSize: 12)),
             if (isFetching) ...[
               const SizedBox(width: 8),
-              const SizedBox(
+              SizedBox(
                   width: 12,
                   height: 12,
-                  child: CircularProgressIndicator(strokeWidth: 2)),
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: accentColor)),
             ],
           ],
         ),
@@ -732,9 +754,12 @@ class _TodoList extends StatelessWidget {
             margin: const EdgeInsets.only(bottom: 4),
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: const Color(0xFF1A1A2E),
+              color: isDark
+                  ? Color.lerp(const Color(0xFF1A1A2E), accentColor, 0.04)
+                  : Color.lerp(Colors.white, accentColor, 0.02),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0x1AFFFFFF)),
+              border:
+                  Border.all(color: accentColor.withAlpha(isDark ? 25 : 15)),
             ),
             child: Row(
               children: [
@@ -742,7 +767,9 @@ class _TodoList extends StatelessWidget {
                   todo.completed
                       ? Icons.check_circle
                       : Icons.radio_button_unchecked,
-                  color: todo.completed ? Colors.green : Colors.white38,
+                  color: todo.completed
+                      ? accentColor
+                      : (isDark ? Colors.white38 : Colors.black26),
                   size: 16,
                 ),
                 const SizedBox(width: 8),
@@ -750,7 +777,9 @@ class _TodoList extends StatelessWidget {
                   child: Text(
                     todo.title,
                     style: TextStyle(
-                      color: todo.completed ? Colors.white54 : Colors.white,
+                      color: todo.completed
+                          ? (isDark ? Colors.white54 : Colors.black38)
+                          : (isDark ? Colors.white : Colors.black87),
                       fontSize: 12,
                       decoration:
                           todo.completed ? TextDecoration.lineThrough : null,
@@ -766,10 +795,10 @@ class _TodoList extends StatelessWidget {
         if (todos.length > 5)
           Padding(
             padding: const EdgeInsets.only(top: 8),
-            child: Text(
-              '+ ${todos.length - 5} more...',
-              style: const TextStyle(color: Colors.white38, fontSize: 11),
-            ),
+            child: Text('+ ${todos.length - 5} more...',
+                style: TextStyle(
+                    color: isDark ? Colors.white38 : Colors.black26,
+                    fontSize: 11)),
           ),
       ],
     );
@@ -786,18 +815,27 @@ class _FilterChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accentColor = Theme.of(context).colorScheme.primary;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.blue : Colors.white.withAlpha(26),
+          color: isSelected
+              ? accentColor
+              : (isDark
+                  ? Colors.white.withAlpha(26)
+                  : Colors.black.withAlpha(13)),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: isSelected ? Colors.white : Colors.white70,
+            color: isSelected
+                ? Colors.white
+                : (isDark ? Colors.white70 : Colors.black54),
             fontSize: 11,
           ),
         ),

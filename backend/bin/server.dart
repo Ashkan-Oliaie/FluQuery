@@ -19,6 +19,66 @@ void main() async {
         {'status': 'ok', 'timestamp': DateTime.now().toIso8601String()}));
   });
 
+  // ============ APP CONFIG (Global Store Demo) ============
+  router.get('/api/config', (Request request) async {
+    await _simulateDelay(minMs: 100, maxMs: 300);
+    return Response.ok(
+      jsonEncode(_db.appConfig),
+      headers: {'Content-Type': 'application/json'},
+    );
+  });
+
+  router.put('/api/config', (Request request) async {
+    await _simulateDelay(minMs: 100, maxMs: 200);
+    final body = await request.readAsString();
+    final data = jsonDecode(body) as Map<String, dynamic>;
+
+    // Update config fields
+    if (data.containsKey('theme')) _db.appConfig['theme'] = data['theme'];
+    if (data.containsKey('accentColor')) {
+      _db.appConfig['accentColor'] = data['accentColor'];
+    }
+    if (data.containsKey('fontSize')) {
+      _db.appConfig['fontSize'] = data['fontSize'];
+    }
+    if (data.containsKey('compactMode')) {
+      _db.appConfig['compactMode'] = data['compactMode'];
+    }
+    if (data.containsKey('animationsEnabled')) {
+      _db.appConfig['animationsEnabled'] = data['animationsEnabled'];
+    }
+    _db.appConfig['updatedAt'] = DateTime.now().toIso8601String();
+    _db.appConfig['version'] = (_db.appConfig['version'] as int) + 1;
+
+    return Response.ok(
+      jsonEncode(_db.appConfig),
+      headers: {'Content-Type': 'application/json'},
+    );
+  });
+
+  // Simulate config changes (for demo - call this to trigger a config update)
+  router.post('/api/config/randomize', (Request request) async {
+    await _simulateDelay(minMs: 50, maxMs: 100);
+    final themes = ['dark', 'light', 'system'];
+    final colors = ['indigo', 'purple', 'teal', 'orange', 'pink', 'blue'];
+    final fontSizes = ['small', 'medium', 'large'];
+
+    _db.appConfig = {
+      'theme': themes[Random().nextInt(themes.length)],
+      'accentColor': colors[Random().nextInt(colors.length)],
+      'fontSize': fontSizes[Random().nextInt(fontSizes.length)],
+      'compactMode': Random().nextBool(),
+      'animationsEnabled': Random().nextBool(),
+      'version': (_db.appConfig['version'] as int) + 1,
+      'updatedAt': DateTime.now().toIso8601String(),
+    };
+
+    return Response.ok(
+      jsonEncode(_db.appConfig),
+      headers: {'Content-Type': 'application/json'},
+    );
+  });
+
   // ============ TODOS ============
   router.get('/api/todos', (Request request) async {
     await _simulateDelay();
@@ -434,6 +494,10 @@ void main() async {
   print('   GET  /api/users/:id');
   print('   GET  /api/users/:id/posts');
   print('   GET  /api/users/search?q=query');
+  print('   --- Config (Global Store Demo) ---');
+  print('   GET  /api/config');
+  print('   PUT  /api/config');
+  print('   POST /api/config/randomize');
   print('   --- Other ---');
   print('   GET  /api/time');
 }
@@ -450,6 +514,17 @@ class InMemoryDatabase {
   int nextActivityId = 101;
 
   final Map<int, String> todoPriorities = {};
+
+  // App config for global store demo
+  Map<String, dynamic> appConfig = {
+    'theme': 'dark',
+    'accentColor': 'indigo',
+    'fontSize': 'medium',
+    'compactMode': false,
+    'animationsEnabled': true,
+    'version': 1,
+    'updatedAt': DateTime.now().toIso8601String(),
+  };
 
   final List<Map<String, dynamic>> todos = List.generate(
       20,

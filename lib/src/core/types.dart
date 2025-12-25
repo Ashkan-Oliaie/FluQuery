@@ -89,6 +89,18 @@ enum NetworkMode {
   always,
 }
 
+/// Refetch behavior when invalidating queries
+enum RefetchType {
+  /// Refetch only queries that have active observers
+  active,
+
+  /// Refetch all matching queries
+  all,
+
+  /// Don't refetch, just mark as stale
+  none,
+}
+
 /// Retry delay function type
 typedef RetryDelayFn = Duration Function(int attemptIndex, Object error);
 

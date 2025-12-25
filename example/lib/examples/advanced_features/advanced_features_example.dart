@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:fluquery/fluquery.dart';
-import '../api/api_client.dart';
+import '../../api/api_client.dart';
 
 /// Advanced Features Example - demonstrates select, keepPreviousData
 class AdvancedFeaturesExample extends HookWidget {
@@ -10,12 +10,15 @@ class AdvancedFeaturesExample extends HookWidget {
   @override
   Widget build(BuildContext context) {
     final tabController = useTabController(initialLength: 3);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accentColor = Theme.of(context).colorScheme.primary;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Advanced Features'),
         bottom: TabBar(
           controller: tabController,
+          indicatorColor: accentColor,
           tabs: const [
             Tab(icon: Icon(Icons.filter_list), text: 'Select'),
             Tab(icon: Icon(Icons.history), text: 'Keep Previous'),
@@ -24,12 +27,18 @@ class AdvancedFeaturesExample extends HookWidget {
         ),
       ),
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF0F0F1A), Color(0xFF1A1A2E)],
-          ),
+        decoration: BoxDecoration(
+          gradient: isDark
+              ? const LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xFF0F0F1A), Color(0xFF1A1A2E)],
+                )
+              : LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Colors.grey.shade50, Colors.white],
+                ),
         ),
         child: TabBarView(
           controller: tabController,
@@ -44,20 +53,20 @@ class AdvancedFeaturesExample extends HookWidget {
   }
 }
 
-/// Tab 1: Select Example - Transform data before returning
 class _SelectExample extends HookWidget {
   const _SelectExample();
 
   @override
   Widget build(BuildContext context) {
     final viewType = useState<String>('names');
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accentColor = Theme.of(context).colorScheme.primary;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Explanation
           _InfoCard(
             icon: Icons.filter_list,
             title: 'Select Function',
@@ -66,18 +75,21 @@ class _SelectExample extends HookWidget {
                 'The raw data is still cached, but your component only receives the transformed result.',
           ),
           const SizedBox(height: 16),
-
-          // View selector
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFF1A1A2E),
+              color: isDark
+                  ? Color.lerp(const Color(0xFF1A1A2E), accentColor, 0.05)
+                  : Color.lerp(Colors.white, accentColor, 0.03),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0x1AFFFFFF)),
+              border:
+                  Border.all(color: accentColor.withAlpha(isDark ? 40 : 25)),
             ),
             child: Row(
               children: [
-                const Text('Select:', style: TextStyle(color: Colors.white70)),
+                Text('Select:',
+                    style: TextStyle(
+                        color: isDark ? Colors.white70 : Colors.black54)),
                 const SizedBox(width: 16),
                 Expanded(
                   child: SegmentedButton<String>(
@@ -90,7 +102,8 @@ class _SelectExample extends HookWidget {
                     selected: {viewType.value},
                     onSelectionChanged: (s) => viewType.value = s.first,
                     style: ButtonStyle(
-                      foregroundColor: WidgetStateProperty.all(Colors.white),
+                      foregroundColor: WidgetStateProperty.all(
+                          isDark ? Colors.white : Colors.black87),
                     ),
                   ),
                 ),
@@ -98,8 +111,6 @@ class _SelectExample extends HookWidget {
             ),
           ),
           const SizedBox(height: 16),
-
-          // Dynamic result based on selection
           if (viewType.value == 'names') const _SelectNamesDemo(),
           if (viewType.value == 'emails') const _SelectEmailsDemo(),
           if (viewType.value == 'count') const _SelectCountDemo(),
@@ -114,6 +125,9 @@ class _SelectNamesDemo extends HookWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accentColor = Theme.of(context).colorScheme.primary;
+
     final query = useQuerySelect<List<User>, Object, List<String>>(
       queryKey: ['users'],
       queryFn: (_) => ApiClient.getUsers(),
@@ -133,11 +147,13 @@ class _SelectNamesDemo extends HookWidget {
                         padding: const EdgeInsets.symmetric(vertical: 4),
                         child: Row(
                           children: [
-                            const Icon(Icons.person,
-                                color: Colors.blue, size: 16),
+                            Icon(Icons.person, color: accentColor, size: 16),
                             const SizedBox(width: 8),
                             Text(name,
-                                style: const TextStyle(color: Colors.white)),
+                                style: TextStyle(
+                                    color: isDark
+                                        ? Colors.white
+                                        : Colors.black87)),
                           ],
                         ),
                       ))
@@ -153,6 +169,9 @@ class _SelectEmailsDemo extends HookWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accentColor = Theme.of(context).colorScheme.primary;
+
     final query = useQuerySelect<List<User>, Object, List<String>>(
       queryKey: ['users'],
       queryFn: (_) => ApiClient.getUsers(),
@@ -172,11 +191,16 @@ class _SelectEmailsDemo extends HookWidget {
                         padding: const EdgeInsets.symmetric(vertical: 4),
                         child: Row(
                           children: [
-                            const Icon(Icons.email,
-                                color: Colors.green, size: 16),
+                            Icon(Icons.email,
+                                color:
+                                    Color.lerp(accentColor, Colors.green, 0.5),
+                                size: 16),
                             const SizedBox(width: 8),
                             Text(email,
-                                style: const TextStyle(color: Colors.white)),
+                                style: TextStyle(
+                                    color: isDark
+                                        ? Colors.white
+                                        : Colors.black87)),
                           ],
                         ),
                       ))
@@ -192,6 +216,9 @@ class _SelectCountDemo extends HookWidget {
 
   @override
   Widget build(BuildContext context) {
+    final accentColor = Theme.of(context).colorScheme.primary;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     final query = useQuerySelect<List<User>, Object, int>(
       queryKey: ['users'],
       queryFn: (_) => ApiClient.getUsers(),
@@ -209,14 +236,14 @@ class _SelectCountDemo extends HookWidget {
                 children: [
                   Text(
                     '${query.data}',
-                    style: const TextStyle(
-                      fontSize: 64,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.orange,
-                    ),
+                    style: TextStyle(
+                        fontSize: 64,
+                        fontWeight: FontWeight.bold,
+                        color: accentColor),
                   ),
-                  const Text('total users',
-                      style: TextStyle(color: Colors.white54)),
+                  Text('total users',
+                      style: TextStyle(
+                          color: isDark ? Colors.white54 : Colors.black45)),
                 ],
               ),
             )
@@ -225,20 +252,20 @@ class _SelectCountDemo extends HookWidget {
   }
 }
 
-/// Tab 2: Keep Previous Data Example
 class _KeepPreviousDataExample extends HookWidget {
   const _KeepPreviousDataExample();
 
   @override
   Widget build(BuildContext context) {
     final selectedUserId = useState<int>(1);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accentColor = Theme.of(context).colorScheme.primary;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Explanation
           _InfoCard(
             icon: Icons.history,
             title: 'Keep Previous Data',
@@ -247,20 +274,22 @@ class _KeepPreviousDataExample extends HookWidget {
                 'Perfect for paginated UIs where you don\'t want a loading spinner between pages.',
           ),
           const SizedBox(height: 16),
-
-          // User selector
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFF1A1A2E),
+              color: isDark
+                  ? Color.lerp(const Color(0xFF1A1A2E), accentColor, 0.05)
+                  : Color.lerp(Colors.white, accentColor, 0.03),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0x1AFFFFFF)),
+              border:
+                  Border.all(color: accentColor.withAlpha(isDark ? 40 : 25)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Select User:',
-                    style: TextStyle(color: Colors.white70)),
+                Text('Select User:',
+                    style: TextStyle(
+                        color: isDark ? Colors.white70 : Colors.black54)),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
@@ -272,9 +301,11 @@ class _KeepPreviousDataExample extends HookWidget {
                       label: Text('User $userId'),
                       selected: isSelected,
                       onSelected: (_) => selectedUserId.value = userId,
-                      selectedColor: Colors.blue,
+                      selectedColor: accentColor,
                       labelStyle: TextStyle(
-                        color: isSelected ? Colors.white : Colors.white70,
+                        color: isSelected
+                            ? Colors.white
+                            : (isDark ? Colors.white70 : Colors.black54),
                       ),
                     );
                   }),
@@ -283,18 +314,15 @@ class _KeepPreviousDataExample extends HookWidget {
             ),
           ),
           const SizedBox(height: 16),
-
-          // Side by side comparison
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: _WithoutKeepPreviousData(userId: selectedUserId.value),
-              ),
+                  child:
+                      _WithoutKeepPreviousData(userId: selectedUserId.value)),
               const SizedBox(width: 12),
               Expanded(
-                child: _WithKeepPreviousData(userId: selectedUserId.value),
-              ),
+                  child: _WithKeepPreviousData(userId: selectedUserId.value)),
             ],
           ),
         ],
@@ -309,10 +337,12 @@ class _WithoutKeepPreviousData extends HookWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     final query = useQuery<List<Post>, Object>(
       queryKey: ['user-posts-no-keep', userId],
       queryFn: (_) => ApiClient.getUserPosts(userId),
-      keepPreviousData: false, // Default
+      keepPreviousData: false,
     );
 
     return _ResultCard(
@@ -331,8 +361,9 @@ class _WithoutKeepPreviousData extends HookWidget {
                         padding: const EdgeInsets.symmetric(vertical: 2),
                         child: Text(
                           '• ${post.title}',
-                          style: const TextStyle(
-                              color: Colors.white70, fontSize: 11),
+                          style: TextStyle(
+                              color: isDark ? Colors.white70 : Colors.black54,
+                              fontSize: 11),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -350,10 +381,12 @@ class _WithKeepPreviousData extends HookWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     final query = useQuery<List<Post>, Object>(
       queryKey: ['user-posts-with-keep', userId],
       queryFn: (_) => ApiClient.getUserPosts(userId),
-      keepPreviousData: true, // Smooth transitions!
+      keepPreviousData: true,
     );
 
     return _ResultCard(
@@ -379,8 +412,8 @@ class _WithKeepPreviousData extends HookWidget {
                           '• ${post.title}',
                           style: TextStyle(
                             color: query.isPreviousData
-                                ? Colors.white38
-                                : Colors.white70,
+                                ? (isDark ? Colors.white38 : Colors.black26)
+                                : (isDark ? Colors.white70 : Colors.black54),
                             fontSize: 11,
                           ),
                           maxLines: 1,
@@ -394,7 +427,6 @@ class _WithKeepPreviousData extends HookWidget {
   }
 }
 
-/// Tab 3: Comparison - See the difference
 class _ComparisonExample extends HookWidget {
   const _ComparisonExample();
 
@@ -404,34 +436,34 @@ class _ComparisonExample extends HookWidget {
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+        children: const [
           _InfoCard(
             icon: Icons.compare,
             title: 'Feature Comparison',
             description: 'When to use each feature for optimal UX.',
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           _FeatureRow(
             feature: 'select',
             description: 'Transform data before returning',
             useCase: 'Selecting subset of fields, computing derived values',
             example: 'users.map((u) => u.name)',
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           _FeatureRow(
             feature: 'keepPreviousData',
             description: 'Keep old data while fetching new',
             useCase: 'Pagination, tab switching, search results',
             example: 'Switching between user profiles',
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           _FeatureRow(
             feature: 'placeholderData',
             description: 'Show placeholder while loading',
             useCase: 'Initial load, skeleton screens',
             example: 'placeholderData: []',
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           _FeatureRow(
             feature: 'initialData',
             description: 'Pre-populate cache',
@@ -451,42 +483,39 @@ class _InfoCard extends StatelessWidget {
   final String title;
   final String description;
 
-  const _InfoCard({
-    required this.icon,
-    required this.title,
-    required this.description,
-  });
+  const _InfoCard(
+      {required this.icon, required this.title, required this.description});
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accentColor = Theme.of(context).colorScheme.primary;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E3A5F),
+        color: accentColor.withAlpha(isDark ? 25 : 15),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue.withAlpha(77)),
+        border: Border.all(color: accentColor.withAlpha(77)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, color: Colors.blue, size: 20),
+              Icon(icon, color: accentColor, size: 20),
               const SizedBox(width: 8),
-              Text(
-                title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              Text(title,
+                  style: TextStyle(
+                      color: isDark ? Colors.white : Colors.black87,
+                      fontWeight: FontWeight.bold)),
             ],
           ),
           const SizedBox(height: 8),
-          Text(
-            description,
-            style: const TextStyle(color: Colors.white70, fontSize: 13),
-          ),
+          Text(description,
+              style: TextStyle(
+                  color: isDark ? Colors.white70 : Colors.black54,
+                  fontSize: 13)),
         ],
       ),
     );
@@ -516,15 +545,20 @@ class _ResultCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accentColor = Theme.of(context).colorScheme.primary;
+
     return Container(
       padding: EdgeInsets.all(compact ? 12 : 16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1A2E),
+        color: isDark
+            ? Color.lerp(const Color(0xFF1A1A2E), accentColor, 0.04)
+            : Color.lerp(Colors.white, accentColor, 0.02),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isPreviousData
               ? Colors.orange.withAlpha(128)
-              : const Color(0x1AFFFFFF),
+              : accentColor.withAlpha(isDark ? 35 : 20),
         ),
       ),
       child: Column(
@@ -536,39 +570,40 @@ class _ResultCard extends StatelessWidget {
                 child: Text(
                   title,
                   style: TextStyle(
-                    color: Colors.white,
+                    color: isDark ? Colors.white : Colors.black87,
                     fontWeight: FontWeight.bold,
                     fontSize: compact ? 12 : 14,
                   ),
                 ),
               ),
               if (isFetching && !isLoading)
-                const SizedBox(
-                  width: 14,
-                  height: 14,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
+                SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: accentColor)),
             ],
           ),
           if (subtitle != null) ...[
             const SizedBox(height: 4),
-            Text(
-              subtitle!,
-              style: TextStyle(
-                color: isPreviousData ? Colors.orange : Colors.white54,
-                fontSize: 11,
-              ),
-            ),
+            Text(subtitle!,
+                style: TextStyle(
+                    color: isPreviousData
+                        ? Colors.orange
+                        : (isDark ? Colors.white54 : Colors.black45),
+                    fontSize: 11)),
           ],
           const SizedBox(height: 12),
           if (isLoading)
-            const Center(child: CircularProgressIndicator())
+            Center(child: CircularProgressIndicator(color: accentColor))
           else if (error != null)
             Text(error!, style: const TextStyle(color: Colors.red))
           else if (child != null)
             child!
           else
-            const Text('No data', style: TextStyle(color: Colors.white38)),
+            Text('No data',
+                style:
+                    TextStyle(color: isDark ? Colors.white38 : Colors.black26)),
         ],
       ),
     );
@@ -590,12 +625,17 @@ class _FeatureRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accentColor = Theme.of(context).colorScheme.primary;
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1A2E),
+        color: isDark
+            ? Color.lerp(const Color(0xFF1A1A2E), accentColor, 0.04)
+            : Color.lerp(Colors.white, accentColor, 0.02),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0x1AFFFFFF)),
+        border: Border.all(color: accentColor.withAlpha(isDark ? 30 : 18)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -605,41 +645,37 @@ class _FeatureRow extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: Colors.blue.withAlpha(51),
+                  color: accentColor.withAlpha(51),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
                   feature,
-                  style: const TextStyle(
-                    color: Colors.blue,
-                    fontFamily: 'monospace',
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(
+                      color: accentColor,
+                      fontFamily: 'monospace',
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12),
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(
-                  description,
-                  style: const TextStyle(color: Colors.white, fontSize: 12),
-                ),
+                child: Text(description,
+                    style: TextStyle(
+                        color: isDark ? Colors.white : Colors.black87,
+                        fontSize: 12)),
               ),
             ],
           ),
           const SizedBox(height: 8),
-          Text(
-            '📌 Use case: $useCase',
-            style: const TextStyle(color: Colors.white54, fontSize: 11),
-          ),
-          Text(
-            '📝 Example: $example',
-            style: const TextStyle(
-              color: Colors.white38,
-              fontSize: 11,
-              fontFamily: 'monospace',
-            ),
-          ),
+          Text('📌 Use case: $useCase',
+              style: TextStyle(
+                  color: isDark ? Colors.white54 : Colors.black45,
+                  fontSize: 11)),
+          Text('📝 Example: $example',
+              style: TextStyle(
+                  color: isDark ? Colors.white38 : Colors.black26,
+                  fontSize: 11,
+                  fontFamily: 'monospace')),
         ],
       ),
     );

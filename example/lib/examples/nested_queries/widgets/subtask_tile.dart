@@ -20,7 +20,8 @@ class SubtaskTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Show if this is an optimistic (temporary) subtask
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accentColor = Theme.of(context).colorScheme.primary;
     final isOptimistic = subtask.id < 0;
 
     return Container(
@@ -28,12 +29,21 @@ class SubtaskTile extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: isOptimistic
-            ? const Color(0xFF2A2A3E).withAlpha(128)
-            : const Color(0xFF2A2A3E),
+            ? (isDark
+                ? Color.lerp(const Color(0xFF2A2A3E), accentColor, 0.08)
+                    ?.withAlpha(128)
+                : Color.lerp(Colors.grey.shade100, accentColor, 0.05)
+                    ?.withAlpha(128))
+            : (isDark
+                ? Color.lerp(const Color(0xFF2A2A3E), accentColor, 0.06)
+                : Color.lerp(Colors.grey.shade100, accentColor, 0.03)),
         borderRadius: BorderRadius.circular(8),
-        border: isOptimistic
-            ? Border.all(color: const Color(0xFF6366F1).withAlpha(77), width: 1)
-            : null,
+        border: Border.all(
+          color: isOptimistic
+              ? accentColor.withAlpha(77)
+              : accentColor.withAlpha(isDark ? 25 : 15),
+          width: 1,
+        ),
       ),
       child: Row(
         children: [
@@ -41,23 +51,23 @@ class SubtaskTile extends StatelessWidget {
           GestureDetector(
             onTap: isToggling || isOptimistic ? null : onToggle,
             child: isToggling
-                ? const SizedBox(
+                ? SizedBox(
                     width: 20,
                     height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: accentColor),
                   )
                 : Container(
                     width: 20,
                     height: 20,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: subtask.completed
-                          ? const Color(0xFF10B981)
-                          : Colors.transparent,
+                      color:
+                          subtask.completed ? accentColor : Colors.transparent,
                       border: Border.all(
                         color: subtask.completed
-                            ? const Color(0xFF10B981)
-                            : Colors.white38,
+                            ? accentColor
+                            : (isDark ? Colors.white38 : Colors.black26),
                         width: 2,
                       ),
                     ),
@@ -75,7 +85,9 @@ class SubtaskTile extends StatelessWidget {
                   child: Text(
                     subtask.title,
                     style: TextStyle(
-                      color: isOptimistic ? Colors.white70 : Colors.white,
+                      color: isOptimistic
+                          ? (isDark ? Colors.white70 : Colors.black54)
+                          : (isDark ? Colors.white : Colors.black87),
                       decoration:
                           subtask.completed ? TextDecoration.lineThrough : null,
                       fontStyle:
@@ -89,13 +101,13 @@ class SubtaskTile extends StatelessWidget {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF6366F1).withAlpha(51),
+                      color: accentColor.withAlpha(51),
                       borderRadius: BorderRadius.circular(4),
                     ),
-                    child: const Text(
+                    child: Text(
                       'SAVING...',
                       style: TextStyle(
-                        color: Color(0xFF6366F1),
+                        color: accentColor,
                         fontSize: 9,
                         fontWeight: FontWeight.bold,
                       ),
@@ -107,15 +119,18 @@ class SubtaskTile extends StatelessWidget {
           // Delete button
           IconButton(
             icon: isDeleting
-                ? const SizedBox(
+                ? SizedBox(
                     width: 16,
                     height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: accentColor),
                   )
                 : Icon(
                     Icons.delete_outline,
                     size: 18,
-                    color: isOptimistic ? Colors.white24 : Colors.white38,
+                    color: isOptimistic
+                        ? (isDark ? Colors.white24 : Colors.black12)
+                        : (isDark ? Colors.white38 : Colors.black26),
                   ),
             onPressed: isDeleting || isOptimistic ? null : onDelete,
             padding: EdgeInsets.zero,

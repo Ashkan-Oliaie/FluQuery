@@ -262,6 +262,27 @@ class _TypedQueryWrapper<TData, TError> implements Query<TData, TError> {
   }
 
   @override
+  VoidCallback subscribe(
+      void Function(QueryState<TData, TError> state) listener) {
+    return _inner.subscribe((state) {
+      // Convert inner state to typed state
+      listener(QueryState<TData, TError>(
+        data: state.rawData,
+        dataUpdateCount: state.dataUpdateCount,
+        dataUpdatedAt: state.dataUpdatedAt,
+        error: state.rawError,
+        errorUpdateCount: state.errorUpdateCount,
+        errorUpdatedAt: state.errorUpdatedAt,
+        fetchFailureCount: state.fetchFailureCount,
+        fetchFailureReason: state.fetchFailureReason,
+        status: state.status,
+        fetchStatus: state.fetchStatus,
+        isInvalidated: state.isInvalidated,
+      ));
+    });
+  }
+
+  @override
   Future<Object?> fetch(
       {QueryFn<TData>? queryFn, bool forceRefetch = false}) async {
     return await _inner.fetch(

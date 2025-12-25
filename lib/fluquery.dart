@@ -51,6 +51,7 @@ export 'src/core/mutation_state.dart';
 export 'src/core/mutation.dart';
 export 'src/core/mutation_cache.dart';
 export 'src/core/infinite_query.dart';
+export 'src/core/query_store.dart';
 export 'src/core/query_client.dart';
 export 'src/core/logger.dart';
 
