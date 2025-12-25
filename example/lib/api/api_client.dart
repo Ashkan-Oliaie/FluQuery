@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 /// API configuration
 class ApiConfig {
   static String baseUrl = 'http://localhost:8080';
-  
+
   static void setBaseUrl(String url) {
     baseUrl = url;
   }
@@ -19,42 +19,45 @@ class ApiClient {
     final response = await _client.get(
       Uri.parse('${ApiConfig.baseUrl}/api/todos'),
     );
-    
+
     if (response.statusCode != 200) {
       throw ApiException('Failed to fetch todos: ${response.statusCode}');
     }
-    
+
     final List<dynamic> data = jsonDecode(response.body);
-    return data.map((json) => Todo.fromJson(json as Map<String, dynamic>)).toList();
+    return data
+        .map((json) => Todo.fromJson(json as Map<String, dynamic>))
+        .toList();
   }
-  
+
   static Future<Todo> getTodo(int id) async {
     final response = await _client.get(
       Uri.parse('${ApiConfig.baseUrl}/api/todos/$id'),
     );
-    
+
     if (response.statusCode != 200) {
       throw ApiException('Failed to fetch todo: ${response.statusCode}');
     }
-    
+
     return Todo.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
   }
-  
+
   static Future<Todo> createTodo(String title) async {
     final response = await _client.post(
       Uri.parse('${ApiConfig.baseUrl}/api/todos'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'title': title, 'completed': false}),
     );
-    
+
     if (response.statusCode != 200) {
       throw ApiException('Failed to create todo: ${response.statusCode}');
     }
-    
+
     return Todo.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
   }
-  
-  static Future<Todo> updateTodo(int id, {String? title, bool? completed}) async {
+
+  static Future<Todo> updateTodo(int id,
+      {String? title, bool? completed}) async {
     final response = await _client.put(
       Uri.parse('${ApiConfig.baseUrl}/api/todos/$id'),
       headers: {'Content-Type': 'application/json'},
@@ -63,19 +66,19 @@ class ApiClient {
         if (completed != null) 'completed': completed,
       }),
     );
-    
+
     if (response.statusCode != 200) {
       throw ApiException('Failed to update todo: ${response.statusCode}');
     }
-    
+
     return Todo.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
   }
-  
+
   static Future<void> deleteTodo(int id) async {
     final response = await _client.delete(
       Uri.parse('${ApiConfig.baseUrl}/api/todos/$id'),
     );
-    
+
     if (response.statusCode != 200) {
       throw ApiException('Failed to delete todo: ${response.statusCode}');
     }
@@ -86,85 +89,91 @@ class ApiClient {
     final response = await _client.get(
       Uri.parse('${ApiConfig.baseUrl}/api/todos/$id/details'),
     );
-    
+
     if (response.statusCode != 200) {
-      throw ApiException('Failed to fetch todo details: ${response.statusCode}');
+      throw ApiException(
+          'Failed to fetch todo details: ${response.statusCode}');
     }
-    
-    return TodoDetails.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+
+    return TodoDetails.fromJson(
+        jsonDecode(response.body) as Map<String, dynamic>);
   }
-  
+
   static Future<List<Subtask>> getSubtasks(int todoId) async {
     final response = await _client.get(
       Uri.parse('${ApiConfig.baseUrl}/api/todos/$todoId/subtasks'),
     );
-    
+
     if (response.statusCode != 200) {
       throw ApiException('Failed to fetch subtasks: ${response.statusCode}');
     }
-    
+
     final List<dynamic> data = jsonDecode(response.body);
-    return data.map((json) => Subtask.fromJson(json as Map<String, dynamic>)).toList();
+    return data
+        .map((json) => Subtask.fromJson(json as Map<String, dynamic>))
+        .toList();
   }
-  
+
   static Future<Subtask> createSubtask(int todoId, String title) async {
     final response = await _client.post(
       Uri.parse('${ApiConfig.baseUrl}/api/todos/$todoId/subtasks'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'title': title}),
     );
-    
+
     if (response.statusCode != 200) {
       throw ApiException('Failed to create subtask: ${response.statusCode}');
     }
-    
+
     return Subtask.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
   }
-  
+
   static Future<Subtask> toggleSubtask(int subtaskId, bool completed) async {
     final response = await _client.put(
       Uri.parse('${ApiConfig.baseUrl}/api/subtasks/$subtaskId'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'completed': completed}),
     );
-    
+
     if (response.statusCode != 200) {
       throw ApiException('Failed to toggle subtask: ${response.statusCode}');
     }
-    
+
     return Subtask.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
   }
-  
+
   static Future<void> deleteSubtask(int subtaskId) async {
     final response = await _client.delete(
       Uri.parse('${ApiConfig.baseUrl}/api/subtasks/$subtaskId'),
     );
-    
+
     if (response.statusCode != 200) {
       throw ApiException('Failed to delete subtask: ${response.statusCode}');
     }
   }
-  
+
   static Future<List<Activity>> getTodoActivities(int todoId) async {
     final response = await _client.get(
       Uri.parse('${ApiConfig.baseUrl}/api/todos/$todoId/activities'),
     );
-    
+
     if (response.statusCode != 200) {
       throw ApiException('Failed to fetch activities: ${response.statusCode}');
     }
-    
+
     final List<dynamic> data = jsonDecode(response.body);
-    return data.map((json) => Activity.fromJson(json as Map<String, dynamic>)).toList();
+    return data
+        .map((json) => Activity.fromJson(json as Map<String, dynamic>))
+        .toList();
   }
-  
+
   static Future<void> updateTodoPriority(int todoId, String priority) async {
     final response = await _client.put(
       Uri.parse('${ApiConfig.baseUrl}/api/todos/$todoId/priority'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'priority': priority}),
     );
-    
+
     if (response.statusCode != 200) {
       throw ApiException('Failed to update priority: ${response.statusCode}');
     }
@@ -175,23 +184,24 @@ class ApiClient {
     final response = await _client.get(
       Uri.parse('${ApiConfig.baseUrl}/api/posts?page=$page&limit=$limit'),
     );
-    
+
     if (response.statusCode != 200) {
       throw ApiException('Failed to fetch posts: ${response.statusCode}');
     }
-    
-    return PostsPage.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+
+    return PostsPage.fromJson(
+        jsonDecode(response.body) as Map<String, dynamic>);
   }
-  
+
   static Future<Post> getPost(int id) async {
     final response = await _client.get(
       Uri.parse('${ApiConfig.baseUrl}/api/posts/$id'),
     );
-    
+
     if (response.statusCode != 200) {
       throw ApiException('Failed to fetch post: ${response.statusCode}');
     }
-    
+
     return Post.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
   }
 
@@ -200,52 +210,58 @@ class ApiClient {
     final response = await _client.get(
       Uri.parse('${ApiConfig.baseUrl}/api/users'),
     );
-    
+
     if (response.statusCode != 200) {
       throw ApiException('Failed to fetch users: ${response.statusCode}');
     }
-    
+
     final List<dynamic> data = jsonDecode(response.body);
-    return data.map((json) => User.fromJson(json as Map<String, dynamic>)).toList();
+    return data
+        .map((json) => User.fromJson(json as Map<String, dynamic>))
+        .toList();
   }
-  
+
   static Future<User> getUser(int id) async {
     final response = await _client.get(
       Uri.parse('${ApiConfig.baseUrl}/api/users/$id'),
     );
-    
+
     if (response.statusCode != 200) {
       throw ApiException('Failed to fetch user: ${response.statusCode}');
     }
-    
+
     return User.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
   }
-  
+
   static Future<List<Post>> getUserPosts(int userId) async {
     final response = await _client.get(
       Uri.parse('${ApiConfig.baseUrl}/api/users/$userId/posts'),
     );
-    
+
     if (response.statusCode != 200) {
       throw ApiException('Failed to fetch user posts: ${response.statusCode}');
     }
-    
+
     final List<dynamic> data = jsonDecode(response.body);
-    return data.map((json) => Post.fromJson(json as Map<String, dynamic>)).toList();
+    return data
+        .map((json) => Post.fromJson(json as Map<String, dynamic>))
+        .toList();
   }
-  
+
   /// Search users by name or email
   static Future<List<User>> searchUsers(String query) async {
     final response = await _client.get(
       Uri.parse('${ApiConfig.baseUrl}/api/users/search?q=$query'),
     );
-    
+
     if (response.statusCode != 200) {
       throw ApiException('Failed to search users: ${response.statusCode}');
     }
-    
+
     final List<dynamic> data = jsonDecode(response.body);
-    return data.map((json) => User.fromJson(json as Map<String, dynamic>)).toList();
+    return data
+        .map((json) => User.fromJson(json as Map<String, dynamic>))
+        .toList();
   }
 
   // ============ SERVER TIME ============
@@ -253,12 +269,13 @@ class ApiClient {
     final response = await _client.get(
       Uri.parse('${ApiConfig.baseUrl}/api/time'),
     );
-    
+
     if (response.statusCode != 200) {
       throw ApiException('Failed to fetch server time: ${response.statusCode}');
     }
-    
-    return ServerTime.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+
+    return ServerTime.fromJson(
+        jsonDecode(response.body) as Map<String, dynamic>);
   }
 }
 
@@ -282,20 +299,21 @@ class Todo {
       id: json['id'] as int,
       title: json['title'] as String,
       completed: json['completed'] as bool,
-      createdAt: json['createdAt'] != null 
-          ? DateTime.tryParse(json['createdAt'] as String) 
+      createdAt: json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt'] as String)
           : null,
     );
   }
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'title': title,
-    'completed': completed,
-    'createdAt': createdAt?.toIso8601String(),
-  };
+        'id': id,
+        'title': title,
+        'completed': completed,
+        'createdAt': createdAt?.toIso8601String(),
+      };
 
-  Todo copyWith({int? id, String? title, bool? completed, DateTime? createdAt}) {
+  Todo copyWith(
+      {int? id, String? title, bool? completed, DateTime? createdAt}) {
     return Todo(
       id: id ?? this.id,
       title: title ?? this.title,
@@ -348,7 +366,9 @@ class PostsPage {
 
   factory PostsPage.fromJson(Map<String, dynamic> json) {
     return PostsPage(
-      posts: (json['posts'] as List).map((p) => Post.fromJson(p as Map<String, dynamic>)).toList(),
+      posts: (json['posts'] as List)
+          .map((p) => Post.fromJson(p as Map<String, dynamic>))
+          .toList(),
       page: json['page'] as int,
       hasMore: json['hasMore'] as bool,
       nextPage: json['nextPage'] as int?,
@@ -418,8 +438,8 @@ class Subtask {
       todoId: json['todoId'] as int,
       title: json['title'] as String,
       completed: json['completed'] as bool,
-      createdAt: json['createdAt'] != null 
-          ? DateTime.tryParse(json['createdAt'] as String) 
+      createdAt: json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt'] as String)
           : null,
     );
   }
@@ -495,8 +515,8 @@ class TodoDetails {
       id: json['id'] as int,
       title: json['title'] as String,
       completed: json['completed'] as bool,
-      createdAt: json['createdAt'] != null 
-          ? DateTime.tryParse(json['createdAt'] as String) 
+      createdAt: json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt'] as String)
           : null,
       subtasks: (json['subtasks'] as List? ?? [])
           .map((s) => Subtask.fromJson(s as Map<String, dynamic>))
@@ -505,11 +525,11 @@ class TodoDetails {
           .map((a) => Activity.fromJson(a as Map<String, dynamic>))
           .toList(),
       priority: json['priority'] as String? ?? 'medium',
-      dueDate: json['dueDate'] != null 
-          ? DateTime.tryParse(json['dueDate'] as String) 
+      dueDate: json['dueDate'] != null
+          ? DateTime.tryParse(json['dueDate'] as String)
           : null,
-      assignee: json['assignee'] != null 
-          ? User.fromJson(json['assignee'] as Map<String, dynamic>) 
+      assignee: json['assignee'] != null
+          ? User.fromJson(json['assignee'] as Map<String, dynamic>)
           : null,
       tags: (json['tags'] as List? ?? []).cast<String>(),
       estimatedHours: json['estimatedHours'] as int? ?? 0,
@@ -518,17 +538,17 @@ class TodoDetails {
   }
 
   Todo toTodo() => Todo(
-    id: id,
-    title: title,
-    completed: completed,
-    createdAt: createdAt,
-  );
+        id: id,
+        title: title,
+        completed: completed,
+        createdAt: createdAt,
+      );
 }
 
 class ApiException implements Exception {
   final String message;
   const ApiException(this.message);
-  
+
   @override
   String toString() => 'ApiException: $message';
 }

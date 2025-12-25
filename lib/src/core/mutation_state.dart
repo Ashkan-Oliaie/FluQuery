@@ -8,7 +8,7 @@ class MutationState<TData, TError, TVariables, TContext> {
   final Object? _error;
   final Object? _variables;
   final Object? _context;
-  
+
   final MutationStatus status;
   final DateTime? submittedAt;
   final int failureCount;
@@ -25,20 +25,20 @@ class MutationState<TData, TError, TVariables, TContext> {
     this.failureCount = 0,
     this.failureReason,
     this.isPaused = false,
-  }) : _data = data,
-       _error = error,
-       _variables = variables,
-       _context = context;
+  })  : _data = data,
+        _error = error,
+        _variables = variables,
+        _context = context;
 
   /// Raw data access - no type checking
   Object? get rawData => _data;
-  
+
   /// Raw error access - no type checking
   Object? get rawError => _error;
-  
+
   /// Raw variables access - no type checking
   Object? get rawVariables => _variables;
-  
+
   /// Raw context access - no type checking
   Object? get rawContext => _context;
 
@@ -49,7 +49,7 @@ class MutationState<TData, TError, TVariables, TContext> {
     return d;
   }
 
-  /// Get error - returns as TError? using dynamic to avoid web cast issues  
+  /// Get error - returns as TError? using dynamic to avoid web cast issues
   TError? get error {
     if (_error == null) return null;
     final dynamic e = _error;
@@ -116,7 +116,8 @@ class MutationState<TData, TError, TVariables, TContext> {
   }
 
   /// Create with success - takes Object? to avoid web type issues
-  MutationState<TData, TError, TVariables, TContext> withSuccess(Object? newData) {
+  MutationState<TData, TError, TVariables, TContext> withSuccess(
+      Object? newData) {
     return MutationState<TData, TError, TVariables, TContext>(
       data: newData,
       error: null,
@@ -131,7 +132,8 @@ class MutationState<TData, TError, TVariables, TContext> {
   }
 
   /// Create with error - takes Object? to avoid web type issues
-  MutationState<TData, TError, TVariables, TContext> withError(Object? newError) {
+  MutationState<TData, TError, TVariables, TContext> withError(
+      Object? newError) {
     return MutationState<TData, TError, TVariables, TContext>(
       data: _data,
       error: newError,
@@ -146,7 +148,8 @@ class MutationState<TData, TError, TVariables, TContext> {
   }
 
   /// Create initial state - can't use const because it loses generic types on web
-  factory MutationState.initial() => MutationState<TData, TError, TVariables, TContext>();
+  factory MutationState.initial() =>
+      MutationState<TData, TError, TVariables, TContext>();
 
   @override
   String toString() =>

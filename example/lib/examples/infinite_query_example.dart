@@ -17,7 +17,7 @@ class InfiniteQueryExample extends HookWidget {
         final page = (ctx.pageParam as int?) ?? 1;
         return ApiClient.getPosts(page: page, limit: 10);
       },
-      getNextPageParam: (lastPage, allPages, lastPageParam, allPageParams) => 
+      getNextPageParam: (lastPage, allPages, lastPageParam, allPageParams) =>
           lastPage.hasMore ? lastPage.nextPage : null,
       initialPageParam: 1,
     );
@@ -25,7 +25,8 @@ class InfiniteQueryExample extends HookWidget {
     // Handle scroll for infinite loading
     useEffect(() {
       void onScroll() {
-        if (scrollController.position.pixels >= scrollController.position.maxScrollExtent - 200) {
+        if (scrollController.position.pixels >=
+            scrollController.position.maxScrollExtent - 200) {
           if (postsQuery.hasNextPage && !postsQuery.isFetchingNextPage) {
             postsQuery.fetchNextPage();
           }
@@ -42,9 +43,13 @@ class InfiniteQueryExample extends HookWidget {
         actions: [
           IconButton(
             icon: postsQuery.isFetching && !postsQuery.isFetchingNextPage
-                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2))
                 : const Icon(Icons.refresh),
-            onPressed: postsQuery.isFetching ? null : () => postsQuery.refetch(),
+            onPressed:
+                postsQuery.isFetching ? null : () => postsQuery.refetch(),
           ),
         ],
       ),
@@ -76,7 +81,8 @@ class InfiniteQueryExample extends HookWidget {
           children: [
             const Icon(Icons.error_outline, size: 48, color: Colors.red),
             const SizedBox(height: 16),
-            Text('Error: ${query.error}', style: const TextStyle(color: Colors.red)),
+            Text('Error: ${query.error}',
+                style: const TextStyle(color: Colors.red)),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () => query.refetch(),
@@ -104,9 +110,15 @@ class InfiniteQueryExample extends HookWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _Stat(label: 'Loaded', value: '${allPosts.length}', color: Colors.blue),
+              _Stat(
+                  label: 'Loaded',
+                  value: '${allPosts.length}',
+                  color: Colors.blue),
               _Stat(label: 'Total', value: '$total', color: Colors.purple),
-              _Stat(label: 'Pages', value: '${query.pages.length}', color: Colors.green),
+              _Stat(
+                  label: 'Pages',
+                  value: '${query.pages.length}',
+                  color: Colors.green),
               _Stat(
                 label: 'More',
                 value: query.hasNextPage ? 'Yes' : 'No',
@@ -154,9 +166,12 @@ class _Stat extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color)),
+        Text(value,
+            style: TextStyle(
+                fontSize: 18, fontWeight: FontWeight.bold, color: color)),
         const SizedBox(height: 4),
-        Text(label, style: TextStyle(fontSize: 11, color: Colors.white.withAlpha(128))),
+        Text(label,
+            style: TextStyle(fontSize: 11, color: Colors.white.withAlpha(128))),
       ],
     );
   }
@@ -190,17 +205,23 @@ class _PostCard extends StatelessWidget {
                 ),
                 child: Text(
                   '#${post.id}',
-                  style: const TextStyle(fontSize: 12, color: Color(0xFF6366F1), fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF6366F1),
+                      fontWeight: FontWeight.bold),
                 ),
               ),
               const Spacer(),
-              Text('User ${post.userId}', style: TextStyle(fontSize: 12, color: Colors.white.withAlpha(102))),
+              Text('User ${post.userId}',
+                  style: TextStyle(
+                      fontSize: 12, color: Colors.white.withAlpha(102))),
             ],
           ),
           const SizedBox(height: 12),
           Text(
             post.title,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
+            style: const TextStyle(
+                fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
           ),
           const SizedBox(height: 8),
           Text(

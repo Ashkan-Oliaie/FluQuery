@@ -52,7 +52,9 @@ List<QueryResult<dynamic, dynamic>> useQueries({
 
   // State for results
   final resultsState = useState<List<QueryResult<dynamic, dynamic>>>(
-    observers.map((o) => QueryResult.loading(refetch: () => o.fetch())).toList(),
+    observers
+        .map((o) => QueryResult.loading(refetch: () => o.fetch()))
+        .toList(),
   );
 
   // Subscribe to all observers
@@ -64,14 +66,16 @@ List<QueryResult<dynamic, dynamic>> useQueries({
       final index = i;
 
       subscriptions[index] = observer.stream.listen((result) {
-        final newResults = List<QueryResult<dynamic, dynamic>>.from(resultsState.value);
+        final newResults =
+            List<QueryResult<dynamic, dynamic>>.from(resultsState.value);
         newResults[index] = result;
         resultsState.value = newResults;
       });
 
       // Start observer
       observer.start().then((result) {
-        final newResults = List<QueryResult<dynamic, dynamic>>.from(resultsState.value);
+        final newResults =
+            List<QueryResult<dynamic, dynamic>>.from(resultsState.value);
         newResults[index] = result;
         resultsState.value = newResults;
       });
@@ -89,4 +93,3 @@ List<QueryResult<dynamic, dynamic>> useQueries({
 
   return resultsState.value;
 }
-

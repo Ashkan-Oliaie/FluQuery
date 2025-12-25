@@ -9,7 +9,7 @@ class BasicQueryExample extends HookWidget {
   @override
   Widget build(BuildContext context) {
     final client = useQueryClient();
-    
+
     // Use FluQuery's useQuery hook to fetch todos
     final todosQuery = useQuery<List<Todo>, Object>(
       queryKey: ['todos'],
@@ -50,7 +50,8 @@ class BasicQueryExample extends HookWidget {
                   )
                 : const Icon(Icons.refresh),
             tooltip: 'Refetch',
-            onPressed: todosQuery.isFetching ? null : () => todosQuery.refetch(),
+            onPressed:
+                todosQuery.isFetching ? null : () => todosQuery.refetch(),
           ),
         ],
       ),
@@ -67,7 +68,8 @@ class BasicQueryExample extends HookWidget {
     );
   }
 
-  Widget _buildContent(BuildContext context, QueryResult<List<Todo>, Object> query, QueryClient client) {
+  Widget _buildContent(BuildContext context,
+      QueryResult<List<Todo>, Object> query, QueryClient client) {
     if (query.isLoading) {
       return const Center(
         child: Column(

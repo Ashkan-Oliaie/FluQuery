@@ -9,10 +9,10 @@ import '../widgets/query_client_provider.dart';
 typedef UseQueryResult<TData, TError> = QueryResult<TData, TError>;
 
 /// Hook for fetching and caching data
-/// 
+///
 /// [TData] - The type of data returned by queryFn
 /// [TError] - The type of error
-/// 
+///
 /// Use [useQuerySelect] if you need to transform data with a select function.
 QueryResult<TData, TError> useQuery<TData, TError>({
   required QueryKey queryKey,
@@ -29,6 +29,7 @@ QueryResult<TData, TError> useQuery<TData, TError>({
   TData? placeholderData,
   TData? initialData,
   DateTime? initialDataUpdatedAt,
+
   /// Keep the previous data visible while fetching new data
   /// Great for paginated UIs where you want smooth transitions
   bool keepPreviousData = false,
@@ -38,13 +39,13 @@ QueryResult<TData, TError> useQuery<TData, TError>({
 
   // Use Object? to avoid web generic type issues with useState
   final resultState = useState<Object?>(null);
-  
+
   // Keep track of previous successful data for keepPreviousData
   final previousDataRef = useRef<TData?>(null);
-  
+
   // Track previous query key for keepPreviousData
   final previousQueryKeyRef = useRef<String?>(null);
-  
+
   // Track if we have a result
   QueryResult<TData, TError>? getCurrentResult() {
     final current = resultState.value;
@@ -68,44 +69,51 @@ QueryResult<TData, TError> useQuery<TData, TError>({
       refetchOnMount: refetchOnMount,
       retry: retry,
       retryDelay: retryDelay,
-      placeholderData: placeholderData != null
-          ? PlaceholderValue(placeholderData)
-          : null,
+      placeholderData:
+          placeholderData != null ? PlaceholderValue(placeholderData) : null,
       initialData: initialData,
       initialDataUpdatedAt: initialDataUpdatedAt,
     ),
-    [queryKey.toString(), enabled, staleTime, retry, refetchInterval?.inMilliseconds],
+    [
+      queryKey.toString(),
+      enabled,
+      staleTime,
+      retry,
+      refetchInterval?.inMilliseconds
+    ],
   );
 
   // Observer reference
   final observerRef = useRef<QueryObserver<TData, TError>?>(null);
 
   // Transform result and handle keepPreviousData
-  QueryResult<TData, TError> transformResult(QueryResult<TData, TError> result) {
+  QueryResult<TData, TError> transformResult(
+      QueryResult<TData, TError> result) {
     TData? data = result.data;
-    
+
     if (data != null) {
       // Store for keepPreviousData
       previousDataRef.value = data;
-    } else if (keepPreviousData && 
-               result.isFetching && 
-               previousDataRef.value != null) {
+    } else if (keepPreviousData &&
+        result.isFetching &&
+        previousDataRef.value != null) {
       // Use previous data while fetching
       data = previousDataRef.value;
     }
-    
-    final isPrevData = keepPreviousData && 
-                       result.isFetching && 
-                       previousDataRef.value != null &&
-                       data == previousDataRef.value &&
-                       result.data == null;
-    
+
+    final isPrevData = keepPreviousData &&
+        result.isFetching &&
+        previousDataRef.value != null &&
+        data == previousDataRef.value &&
+        result.data == null;
+
     return QueryResult<TData, TError>(
       data: data as Object?,
       error: result.rawError,
       status: result.status,
       fetchStatus: result.fetchStatus,
-      isLoading: result.isLoading && !(keepPreviousData && previousDataRef.value != null),
+      isLoading: result.isLoading &&
+          !(keepPreviousData && previousDataRef.value != null),
       isFetching: result.isFetching,
       isPending: result.isPending,
       isError: result.isError,
@@ -128,14 +136,14 @@ QueryResult<TData, TError> useQuery<TData, TError>({
   useEffect(() {
     // Check if query key changed - used for keepPreviousData
     final currentKeyStr = queryKey.toString();
-    if (previousQueryKeyRef.value != null && 
+    if (previousQueryKeyRef.value != null &&
         previousQueryKeyRef.value != currentKeyStr &&
         !keepPreviousData) {
       // Clear previous data if not keeping it
       previousDataRef.value = null;
     }
     previousQueryKeyRef.value = currentKeyStr;
-    
+
     // Create observer
     final observer = QueryObserver<TData, TError>(
       cache: client.queryCache,
@@ -184,7 +192,7 @@ QueryResult<TData, TError> useQuery<TData, TError>({
   if (currentResult != null) {
     return currentResult;
   }
-  
+
   // Loading state - use previous data if keepPreviousData is enabled
   if (keepPreviousData && previousDataRef.value != null) {
     return QueryResult<TData, TError>(
@@ -210,16 +218,16 @@ QueryResult<TData, TError> useQuery<TData, TError>({
       isPreviousData: true,
     );
   }
-  
+
   return QueryResult<TData, TError>.loading(refetch: refetch);
 }
 
 /// Hook for fetching data with a select function to transform the result
-/// 
+///
 /// [TData] - The type of data returned by queryFn
 /// [TError] - The type of error
 /// [TSelect] - The type returned after applying select function
-/// 
+///
 /// Example:
 /// ```dart
 /// // Fetch all users but only select their names
@@ -252,13 +260,13 @@ QueryResult<TSelect, TError> useQuerySelect<TData, TError, TSelect>({
 
   // Use Object? to avoid web generic type issues with useState
   final resultState = useState<Object?>(null);
-  
+
   // Keep track of previous successful data for keepPreviousData
   final previousDataRef = useRef<TSelect?>(null);
-  
+
   // Track previous query key for keepPreviousData
   final previousQueryKeyRef = useRef<String?>(null);
-  
+
   // Track if we have a result
   QueryResult<TSelect, TError>? getCurrentResult() {
     final current = resultState.value;
@@ -281,43 +289,50 @@ QueryResult<TSelect, TError> useQuerySelect<TData, TError, TSelect>({
       refetchOnMount: refetchOnMount,
       retry: retry,
       retryDelay: retryDelay,
-      placeholderData: placeholderData != null
-          ? PlaceholderValue(placeholderData)
-          : null,
+      placeholderData:
+          placeholderData != null ? PlaceholderValue(placeholderData) : null,
       initialData: initialData,
       initialDataUpdatedAt: initialDataUpdatedAt,
     ),
-    [queryKey.toString(), enabled, staleTime, retry, refetchInterval?.inMilliseconds],
+    [
+      queryKey.toString(),
+      enabled,
+      staleTime,
+      retry,
+      refetchInterval?.inMilliseconds
+    ],
   );
 
   // Observer reference
   final observerRef = useRef<QueryObserver<TData, TError>?>(null);
 
   // Transform result using select function
-  QueryResult<TSelect, TError> transformResult(QueryResult<TData, TError> result) {
+  QueryResult<TSelect, TError> transformResult(
+      QueryResult<TData, TError> result) {
     TSelect? transformedData;
-    
+
     if (result.data != null) {
       transformedData = select(result.data as TData);
       previousDataRef.value = transformedData;
-    } else if (keepPreviousData && 
-               result.isFetching && 
-               previousDataRef.value != null) {
+    } else if (keepPreviousData &&
+        result.isFetching &&
+        previousDataRef.value != null) {
       transformedData = previousDataRef.value;
     }
-    
-    final isPrevData = keepPreviousData && 
-                       result.isFetching && 
-                       previousDataRef.value != null &&
-                       transformedData == previousDataRef.value &&
-                       result.data == null;
-    
+
+    final isPrevData = keepPreviousData &&
+        result.isFetching &&
+        previousDataRef.value != null &&
+        transformedData == previousDataRef.value &&
+        result.data == null;
+
     return QueryResult<TSelect, TError>(
       data: transformedData as Object?,
       error: result.rawError,
       status: result.status,
       fetchStatus: result.fetchStatus,
-      isLoading: result.isLoading && !(keepPreviousData && previousDataRef.value != null),
+      isLoading: result.isLoading &&
+          !(keepPreviousData && previousDataRef.value != null),
       isFetching: result.isFetching,
       isPending: result.isPending,
       isError: result.isError,
@@ -342,13 +357,13 @@ QueryResult<TSelect, TError> useQuerySelect<TData, TError, TSelect>({
   // Setup and cleanup
   useEffect(() {
     final currentKeyStr = queryKey.toString();
-    if (previousQueryKeyRef.value != null && 
+    if (previousQueryKeyRef.value != null &&
         previousQueryKeyRef.value != currentKeyStr &&
         !keepPreviousData) {
       previousDataRef.value = null;
     }
     previousQueryKeyRef.value = currentKeyStr;
-    
+
     final observer = QueryObserver<TData, TError>(
       cache: client.queryCache,
       options: options,
@@ -392,7 +407,7 @@ QueryResult<TSelect, TError> useQuerySelect<TData, TError, TSelect>({
   if (currentResult != null) {
     return currentResult;
   }
-  
+
   if (keepPreviousData && previousDataRef.value != null) {
     return QueryResult<TSelect, TError>(
       data: previousDataRef.value as Object?,
@@ -417,7 +432,7 @@ QueryResult<TSelect, TError> useQuerySelect<TData, TError, TSelect>({
       isPreviousData: true,
     );
   }
-  
+
   return QueryResult<TSelect, TError>.loading(refetch: refetch);
 }
 

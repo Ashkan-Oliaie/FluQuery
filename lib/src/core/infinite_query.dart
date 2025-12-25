@@ -380,4 +380,3 @@ class InfiniteQuery<TData, TError, TPageParam> {
     _setState(InfiniteQueryState<TData, TError, TPageParam>());
   }
 }
-

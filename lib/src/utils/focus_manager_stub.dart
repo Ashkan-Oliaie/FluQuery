@@ -13,4 +13,3 @@ class Window {
 
 final document = Document();
 final window = Window();
-

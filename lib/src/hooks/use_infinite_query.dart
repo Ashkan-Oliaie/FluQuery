@@ -180,4 +180,3 @@ UseInfiniteQueryResult<TData, TError, TPageParam>
     refetch: query.fetch,
   );
 }
-

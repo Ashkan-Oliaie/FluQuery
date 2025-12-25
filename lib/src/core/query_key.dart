@@ -52,4 +52,3 @@ class QueryKeyUtils {
     return value.toString();
   }
 }
-

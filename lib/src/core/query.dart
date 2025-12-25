@@ -81,7 +81,8 @@ class Query<TData, TError> {
         _options = options {
     // Apply initial data if provided
     if (options?.initialData != null) {
-      _state = _state.withSuccess(options!.initialData, updatedAt: options.initialDataUpdatedAt);
+      _state = _state.withSuccess(options!.initialData,
+          updatedAt: options.initialDataUpdatedAt);
     }
   }
 
@@ -115,8 +116,7 @@ class Query<TData, TError> {
     final result = staleTime.isStale(_state.dataUpdatedAt!);
     final age = DateTime.now().difference(_state.dataUpdatedAt!);
     FluQueryLogger.debug(
-      'Query.isStale: $queryKey - staleTime=${staleTime.duration}, age=$age, isStale=$result'
-    );
+        'Query.isStale: $queryKey - staleTime=${staleTime.duration}, age=$age, isStale=$result');
     return result;
   }
 

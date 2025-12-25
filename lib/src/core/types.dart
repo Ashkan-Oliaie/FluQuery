@@ -154,4 +154,3 @@ typedef GetPreviousPageParamFn<TData, TPageParam> = TPageParam? Function(
   TPageParam? firstPageParam,
   List<TPageParam?> allPageParams,
 );
-

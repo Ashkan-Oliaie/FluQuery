@@ -7,7 +7,7 @@ import 'subtask_tile.dart';
 import 'activity_tile.dart';
 
 /// Modal showing todo details with multiple queries and optimistic updates
-/// 
+///
 /// Key FluQuery features demonstrated:
 /// 1. Multiple queries in one widget (details + activities)
 /// 2. Optimistic updates (no refetch on mutation!)
@@ -164,11 +164,13 @@ class _DetailsContent extends StatelessWidget {
         if (details.tags.isNotEmpty) ...[
           Wrap(
             spacing: 8,
-            children: details.tags.map((tag) => Chip(
-              label: Text(tag, style: const TextStyle(fontSize: 12)),
-              backgroundColor: const Color(0xFF2A2A3E),
-              side: BorderSide.none,
-            )).toList(),
+            children: details.tags
+                .map((tag) => Chip(
+                      label: Text(tag, style: const TextStyle(fontSize: 12)),
+                      backgroundColor: const Color(0xFF2A2A3E),
+                      side: BorderSide.none,
+                    ))
+                .toList(),
           ),
           const SizedBox(height: 24),
         ],
@@ -198,17 +200,17 @@ class _DetailsContent extends StatelessWidget {
 
         // Subtasks list - cache updated on success, no refetch!
         ...details.subtasks.map((subtask) => SubtaskTile(
-          subtask: subtask,
-          isToggling: mutations.toggle.isPending &&
-              mutations.toggle.variables?.subtaskId == subtask.id,
-          isDeleting: mutations.delete.isPending &&
-              mutations.delete.variables == subtask.id,
-          onToggle: () => mutations.toggle.mutate((
-            subtaskId: subtask.id,
-            completed: !subtask.completed,
-          )),
-          onDelete: () => mutations.delete.mutate(subtask.id),
-        )),
+              subtask: subtask,
+              isToggling: mutations.toggle.isPending &&
+                  mutations.toggle.variables?.subtaskId == subtask.id,
+              isDeleting: mutations.delete.isPending &&
+                  mutations.delete.variables == subtask.id,
+              onToggle: () => mutations.toggle.mutate((
+                subtaskId: subtask.id,
+                completed: !subtask.completed,
+              )),
+              onDelete: () => mutations.delete.mutate(subtask.id),
+            )),
 
         const SizedBox(height: 24),
 
@@ -227,7 +229,8 @@ class _DetailsContent extends StatelessWidget {
                     if (activitiesQuery.isStale)
                       Container(
                         margin: const EdgeInsets.only(right: 8),
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
                           color: const Color(0xFFF59E0B).withAlpha(51),
                           borderRadius: BorderRadius.circular(4),
@@ -242,7 +245,8 @@ class _DetailsContent extends StatelessWidget {
                         ),
                       ),
                     IconButton(
-                      icon: const Icon(Icons.refresh, size: 18, color: Colors.white70),
+                      icon: const Icon(Icons.refresh,
+                          size: 18, color: Colors.white70),
                       onPressed: () => activitiesQuery.refetch(),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
@@ -261,7 +265,9 @@ class _DetailsContent extends StatelessWidget {
         if (activitiesQuery.isLoading && !activitiesQuery.hasData)
           const Center(child: CircularProgressIndicator())
         else if (activitiesQuery.hasData)
-          ...activitiesQuery.data!.take(10).map((activity) => ActivityTile(activity: activity))
+          ...activitiesQuery.data!
+              .take(10)
+              .map((activity) => ActivityTile(activity: activity))
         else
           const Text('No activities', style: TextStyle(color: Colors.white54)),
 
@@ -287,7 +293,9 @@ class _DetailsContent extends StatelessWidget {
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
               ),
             ),
-            trailing: isSelected ? const Icon(Icons.check, color: Colors.white) : null,
+            trailing: isSelected
+                ? const Icon(Icons.check, color: Colors.white)
+                : null,
             onTap: () {
               mutations.priority.mutate(priority);
               Navigator.pop(context);
@@ -348,7 +356,8 @@ class _ProgressBar extends StatelessWidget {
   final int completedHours;
   final int estimatedHours;
 
-  const _ProgressBar({required this.completedHours, required this.estimatedHours});
+  const _ProgressBar(
+      {required this.completedHours, required this.estimatedHours});
 
   @override
   Widget build(BuildContext context) {
@@ -362,11 +371,13 @@ class _ProgressBar extends StatelessWidget {
           children: [
             Text(
               'Progress',
-              style: TextStyle(color: Colors.white.withAlpha(179), fontSize: 12),
+              style:
+                  TextStyle(color: Colors.white.withAlpha(179), fontSize: 12),
             ),
             Text(
               '$completedHours / $estimatedHours hours',
-              style: TextStyle(color: Colors.white.withAlpha(179), fontSize: 12),
+              style:
+                  TextStyle(color: Colors.white.withAlpha(179), fontSize: 12),
             ),
           ],
         ),
@@ -377,7 +388,9 @@ class _ProgressBar extends StatelessWidget {
             value: progress.clamp(0.0, 1.0),
             backgroundColor: Colors.white.withAlpha(26),
             valueColor: AlwaysStoppedAnimation(
-              progress >= 1.0 ? const Color(0xFF10B981) : const Color(0xFF6366F1),
+              progress >= 1.0
+                  ? const Color(0xFF10B981)
+                  : const Color(0xFF6366F1),
             ),
             minHeight: 8,
           ),
@@ -437,7 +450,20 @@ class _MetaRow extends StatelessWidget {
   }
 
   String _formatDate(DateTime date) {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
+    ];
     return '${months[date.month - 1]} ${date.day}';
   }
 }
@@ -472,7 +498,8 @@ class _MetaChip extends StatelessWidget {
             const SizedBox(width: 6),
             Text(
               label,
-              style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w500),
+              style: TextStyle(
+                  color: color, fontSize: 12, fontWeight: FontWeight.w500),
             ),
             if (onTap != null) ...[
               const SizedBox(width: 4),
@@ -538,7 +565,8 @@ class _AddSubtaskInput extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8),
                 borderSide: BorderSide.none,
               ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             ),
             onSubmitted: onSubmit,
           ),
@@ -558,4 +586,3 @@ class _AddSubtaskInput extends StatelessWidget {
     );
   }
 }
-

@@ -14,4 +14,3 @@ Object? initWebFocusListener({
 void disposeWebFocusListener(Object listener) {
   // No-op on non-web platforms
 }
-

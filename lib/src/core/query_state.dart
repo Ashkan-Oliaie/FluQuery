@@ -6,7 +6,7 @@ class QueryState<TData, TError> {
   /// Internal storage - uses Object? to avoid web runtime type validation
   final Object? _data;
   final Object? _error;
-  
+
   final int dataUpdateCount;
   final DateTime? dataUpdatedAt;
   final int errorUpdateCount;
@@ -29,11 +29,12 @@ class QueryState<TData, TError> {
     this.status = QueryStatus.pending,
     this.fetchStatus = FetchStatus.idle,
     this.isInvalidated = false,
-  }) : _data = data, _error = error;
+  })  : _data = data,
+        _error = error;
 
   /// Raw data access - no type checking, used internally to avoid web type issues
   Object? get rawData => _data;
-  
+
   /// Raw error access - no type checking, used internally to avoid web type issues
   Object? get rawError => _error;
 
@@ -44,7 +45,7 @@ class QueryState<TData, TError> {
     return d;
   }
 
-  /// Get error - returns as TError? using dynamic to avoid web cast issues  
+  /// Get error - returns as TError? using dynamic to avoid web cast issues
   TError? get error {
     if (_error == null) return null;
     final dynamic e = _error;
@@ -131,7 +132,8 @@ class QueryState<TData, TError> {
   }
 
   /// Create a new state with updated data - takes Object? to avoid web type issues
-  QueryState<TData, TError> withSuccess(Object? newData, {DateTime? updatedAt}) {
+  QueryState<TData, TError> withSuccess(Object? newData,
+      {DateTime? updatedAt}) {
     return QueryState<TData, TError>(
       data: newData,
       dataUpdateCount: dataUpdateCount + 1,

@@ -102,4 +102,3 @@ class MutationCache {
     _eventController.close();
   }
 }
-

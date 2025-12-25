@@ -10,7 +10,7 @@ class UseMutationResult<TData, TError, TVariables, TContext> {
   final Object? _data;
   final Object? _error;
   final Object? _variables;
-  
+
   final MutationStatus status;
   final bool isIdle;
   final bool isPending;
@@ -38,9 +38,9 @@ class UseMutationResult<TData, TError, TVariables, TContext> {
     required this.failureCount,
     required this.failureReason,
     required this.submittedAt,
-  }) : _data = data,
-       _error = error,
-       _variables = variables;
+  })  : _data = data,
+        _error = error,
+        _variables = variables;
 
   /// Get data using dynamic to avoid web cast issues
   TData? get data {
@@ -108,8 +108,7 @@ UseMutationResult<TData, TError, TVariables, TContext>
 
   // Create mutation
   final mutation = useMemoized(
-    () => client.mutationCache
-        .build<TData, TError, TVariables, TContext>(
+    () => client.mutationCache.build<TData, TError, TVariables, TContext>(
       options: MutationOptions<TData, TError, TVariables, TContext>(
         mutationFn: mutationFn,
         mutationKey: mutationKey,
@@ -127,7 +126,7 @@ UseMutationResult<TData, TError, TVariables, TContext>
 
   // State - use Object? to avoid web type issues
   final stateNotifier = useState<Object?>(mutation.state);
-  
+
   // Helper to get typed state
   MutationState<TData, TError, TVariables, TContext> getTypedState() {
     final dynamic s = stateNotifier.value;

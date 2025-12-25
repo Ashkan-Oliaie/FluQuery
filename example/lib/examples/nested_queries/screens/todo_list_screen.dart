@@ -30,7 +30,8 @@ class NestedQueriesScreen extends HookWidget {
                 ? const SizedBox(
                     width: 20,
                     height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.white),
                   )
                 : const Icon(Icons.refresh),
             onPressed: () => todosQuery.refetch(),
@@ -90,7 +91,8 @@ class NestedQueriesScreen extends HookWidget {
           children: [
             const Icon(Icons.error_outline, size: 48, color: Colors.red),
             const SizedBox(height: 16),
-            Text('Error: ${todosQuery.error}', style: const TextStyle(color: Colors.white)),
+            Text('Error: ${todosQuery.error}',
+                style: const TextStyle(color: Colors.white)),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () => todosQuery.refetch(),
@@ -238,12 +240,11 @@ class _StatChip extends StatelessWidget {
           const SizedBox(width: 8),
           Text(
             '$label: $value cached',
-            style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w500),
+            style: TextStyle(
+                color: color, fontSize: 12, fontWeight: FontWeight.w500),
           ),
         ],
       ),
     );
   }
 }
-
-

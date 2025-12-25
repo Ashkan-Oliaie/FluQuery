@@ -107,7 +107,8 @@ class ExamplesHomePage extends StatefulWidget {
 }
 
 class _ExamplesHomePageState extends State<ExamplesHomePage> {
-  final _backendUrlController = TextEditingController(text: 'http://localhost:8080');
+  final _backendUrlController =
+      TextEditingController(text: 'http://localhost:8080');
 
   @override
   void dispose() {
@@ -132,7 +133,8 @@ class _ExamplesHomePageState extends State<ExamplesHomePage> {
                 color: const Color(0xFF6366F1).withAlpha(40),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(Icons.settings, color: Color(0xFF6366F1), size: 20),
+              child: const Icon(Icons.settings,
+                  color: Color(0xFF6366F1), size: 20),
             ),
             const SizedBox(width: 12),
             const Text(
@@ -182,7 +184,8 @@ class _ExamplesHomePageState extends State<ExamplesHomePage> {
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.info_outline, color: Colors.orange, size: 18),
+                      const Icon(Icons.info_outline,
+                          color: Colors.orange, size: 18),
                       const SizedBox(width: 8),
                       Text(
                         'Start backend first:',
@@ -229,7 +232,8 @@ class _ExamplesHomePageState extends State<ExamplesHomePage> {
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('Backend URL updated to ${_backendUrlController.text}'),
+                  content: Text(
+                      'Backend URL updated to ${_backendUrlController.text}'),
                   backgroundColor: const Color(0xFF6366F1),
                 ),
               );
@@ -339,14 +343,17 @@ class _ExamplesHomePageState extends State<ExamplesHomePage> {
                     _ExampleCard(
                       icon: Icons.search,
                       title: 'Basic Query',
-                      description: 'Fetch and cache data with automatic refetching',
+                      description:
+                          'Fetch and cache data with automatic refetching',
                       color: const Color(0xFF22C55E),
-                      onTap: () => _navigate(context, const BasicQueryExample()),
+                      onTap: () =>
+                          _navigate(context, const BasicQueryExample()),
                     ),
                     _ExampleCard(
                       icon: Icons.edit,
                       title: 'Mutations',
-                      description: 'Create, update, and delete with cache invalidation',
+                      description:
+                          'Create, update, and delete with cache invalidation',
                       color: const Color(0xFFF59E0B),
                       onTap: () => _navigate(context, const MutationExample()),
                     ),
@@ -355,14 +362,17 @@ class _ExamplesHomePageState extends State<ExamplesHomePage> {
                       title: 'Infinite Query',
                       description: 'Paginated/infinite scroll with load more',
                       color: const Color(0xFF3B82F6),
-                      onTap: () => _navigate(context, const InfiniteQueryExample()),
+                      onTap: () =>
+                          _navigate(context, const InfiniteQueryExample()),
                     ),
                     _ExampleCard(
                       icon: Icons.account_tree,
                       title: 'Dependent Queries',
-                      description: 'Sequential queries that depend on each other',
+                      description:
+                          'Sequential queries that depend on each other',
                       color: const Color(0xFFEC4899),
-                      onTap: () => _navigate(context, const DependentQueriesExample()),
+                      onTap: () =>
+                          _navigate(context, const DependentQueriesExample()),
                     ),
                     _ExampleCard(
                       icon: Icons.refresh,
@@ -376,7 +386,8 @@ class _ExamplesHomePageState extends State<ExamplesHomePage> {
                       title: 'Optimistic Updates',
                       description: 'Instant UI updates with rollback on error',
                       color: const Color(0xFF8B5CF6),
-                      onTap: () => _navigate(context, const OptimisticUpdateExample()),
+                      onTap: () =>
+                          _navigate(context, const OptimisticUpdateExample()),
                     ),
                     const SizedBox(height: 12),
                     _ExampleCard(
@@ -384,7 +395,8 @@ class _ExamplesHomePageState extends State<ExamplesHomePage> {
                       title: 'Race Conditions',
                       description: 'Automatic handling of concurrent requests',
                       color: const Color(0xFFEC4899),
-                      onTap: () => _navigate(context, const RaceConditionExample()),
+                      onTap: () =>
+                          _navigate(context, const RaceConditionExample()),
                     ),
                     const SizedBox(height: 12),
                     _ExampleCard(
@@ -392,15 +404,18 @@ class _ExamplesHomePageState extends State<ExamplesHomePage> {
                       title: 'Advanced Features',
                       description: 'Select, keepPreviousData, and more',
                       color: const Color(0xFF14B8A6),
-                      onTap: () => _navigate(context, const AdvancedFeaturesExample()),
+                      onTap: () =>
+                          _navigate(context, const AdvancedFeaturesExample()),
                     ),
                     const SizedBox(height: 12),
                     _ExampleCard(
                       icon: Icons.account_tree,
                       title: 'Nested Queries',
-                      description: 'Complex list → detail with subtasks & activities',
+                      description:
+                          'Complex list → detail with subtasks & activities',
                       color: const Color(0xFFA855F7),
-                      onTap: () => _navigate(context, const NestedQueriesScreen()),
+                      onTap: () =>
+                          _navigate(context, const NestedQueriesScreen()),
                     ),
                     const SizedBox(height: 24),
                   ]),

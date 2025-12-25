@@ -278,4 +278,3 @@ class _MutationBuilderState<TData, TError, TVariables>
     return widget.builder(context, _mutate, _state);
   }
 }
-

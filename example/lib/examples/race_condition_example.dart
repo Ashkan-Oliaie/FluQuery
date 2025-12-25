@@ -60,20 +60,22 @@ class _SearchRaceConditionDemo extends HookWidget {
       queryFn: (ctx) async {
         final startTime = DateTime.now();
         final query = searchTerm.value;
-        
+
         requestHistory.value = [
           ...requestHistory.value,
-          _RequestLog(query: query, startTime: startTime, status: _Status.pending),
+          _RequestLog(
+              query: query, startTime: startTime, status: _Status.pending),
         ];
-        
+
         try {
           // Shorter queries are slower (race condition demo)
-          final delay = Duration(milliseconds: 500 + (10 - query.length.clamp(0, 10)) * 100);
-          
+          final delay = Duration(
+              milliseconds: 500 + (10 - query.length.clamp(0, 10)) * 100);
+
           if (ctx.signal?.isCancelled == true) throw QueryCancelledException();
           await Future.delayed(delay);
           if (ctx.signal?.isCancelled == true) throw QueryCancelledException();
-          
+
           final result = await ApiClient.searchUsers(query);
           _updateLog(requestHistory, query, startTime, _Status.success);
           return result;
@@ -157,7 +159,8 @@ class _SearchRaceConditionDemo extends HookWidget {
     );
   }
 
-  Widget _buildResults(QueryResult<List<User>, Object> query, String searchTerm) {
+  Widget _buildResults(
+      QueryResult<List<User>, Object> query, String searchTerm) {
     if (searchTerm.isEmpty) {
       return const _EmptyState(
         icon: Icons.search,
@@ -215,10 +218,11 @@ class _FilterRaceConditionDemo extends HookWidget {
       queryFn: (ctx) async {
         // Simulate variable response times based on filter
         final delays = {'all': 800, 'completed': 400, 'pending': 1200};
-        await Future.delayed(Duration(milliseconds: delays[selectedFilter.value] ?? 500));
-        
+        await Future.delayed(
+            Duration(milliseconds: delays[selectedFilter.value] ?? 500));
+
         if (ctx.signal?.isCancelled == true) throw QueryCancelledException();
-        
+
         final todos = await ApiClient.getTodos();
         return switch (selectedFilter.value) {
           'completed' => todos.where((t) => t.completed).toList(),
@@ -365,14 +369,14 @@ class _ManualCancellationDemo extends HookWidget {
             child: Column(
               children: [
                 ElevatedButton.icon(
-                  onPressed: slowQuery.isFetching
-                      ? null
-                      : () => requestKey.value++,
+                  onPressed:
+                      slowQuery.isFetching ? null : () => requestKey.value++,
                   icon: const Icon(Icons.play_arrow),
                   label: const Text('Start 10s Query'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green,
-                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 32, vertical: 16),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -386,7 +390,8 @@ class _ManualCancellationDemo extends HookWidget {
                   label: const Text('Cancel Query'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.red,
-                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 32, vertical: 16),
                   ),
                 ),
               ],
@@ -524,14 +529,18 @@ class _RequestHistoryCard extends StatelessWidget {
         children: [
           const Text(
             'Request History',
-            style: TextStyle(color: Colors.white70, fontWeight: FontWeight.bold, fontSize: 12),
+            style: TextStyle(
+                color: Colors.white70,
+                fontWeight: FontWeight.bold,
+                fontSize: 12),
           ),
           const SizedBox(height: 8),
           SizedBox(
             height: 80,
             child: history.isEmpty
                 ? const Center(
-                    child: Text('Type to see requests...', style: TextStyle(color: Colors.white38)),
+                    child: Text('Type to see requests...',
+                        style: TextStyle(color: Colors.white38)),
                   )
                 : ListView.builder(
                     reverse: true,
@@ -556,12 +565,15 @@ class _RequestHistoryCard extends StatelessWidget {
                           children: [
                             Icon(icon, size: 14, color: color),
                             const SizedBox(width: 8),
-                            Text('"${log.query}"', style: TextStyle(color: color, fontSize: 12)),
+                            Text('"${log.query}"',
+                                style: TextStyle(color: color, fontSize: 12)),
                             const Spacer(),
                             if (log.duration != null)
                               Text(
                                 '${log.duration!.inMilliseconds}ms',
-                                style: TextStyle(color: Colors.white.withAlpha(128), fontSize: 10),
+                                style: TextStyle(
+                                    color: Colors.white.withAlpha(128),
+                                    fontSize: 10),
                               ),
                           ],
                         ),
@@ -580,7 +592,8 @@ class _InfoCard extends StatelessWidget {
   final String title;
   final String description;
 
-  const _InfoCard({required this.icon, required this.title, required this.description});
+  const _InfoCard(
+      {required this.icon, required this.title, required this.description});
 
   @override
   Widget build(BuildContext context) {
@@ -598,11 +611,14 @@ class _InfoCard extends StatelessWidget {
             children: [
               Icon(icon, color: Colors.blue, size: 20),
               const SizedBox(width: 8),
-              Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              Text(title,
+                  style: const TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.bold)),
             ],
           ),
           const SizedBox(height: 8),
-          Text(description, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+          Text(description,
+              style: const TextStyle(color: Colors.white70, fontSize: 12)),
         ],
       ),
     );
@@ -614,7 +630,8 @@ class _EmptyState extends StatelessWidget {
   final String text;
   final Color color;
 
-  const _EmptyState({required this.icon, required this.text, this.color = Colors.white54});
+  const _EmptyState(
+      {required this.icon, required this.text, this.color = Colors.white54});
 
   @override
   Widget build(BuildContext context) {
@@ -625,7 +642,8 @@ class _EmptyState extends StatelessWidget {
           children: [
             Icon(icon, size: 48, color: color.withAlpha(128)),
             const SizedBox(height: 16),
-            Text(text, style: TextStyle(color: color), textAlign: TextAlign.center),
+            Text(text,
+                style: TextStyle(color: color), textAlign: TextAlign.center),
           ],
         ),
       ),
@@ -653,17 +671,22 @@ class _UserList extends StatelessWidget {
           child: Row(
             children: [
               CircleAvatar(
-                backgroundColor: Colors.primaries[user.id % Colors.primaries.length],
+                backgroundColor:
+                    Colors.primaries[user.id % Colors.primaries.length],
                 radius: 20,
-                child: Text(user.name[0], style: const TextStyle(color: Colors.white)),
+                child: Text(user.name[0],
+                    style: const TextStyle(color: Colors.white)),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(user.name, style: const TextStyle(color: Colors.white)),
-                    Text(user.email, style: TextStyle(color: Colors.white.withAlpha(128), fontSize: 12)),
+                    Text(user.name,
+                        style: const TextStyle(color: Colors.white)),
+                    Text(user.email,
+                        style: TextStyle(
+                            color: Colors.white.withAlpha(128), fontSize: 12)),
                   ],
                 ),
               ),
@@ -692,10 +715,14 @@ class _TodoList extends StatelessWidget {
       children: [
         Row(
           children: [
-            Text('${todos.length} items', style: const TextStyle(color: Colors.white54, fontSize: 12)),
+            Text('${todos.length} items',
+                style: const TextStyle(color: Colors.white54, fontSize: 12)),
             if (isFetching) ...[
               const SizedBox(width: 8),
-              const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2)),
+              const SizedBox(
+                  width: 12,
+                  height: 12,
+                  child: CircularProgressIndicator(strokeWidth: 2)),
             ],
           ],
         ),
@@ -712,7 +739,9 @@ class _TodoList extends StatelessWidget {
             child: Row(
               children: [
                 Icon(
-                  todo.completed ? Icons.check_circle : Icons.radio_button_unchecked,
+                  todo.completed
+                      ? Icons.check_circle
+                      : Icons.radio_button_unchecked,
                   color: todo.completed ? Colors.green : Colors.white38,
                   size: 16,
                 ),
@@ -723,7 +752,8 @@ class _TodoList extends StatelessWidget {
                     style: TextStyle(
                       color: todo.completed ? Colors.white54 : Colors.white,
                       fontSize: 12,
-                      decoration: todo.completed ? TextDecoration.lineThrough : null,
+                      decoration:
+                          todo.completed ? TextDecoration.lineThrough : null,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -751,7 +781,8 @@ class _FilterChip extends StatelessWidget {
   final bool isSelected;
   final VoidCallback onTap;
 
-  const _FilterChip({required this.label, required this.isSelected, required this.onTap});
+  const _FilterChip(
+      {required this.label, required this.isSelected, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -774,4 +805,3 @@ class _FilterChip extends StatelessWidget {
     );
   }
 }
-

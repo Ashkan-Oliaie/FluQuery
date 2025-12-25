@@ -61,8 +61,7 @@ class _SelectExample extends HookWidget {
           _InfoCard(
             icon: Icons.filter_list,
             title: 'Select Function',
-            description:
-                'Transform query data before returning it. '
+            description: 'Transform query data before returning it. '
                 'Useful for selecting subsets or computing derived values. '
                 'The raw data is still cached, but your component only receives the transformed result.',
           ),
@@ -84,7 +83,8 @@ class _SelectExample extends HookWidget {
                   child: SegmentedButton<String>(
                     segments: const [
                       ButtonSegment(value: 'names', label: Text('Names Only')),
-                      ButtonSegment(value: 'emails', label: Text('Emails Only')),
+                      ButtonSegment(
+                          value: 'emails', label: Text('Emails Only')),
                       ButtonSegment(value: 'count', label: Text('Count')),
                     ],
                     selected: {viewType.value},
@@ -133,9 +133,11 @@ class _SelectNamesDemo extends HookWidget {
                         padding: const EdgeInsets.symmetric(vertical: 4),
                         child: Row(
                           children: [
-                            const Icon(Icons.person, color: Colors.blue, size: 16),
+                            const Icon(Icons.person,
+                                color: Colors.blue, size: 16),
                             const SizedBox(width: 8),
-                            Text(name, style: const TextStyle(color: Colors.white)),
+                            Text(name,
+                                style: const TextStyle(color: Colors.white)),
                           ],
                         ),
                       ))
@@ -170,9 +172,11 @@ class _SelectEmailsDemo extends HookWidget {
                         padding: const EdgeInsets.symmetric(vertical: 4),
                         child: Row(
                           children: [
-                            const Icon(Icons.email, color: Colors.green, size: 16),
+                            const Icon(Icons.email,
+                                color: Colors.green, size: 16),
                             const SizedBox(width: 8),
-                            Text(email, style: const TextStyle(color: Colors.white)),
+                            Text(email,
+                                style: const TextStyle(color: Colors.white)),
                           ],
                         ),
                       ))
@@ -211,7 +215,8 @@ class _SelectCountDemo extends HookWidget {
                       color: Colors.orange,
                     ),
                   ),
-                  const Text('total users', style: TextStyle(color: Colors.white54)),
+                  const Text('total users',
+                      style: TextStyle(color: Colors.white54)),
                 ],
               ),
             )
@@ -254,7 +259,8 @@ class _KeepPreviousDataExample extends HookWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Select User:', style: TextStyle(color: Colors.white70)),
+                const Text('Select User:',
+                    style: TextStyle(color: Colors.white70)),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
@@ -325,7 +331,8 @@ class _WithoutKeepPreviousData extends HookWidget {
                         padding: const EdgeInsets.symmetric(vertical: 2),
                         child: Text(
                           '• ${post.title}',
-                          style: const TextStyle(color: Colors.white70, fontSize: 11),
+                          style: const TextStyle(
+                              color: Colors.white70, fontSize: 11),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -351,10 +358,10 @@ class _WithKeepPreviousData extends HookWidget {
 
     return _ResultCard(
       title: '✅ With keepPreviousData',
-      subtitle: query.isPreviousData 
-          ? '📍 Showing previous data...' 
-          : query.isFetching 
-              ? 'Updating...' 
+      subtitle: query.isPreviousData
+          ? '📍 Showing previous data...'
+          : query.isFetching
+              ? 'Updating...'
               : null,
       isLoading: query.isLoading,
       isFetching: query.isFetching && !query.isPreviousData,
@@ -371,8 +378,8 @@ class _WithKeepPreviousData extends HookWidget {
                         child: Text(
                           '• ${post.title}',
                           style: TextStyle(
-                            color: query.isPreviousData 
-                                ? Colors.white38 
+                            color: query.isPreviousData
+                                ? Colors.white38
                                 : Colors.white70,
                             fontSize: 11,
                           ),
@@ -404,7 +411,6 @@ class _ComparisonExample extends HookWidget {
             description: 'When to use each feature for optimal UX.',
           ),
           const SizedBox(height: 16),
-
           _FeatureRow(
             feature: 'select',
             description: 'Transform data before returning',
@@ -412,7 +418,6 @@ class _ComparisonExample extends HookWidget {
             example: 'users.map((u) => u.name)',
           ),
           const SizedBox(height: 12),
-
           _FeatureRow(
             feature: 'keepPreviousData',
             description: 'Keep old data while fetching new',
@@ -420,7 +425,6 @@ class _ComparisonExample extends HookWidget {
             example: 'Switching between user profiles',
           ),
           const SizedBox(height: 12),
-
           _FeatureRow(
             feature: 'placeholderData',
             description: 'Show placeholder while loading',
@@ -428,7 +432,6 @@ class _ComparisonExample extends HookWidget {
             example: 'placeholderData: []',
           ),
           const SizedBox(height: 12),
-
           _FeatureRow(
             feature: 'initialData',
             description: 'Pre-populate cache',
@@ -519,7 +522,7 @@ class _ResultCard extends StatelessWidget {
         color: const Color(0xFF1A1A2E),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isPreviousData 
+          color: isPreviousData
               ? Colors.orange.withAlpha(128)
               : const Color(0x1AFFFFFF),
         ),
@@ -642,4 +645,3 @@ class _FeatureRow extends StatelessWidget {
     );
   }
 }
-

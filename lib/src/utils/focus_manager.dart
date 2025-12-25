@@ -39,11 +39,11 @@ class QueryFocusManager with WidgetsBindingObserver {
   void dispose() {
     if (!_isInitialized) return;
     WidgetsBinding.instance.removeObserver(this);
-    
+
     if (kIsWeb && _webListener != null) {
       platform.disposeWebFocusListener(_webListener!);
     }
-    
+
     _isInitialized = false;
   }
 

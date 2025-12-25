@@ -28,8 +28,10 @@ class MutationExample extends HookWidget {
     );
 
     // Toggle mutation - track which item is being toggled via variables
-    final toggleMutation = useMutation<Todo, Object, ({int id, bool completed}), void>(
-      mutationFn: (args) => ApiClient.updateTodo(args.id, completed: args.completed),
+    final toggleMutation =
+        useMutation<Todo, Object, ({int id, bool completed}), void>(
+      mutationFn: (args) =>
+          ApiClient.updateTodo(args.id, completed: args.completed),
       onSuccess: (data, variables, ctx) {
         client.invalidateQueries(queryKey: ['todos'], refetchType: true);
       },
@@ -106,13 +108,15 @@ class MutationExample extends HookWidget {
                           },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF6366F1),
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 12),
                     ),
                     child: createMutation.isPending
                         ? const SizedBox(
                             width: 20,
                             height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white),
                           )
                         : const Icon(Icons.add),
                   ),
@@ -146,7 +150,8 @@ class MutationExample extends HookWidget {
   Widget _buildList(
     BuildContext context,
     QueryResult<List<Todo>, Object> query,
-    UseMutationResult<Todo, Object, ({int id, bool completed}), void> toggleMutation,
+    UseMutationResult<Todo, Object, ({int id, bool completed}), void>
+        toggleMutation,
     UseMutationResult<void, Object, int, void> deleteMutation,
   ) {
     if (query.isLoading) {
@@ -158,7 +163,8 @@ class MutationExample extends HookWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('Error: ${query.error}', style: const TextStyle(color: Colors.red)),
+            Text('Error: ${query.error}',
+                style: const TextStyle(color: Colors.red)),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () => query.refetch(),
@@ -170,7 +176,7 @@ class MutationExample extends HookWidget {
     }
 
     final todos = query.data ?? [];
-    
+
     if (todos.isEmpty) {
       return const Center(
         child: Text(
@@ -179,22 +185,23 @@ class MutationExample extends HookWidget {
         ),
       );
     }
-    
+
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       itemCount: todos.length,
       itemBuilder: (context, index) {
         final todo = todos[index];
-        
+
         // Check if THIS specific item is being toggled/deleted
-        final isTogglingThis = toggleMutation.isPending && 
-            toggleMutation.variables?.id == todo.id;
-        final isDeletingThis = deleteMutation.isPending && 
-            deleteMutation.variables == todo.id;
-        
+        final isTogglingThis =
+            toggleMutation.isPending && toggleMutation.variables?.id == todo.id;
+        final isDeletingThis =
+            deleteMutation.isPending && deleteMutation.variables == todo.id;
+
         return _TodoTile(
           todo: todo,
-          onToggle: () => toggleMutation.mutate((id: todo.id, completed: !todo.completed)),
+          onToggle: () =>
+              toggleMutation.mutate((id: todo.id, completed: !todo.completed)),
           onDelete: () => deleteMutation.mutate(todo.id),
           isToggling: isTogglingThis,
           isDeleting: isDeletingThis,
@@ -239,7 +246,9 @@ class _TodoTile extends StatelessWidget {
               height: 28,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: todo.completed ? Colors.green.withAlpha(51) : Colors.white.withAlpha(26),
+                color: todo.completed
+                    ? Colors.green.withAlpha(51)
+                    : Colors.white.withAlpha(26),
                 border: Border.all(
                   color: todo.completed ? Colors.green : Colors.white30,
                   width: 2,
@@ -274,7 +283,8 @@ class _TodoTile extends StatelessWidget {
                 ? const SizedBox(
                     width: 20,
                     height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.red),
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.red),
                   )
                 : Icon(Icons.delete_outline, color: Colors.red.withAlpha(179)),
             onPressed: isDeleting ? null : onDelete,

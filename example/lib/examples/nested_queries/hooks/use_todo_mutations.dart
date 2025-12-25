@@ -4,7 +4,8 @@ import '../../../api/api_client.dart';
 
 /// All mutations for todo operations
 class TodoMutations {
-  final UseMutationResult<Subtask, Object, ({int subtaskId, bool completed}), void> toggle;
+  final UseMutationResult<Subtask, Object, ({int subtaskId, bool completed}),
+      void> toggle;
   final UseMutationResult<Subtask, Object, String, void> create;
   final UseMutationResult<void, Object, int, void> delete;
   final UseMutationResult<void, Object, String, void> priority;
@@ -18,7 +19,7 @@ class TodoMutations {
 }
 
 /// Hook that provides all todo mutations
-/// 
+///
 /// Updates cache on SUCCESS (not on trigger) - the correct approach:
 /// - Server confirms the change
 /// - We update our local cache to match
@@ -41,20 +42,24 @@ TodoMutations useTodoMutations({
     // Update in todo-details cache
     final details = client.getQueryData<TodoDetails>(['todo-details', todoId]);
     if (details != null) {
-      client.setQueryData(['todo-details', todoId], TodoDetails(
-        id: details.id,
-        title: details.title,
-        completed: details.completed,
-        createdAt: details.createdAt,
-        subtasks: details.subtasks.map((s) => s.id == subtaskId ? updater(s) : s).toList(),
-        activities: details.activities,
-        priority: details.priority,
-        dueDate: details.dueDate,
-        assignee: details.assignee,
-        tags: details.tags,
-        estimatedHours: details.estimatedHours,
-        completedHours: details.completedHours,
-      ));
+      client.setQueryData(
+          ['todo-details', todoId],
+          TodoDetails(
+            id: details.id,
+            title: details.title,
+            completed: details.completed,
+            createdAt: details.createdAt,
+            subtasks: details.subtasks
+                .map((s) => s.id == subtaskId ? updater(s) : s)
+                .toList(),
+            activities: details.activities,
+            priority: details.priority,
+            dueDate: details.dueDate,
+            assignee: details.assignee,
+            tags: details.tags,
+            estimatedHours: details.estimatedHours,
+            completedHours: details.completedHours,
+          ));
     }
 
     // Update in subtasks list cache
@@ -71,20 +76,22 @@ TodoMutations useTodoMutations({
   void addSubtaskToCache(Subtask subtask) {
     final details = client.getQueryData<TodoDetails>(['todo-details', todoId]);
     if (details != null) {
-      client.setQueryData(['todo-details', todoId], TodoDetails(
-        id: details.id,
-        title: details.title,
-        completed: details.completed,
-        createdAt: details.createdAt,
-        subtasks: [...details.subtasks, subtask],
-        activities: details.activities,
-        priority: details.priority,
-        dueDate: details.dueDate,
-        assignee: details.assignee,
-        tags: details.tags,
-        estimatedHours: details.estimatedHours,
-        completedHours: details.completedHours,
-      ));
+      client.setQueryData(
+          ['todo-details', todoId],
+          TodoDetails(
+            id: details.id,
+            title: details.title,
+            completed: details.completed,
+            createdAt: details.createdAt,
+            subtasks: [...details.subtasks, subtask],
+            activities: details.activities,
+            priority: details.priority,
+            dueDate: details.dueDate,
+            assignee: details.assignee,
+            tags: details.tags,
+            estimatedHours: details.estimatedHours,
+            completedHours: details.completedHours,
+          ));
     }
 
     final subtasks = client.getQueryData<List<Subtask>>(['subtasks', todoId]);
@@ -97,20 +104,22 @@ TodoMutations useTodoMutations({
   void removeSubtaskFromCache(int subtaskId) {
     final details = client.getQueryData<TodoDetails>(['todo-details', todoId]);
     if (details != null) {
-      client.setQueryData(['todo-details', todoId], TodoDetails(
-        id: details.id,
-        title: details.title,
-        completed: details.completed,
-        createdAt: details.createdAt,
-        subtasks: details.subtasks.where((s) => s.id != subtaskId).toList(),
-        activities: details.activities,
-        priority: details.priority,
-        dueDate: details.dueDate,
-        assignee: details.assignee,
-        tags: details.tags,
-        estimatedHours: details.estimatedHours,
-        completedHours: details.completedHours,
-      ));
+      client.setQueryData(
+          ['todo-details', todoId],
+          TodoDetails(
+            id: details.id,
+            title: details.title,
+            completed: details.completed,
+            createdAt: details.createdAt,
+            subtasks: details.subtasks.where((s) => s.id != subtaskId).toList(),
+            activities: details.activities,
+            priority: details.priority,
+            dueDate: details.dueDate,
+            assignee: details.assignee,
+            tags: details.tags,
+            estimatedHours: details.estimatedHours,
+            completedHours: details.completedHours,
+          ));
     }
 
     final subtasks = client.getQueryData<List<Subtask>>(['subtasks', todoId]);
@@ -123,8 +132,10 @@ TodoMutations useTodoMutations({
   }
 
   // Toggle subtask
-  final toggle = useMutation<Subtask, Object, ({int subtaskId, bool completed}), void>(
-    mutationFn: (vars) => ApiClient.toggleSubtask(vars.subtaskId, vars.completed),
+  final toggle =
+      useMutation<Subtask, Object, ({int subtaskId, bool completed}), void>(
+    mutationFn: (vars) =>
+        ApiClient.toggleSubtask(vars.subtaskId, vars.completed),
     onSuccess: (result, vars, _) {
       updateSubtaskInCache(vars.subtaskId, (_) => result);
     },
@@ -153,22 +164,25 @@ TodoMutations useTodoMutations({
   final priority = useMutation<void, Object, String, void>(
     mutationFn: (priority) => ApiClient.updateTodoPriority(todoId, priority),
     onSuccess: (_, newPriority, __) {
-      final details = client.getQueryData<TodoDetails>(['todo-details', todoId]);
+      final details =
+          client.getQueryData<TodoDetails>(['todo-details', todoId]);
       if (details != null) {
-        client.setQueryData(['todo-details', todoId], TodoDetails(
-          id: details.id,
-          title: details.title,
-          completed: details.completed,
-          createdAt: details.createdAt,
-          subtasks: details.subtasks,
-          activities: details.activities,
-          priority: newPriority,
-          dueDate: details.dueDate,
-          assignee: details.assignee,
-          tags: details.tags,
-          estimatedHours: details.estimatedHours,
-          completedHours: details.completedHours,
-        ));
+        client.setQueryData(
+            ['todo-details', todoId],
+            TodoDetails(
+              id: details.id,
+              title: details.title,
+              completed: details.completed,
+              createdAt: details.createdAt,
+              subtasks: details.subtasks,
+              activities: details.activities,
+              priority: newPriority,
+              dueDate: details.dueDate,
+              assignee: details.assignee,
+              tags: details.tags,
+              estimatedHours: details.estimatedHours,
+              completedHours: details.completedHours,
+            ));
       }
     },
     onError: (error, _, __) => showError('Failed to update priority: $error'),

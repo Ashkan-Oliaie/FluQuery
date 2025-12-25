@@ -100,4 +100,3 @@ class _QueryClientInherited extends InheritedWidget {
     return client != oldWidget.client;
   }
 }
-

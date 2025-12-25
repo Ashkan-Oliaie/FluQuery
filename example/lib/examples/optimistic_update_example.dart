@@ -17,15 +17,17 @@ class OptimisticUpdateExample extends HookWidget {
     );
 
     // Toggle mutation with optimistic update - TData, TError, TVariables, TContext
-    final toggleMutation = useMutation<Todo, Object, ({int id, bool completed}), List<Todo>>(
-      mutationFn: (args) => ApiClient.updateTodo(args.id, completed: args.completed),
+    final toggleMutation =
+        useMutation<Todo, Object, ({int id, bool completed}), List<Todo>>(
+      mutationFn: (args) =>
+          ApiClient.updateTodo(args.id, completed: args.completed),
       onMutate: (args) {
         // Cancel any outgoing refetches
         client.cancelQueries(queryKey: ['todos']);
-        
+
         // Snapshot the previous value
         final previousTodos = client.getQueryData<List<Todo>>(['todos']) ?? [];
-        
+
         // Optimistically update to the new value
         final optimisticTodos = previousTodos.map((todo) {
           if (todo.id == args.id) {
@@ -33,9 +35,9 @@ class OptimisticUpdateExample extends HookWidget {
           }
           return todo;
         }).toList();
-        
+
         client.setQueryData<List<Todo>>(['todos'], optimisticTodos);
-        
+
         return previousTodos; // Return context for rollback
       },
       onError: (error, variables, previousTodos) {
@@ -44,7 +46,9 @@ class OptimisticUpdateExample extends HookWidget {
           client.setQueryData<List<Todo>>(['todos'], previousTodos);
         }
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $error - Rolled back'), backgroundColor: Colors.red),
+          SnackBar(
+              content: Text('Error: $error - Rolled back'),
+              backgroundColor: Colors.red),
         );
       },
       onSettled: (data, error, variables, previousTodos) {
@@ -59,9 +63,13 @@ class OptimisticUpdateExample extends HookWidget {
         actions: [
           IconButton(
             icon: todosQuery.isFetching
-                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2))
                 : const Icon(Icons.refresh),
-            onPressed: todosQuery.isFetching ? null : () => todosQuery.refetch(),
+            onPressed:
+                todosQuery.isFetching ? null : () => todosQuery.refetch(),
           ),
         ],
       ),
@@ -82,7 +90,8 @@ class OptimisticUpdateExample extends HookWidget {
               decoration: BoxDecoration(
                 color: const Color(0xFF8B5CF6).withAlpha(26),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFF8B5CF6).withAlpha(77)),
+                border:
+                    Border.all(color: const Color(0xFF8B5CF6).withAlpha(77)),
               ),
               child: Row(
                 children: [
@@ -92,11 +101,15 @@ class OptimisticUpdateExample extends HookWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Instant Updates', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        const Text('Instant Updates',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold)),
                         const SizedBox(height: 4),
                         Text(
                           'Toggle items to see instant UI updates. If the server fails, changes are automatically rolled back.',
-                          style: TextStyle(color: Colors.white.withAlpha(153), fontSize: 12),
+                          style: TextStyle(
+                              color: Colors.white.withAlpha(153), fontSize: 12),
                         ),
                       ],
                     ),
@@ -114,14 +127,17 @@ class OptimisticUpdateExample extends HookWidget {
 
   Widget _buildList(
     QueryResult<List<Todo>, Object> query,
-    UseMutationResult<Todo, Object, ({int id, bool completed}), List<Todo>> toggleMutation,
+    UseMutationResult<Todo, Object, ({int id, bool completed}), List<Todo>>
+        toggleMutation,
   ) {
     if (query.isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
 
     if (query.isError) {
-      return Center(child: Text('Error: ${query.error}', style: const TextStyle(color: Colors.red)));
+      return Center(
+          child: Text('Error: ${query.error}',
+              style: const TextStyle(color: Colors.red)));
     }
 
     final todos = query.data ?? [];
@@ -162,10 +178,14 @@ class _OptimisticTodoTile extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: todo.completed ? Colors.green.withAlpha(26) : const Color(0xFF1A1A2E),
+          color: todo.completed
+              ? Colors.green.withAlpha(26)
+              : const Color(0xFF1A1A2E),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: todo.completed ? Colors.green.withAlpha(77) : const Color(0x1AFFFFFF),
+            color: todo.completed
+                ? Colors.green.withAlpha(77)
+                : const Color(0x1AFFFFFF),
           ),
         ),
         child: Row(
@@ -193,7 +213,8 @@ class _OptimisticTodoTile extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 16,
                   color: todo.completed ? Colors.white54 : Colors.white,
-                  decoration: todo.completed ? TextDecoration.lineThrough : null,
+                  decoration:
+                      todo.completed ? TextDecoration.lineThrough : null,
                 ),
               ),
             ),
@@ -203,7 +224,9 @@ class _OptimisticTodoTile extends StatelessWidget {
                 color: Colors.white.withAlpha(13),
                 borderRadius: BorderRadius.circular(6),
               ),
-              child: Text('#${todo.id}', style: TextStyle(fontSize: 12, color: Colors.white.withAlpha(77))),
+              child: Text('#${todo.id}',
+                  style: TextStyle(
+                      fontSize: 12, color: Colors.white.withAlpha(77))),
             ),
           ],
         ),

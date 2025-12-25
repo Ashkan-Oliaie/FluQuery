@@ -42,7 +42,7 @@ class QueryCache {
     QueryState<TData, TError>? state,
   }) {
     final queryHash = QueryKeyUtils.hashKey(options.queryKey);
-    
+
     // Check if query exists with same hash
     final existing = _queries[queryHash];
     if (existing != null) {
@@ -190,19 +190,19 @@ class QueryCache {
 /// Typed wrapper around an untyped query to avoid web runtime cast issues
 class _TypedQueryWrapper<TData, TError> implements Query<TData, TError> {
   final Query _inner;
-  
+
   _TypedQueryWrapper(this._inner);
-  
+
   @override
   QueryKey get queryKey => _inner.queryKey;
-  
+
   @override
   String get queryHash => _inner.queryHash;
-  
+
   @override
   QueryState<TData, TError> get state {
     final innerState = _inner.state;
-    
+
     // Use rawData/rawError to bypass type checking
     return QueryState<TData, TError>(
       data: innerState.rawData,
@@ -218,79 +218,80 @@ class _TypedQueryWrapper<TData, TError> implements Query<TData, TError> {
       isInvalidated: innerState.isInvalidated,
     );
   }
-  
+
   @override
   QueryOptions<TData, TError>? get options {
     final dynamic o = _inner.options;
     return o;
   }
-  
+
   @override
   int get observerCount => _inner.observerCount;
-  
+
   @override
   bool get hasObservers => _inner.hasObservers;
-  
+
   @override
   bool get isStale => _inner.isStale;
-  
+
   @override
   bool get isFetching => _inner.isFetching;
-  
+
   @override
   bool get isActive => _inner.isActive;
-  
+
   @override
   bool get isInactive => _inner.isInactive;
-  
+
   @override
   bool get isDisabled => _inner.isDisabled;
-  
+
   @override
   void setOptions(QueryOptions<TData, TError> options) {
     _inner.setOptions(options as dynamic);
   }
-  
+
   @override
   void addObserver(void Function(dynamic) observer) {
     _inner.addObserver(observer);
   }
-  
+
   @override
   void removeObserver(void Function(dynamic) observer) {
     _inner.removeObserver(observer);
   }
-  
+
   @override
-  Future<Object?> fetch({QueryFn<TData>? queryFn, bool forceRefetch = false}) async {
+  Future<Object?> fetch(
+      {QueryFn<TData>? queryFn, bool forceRefetch = false}) async {
     return await _inner.fetch(
       queryFn: queryFn != null ? (ctx) => queryFn(ctx) : null,
       forceRefetch: forceRefetch,
     );
   }
-  
+
   @override
   void cancel() => _inner.cancel();
-  
+
   @override
   void invalidate() => _inner.invalidate();
-  
+
   @override
   void reset() => _inner.reset();
-  
+
   @override
   void setData(Object? data, {DateTime? updatedAt}) {
     _inner.setData(data, updatedAt: updatedAt);
   }
-  
+
   @override
   void destroy() => _inner.destroy();
-  
+
   @override
   set onGc(void Function(Query<TData, TError>) callback) {
     _inner.onGc = (q) => callback(this);
   }
-  
+
   @override
   String toString() => _inner.toString();
 }

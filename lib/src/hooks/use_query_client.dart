@@ -7,4 +7,3 @@ QueryClient useQueryClient() {
   final context = useContext();
   return QueryClientProvider.of(context);
 }
-

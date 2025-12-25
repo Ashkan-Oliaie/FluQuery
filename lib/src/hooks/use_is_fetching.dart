@@ -37,4 +37,3 @@ int useIsMutating() {
 
   return countState.value;
 }
-

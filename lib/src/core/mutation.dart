@@ -20,8 +20,9 @@ class MutationOptions<TData, TError, TVariables, TContext> {
       onError;
 
   /// Called when mutation settles (success or error)
-  final void Function(TData? data, TError? error, TVariables variables,
-      TContext? context)? onSettled;
+  final void Function(
+          TData? data, TError? error, TVariables variables, TContext? context)?
+      onSettled;
 
   /// Number of retries on failure
   final int retry;
@@ -148,7 +149,7 @@ class Mutation<TData, TError, TVariables, TContext> {
       _setState(_state.withSuccess(data));
 
       FluQueryLogger.debug('Mutation success: $mutationId');
-      
+
       // Call callbacks with typed data
       final dynamic typedData = data;
       _options.onSuccess?.call(typedData, variables, context);

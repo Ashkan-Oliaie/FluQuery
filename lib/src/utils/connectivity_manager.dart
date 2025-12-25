@@ -20,14 +20,15 @@ class ConnectivityManager {
     _updateConnectivity(results);
 
     // Listen for changes
-    _subscription = Connectivity().onConnectivityChanged.listen(_updateConnectivity);
+    _subscription =
+        Connectivity().onConnectivityChanged.listen(_updateConnectivity);
     _isInitialized = true;
 
     FluQueryLogger.debug('ConnectivityManager initialized');
   }
 
   void _updateConnectivity(List<ConnectivityResult> results) {
-    final isOnline = results.isNotEmpty && 
+    final isOnline = results.isNotEmpty &&
         !results.every((r) => r == ConnectivityResult.none);
     _client.setOnline(isOnline);
     FluQueryLogger.debug('Connectivity changed: online=$isOnline');
@@ -40,4 +41,3 @@ class ConnectivityManager {
     _isInitialized = false;
   }
 }
-

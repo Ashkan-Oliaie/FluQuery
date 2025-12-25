@@ -26,10 +26,10 @@ class QueryResult<TData, TError> {
   final int failureCount;
   final Object? failureReason;
   final Future<TData> Function() refetch;
-  
+
   /// Whether the data is placeholder data
   final bool isPlaceholderData;
-  
+
   /// Whether the data is from a previous query (keepPreviousData)
   final bool isPreviousData;
 
@@ -54,7 +54,8 @@ class QueryResult<TData, TError> {
     required this.refetch,
     this.isPlaceholderData = false,
     this.isPreviousData = false,
-  }) : _data = data, _error = error;
+  })  : _data = data,
+        _error = error;
 
   /// Get data using dynamic to avoid web runtime cast issues
   TData? get data {
@@ -69,10 +70,10 @@ class QueryResult<TData, TError> {
     final dynamic e = _error;
     return e;
   }
-  
+
   /// Raw error without type casting - for internal use
   Object? get rawError => _error;
-  
+
   /// Raw data without type casting - for internal use
   Object? get rawData => _data;
 
@@ -81,11 +82,11 @@ class QueryResult<TData, TError> {
     Query<TData, TError> query,
   ) {
     final state = query.state;
-    
+
     // Use rawData/rawError to bypass type checking which fails on web with erased generics
     final Object? rawData = state.rawData;
     final Object? rawError = state.rawError;
-    
+
     return QueryResult<TData, TError>(
       data: rawData,
       error: rawError,
@@ -178,8 +179,7 @@ class QueryObserver<TData, TError> {
 
     // If query key changed, we need to switch queries
     if (_currentQuery != null &&
-        _currentQuery!.queryHash !=
-            options.queryKey.toString()) {
+        _currentQuery!.queryHash != options.queryKey.toString()) {
       _unsubscribe();
       _subscribe();
     }
@@ -226,19 +226,18 @@ class QueryObserver<TData, TError> {
     final hasData = _currentQuery!.state.hasData;
     final isStale = _currentQuery!.isStale;
     final refetchOnMount = _options.refetchOnMount;
-    
-    FluQueryLogger.debug(
-      'QueryObserver.start: key=${_options.queryKey}, '
-      'hasData=$hasData, isStale=$isStale, refetchOnMount=$refetchOnMount, '
-      'enabled=${_options.enabled}'
-    );
-    
+
+    FluQueryLogger.debug('QueryObserver.start: key=${_options.queryKey}, '
+        'hasData=$hasData, isStale=$isStale, refetchOnMount=$refetchOnMount, '
+        'enabled=${_options.enabled}');
+
     // Fetch conditions:
     // 1. Always fetch if no data exists
     // 2. If refetchOnMount is true (default), fetch if data is stale
     // 3. If refetchOnMount is false, don't fetch even if stale (use cached data)
-    final shouldFetch = _options.enabled && (!hasData || (isStale && refetchOnMount));
-    
+    final shouldFetch =
+        _options.enabled && (!hasData || (isStale && refetchOnMount));
+
     FluQueryLogger.debug('QueryObserver.start: shouldFetch=$shouldFetch');
 
     if (shouldFetch) {

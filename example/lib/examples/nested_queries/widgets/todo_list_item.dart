@@ -4,7 +4,7 @@ import 'package:fluquery/fluquery.dart';
 import '../../../api/api_client.dart';
 
 /// Individual todo list item with per-item subtask count fetch
-/// 
+///
 /// Each item has its own cached query - demonstrating how
 /// FluQuery handles many individual queries efficiently.
 class TodoListItem extends HookWidget {
@@ -31,7 +31,8 @@ class TodoListItem extends HookWidget {
     );
 
     final subtaskCount = subtasksQuery.data?.length ?? 0;
-    final completedCount = subtasksQuery.data?.where((s) => s.completed).length ?? 0;
+    final completedCount =
+        subtasksQuery.data?.where((s) => s.completed).length ?? 0;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -171,5 +172,3 @@ class _SubtaskInfo extends StatelessWidget {
     );
   }
 }
-
-

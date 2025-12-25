@@ -27,8 +27,8 @@ class SubtaskTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isOptimistic 
-            ? const Color(0xFF2A2A3E).withAlpha(128) 
+        color: isOptimistic
+            ? const Color(0xFF2A2A3E).withAlpha(128)
             : const Color(0xFF2A2A3E),
         borderRadius: BorderRadius.circular(8),
         border: isOptimistic
@@ -76,15 +76,18 @@ class SubtaskTile extends StatelessWidget {
                     subtask.title,
                     style: TextStyle(
                       color: isOptimistic ? Colors.white70 : Colors.white,
-                      decoration: subtask.completed ? TextDecoration.lineThrough : null,
-                      fontStyle: isOptimistic ? FontStyle.italic : FontStyle.normal,
+                      decoration:
+                          subtask.completed ? TextDecoration.lineThrough : null,
+                      fontStyle:
+                          isOptimistic ? FontStyle.italic : FontStyle.normal,
                     ),
                   ),
                 ),
                 if (isOptimistic)
                   Container(
                     margin: const EdgeInsets.only(left: 8),
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
                       color: const Color(0xFF6366F1).withAlpha(51),
                       borderRadius: BorderRadius.circular(4),
@@ -110,8 +113,8 @@ class SubtaskTile extends StatelessWidget {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : Icon(
-                    Icons.delete_outline, 
-                    size: 18, 
+                    Icons.delete_outline,
+                    size: 18,
                     color: isOptimistic ? Colors.white24 : Colors.white38,
                   ),
             onPressed: isDeleting || isOptimistic ? null : onDelete,
@@ -123,5 +126,3 @@ class SubtaskTile extends StatelessWidget {
     );
   }
 }
-
-

@@ -195,23 +195,23 @@ class QueryClient {
     );
 
     FluQueryLogger.debug(
-      'invalidateQueries: found ${queries.length} queries for key=$queryKey, refetchType=$refetchType'
-    );
+        'invalidateQueries: found ${queries.length} queries for key=$queryKey, refetchType=$refetchType');
 
     for (final query in queries) {
       query.invalidate();
       FluQueryLogger.debug(
-        'invalidateQueries: invalidated ${query.queryKey}, hasObservers=${query.hasObservers}'
-      );
+          'invalidateQueries: invalidated ${query.queryKey}, hasObservers=${query.hasObservers}');
     }
 
     // Refetch active queries
     if (refetchType == true) {
       final activeQueries = queries.where((q) => q.hasObservers).toList();
-      FluQueryLogger.debug('invalidateQueries: refetching ${activeQueries.length} active queries');
+      FluQueryLogger.debug(
+          'invalidateQueries: refetching ${activeQueries.length} active queries');
       await Future.wait(activeQueries.map((q) => q.fetch()));
     } else if (refetchType == false) {
-      FluQueryLogger.debug('invalidateQueries: refetching all ${queries.length} queries');
+      FluQueryLogger.debug(
+          'invalidateQueries: refetching all ${queries.length} queries');
       await Future.wait(queries.map((q) => q.fetch()));
     }
   }
@@ -291,9 +291,7 @@ class QueryClient {
     if (queryKey == null) {
       return _queryCache.queries.any((q) => q.isFetching);
     }
-    return _queryCache
-        .findAll(queryKey: queryKey, fetching: true)
-        .isNotEmpty;
+    return _queryCache.findAll(queryKey: queryKey, fetching: true).isNotEmpty;
   }
 
   /// Get count of fetching queries
@@ -320,8 +318,8 @@ class QueryClient {
     InfiniteQueryOptions<TData, TError, TPageParam> options,
   ) {
     final queryHash = QueryKeyUtils.hashKey(options.queryKey);
-    var query =
-        _infiniteQueries[queryHash] as InfiniteQuery<TData, TError, TPageParam>?;
+    var query = _infiniteQueries[queryHash]
+        as InfiniteQuery<TData, TError, TPageParam>?;
 
     if (query == null) {
       query = InfiniteQuery<TData, TError, TPageParam>(
@@ -343,7 +341,8 @@ class QueryClient {
 
     final queries = _queryCache.findAll(
       stale: true,
-      predicate: (q) => q.hasObservers && (q.options?.refetchOnWindowFocus ?? true),
+      predicate: (q) =>
+          q.hasObservers && (q.options?.refetchOnWindowFocus ?? true),
     );
 
     for (final query in queries) {
@@ -358,7 +357,8 @@ class QueryClient {
 
     final queries = _queryCache.findAll(
       stale: true,
-      predicate: (q) => q.hasObservers && (q.options?.refetchOnReconnect ?? true),
+      predicate: (q) =>
+          q.hasObservers && (q.options?.refetchOnReconnect ?? true),
     );
 
     for (final query in queries) {
@@ -384,4 +384,3 @@ class QueryClient {
     _infiniteQueries.clear();
   }
 }
-

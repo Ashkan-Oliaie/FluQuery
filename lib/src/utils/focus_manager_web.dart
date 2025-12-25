@@ -37,4 +37,3 @@ void disposeWebFocusListener(Object listener) {
     }
   }
 }
-

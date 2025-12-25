@@ -58,7 +58,8 @@ class PollingExample extends HookWidget {
                       children: [
                         const Text(
                           'Auto Refresh',
-                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
+                          style: TextStyle(
+                              color: Colors.white, fontWeight: FontWeight.w500),
                         ),
                         Switch(
                           value: isPolling.value,
@@ -77,21 +78,28 @@ class PollingExample extends HookWidget {
                         ),
                         Row(
                           children: [1, 3, 5, 10].map((seconds) {
-                            final selected = pollInterval.value?.inSeconds == seconds;
+                            final selected =
+                                pollInterval.value?.inSeconds == seconds;
                             return Padding(
                               padding: const EdgeInsets.only(left: 8),
                               child: GestureDetector(
-                                onTap: () => pollInterval.value = Duration(seconds: seconds),
+                                onTap: () => pollInterval.value =
+                                    Duration(seconds: seconds),
                                 child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 6),
                                   decoration: BoxDecoration(
-                                    color: selected ? const Color(0xFF6366F1) : Colors.white.withAlpha(26),
+                                    color: selected
+                                        ? const Color(0xFF6366F1)
+                                        : Colors.white.withAlpha(26),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Text(
                                     '${seconds}s',
                                     style: TextStyle(
-                                      color: selected ? Colors.white : Colors.white60,
+                                      color: selected
+                                          ? Colors.white
+                                          : Colors.white60,
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),
@@ -109,24 +117,28 @@ class PollingExample extends HookWidget {
               // Time display
               Expanded(
                 child: Center(
-                  child: _buildTimeDisplay(timeQuery, isPolling.value, fetchCount.value),
+                  child: _buildTimeDisplay(
+                      timeQuery, isPolling.value, fetchCount.value),
                 ),
               ),
               // Manual refresh
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: timeQuery.isFetching ? null : () => timeQuery.refetch(),
+                  onPressed:
+                      timeQuery.isFetching ? null : () => timeQuery.refetch(),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF6366F1),
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                   ),
                   icon: timeQuery.isFetching
                       ? const SizedBox(
                           width: 20,
                           height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white),
                         )
                       : const Icon(Icons.refresh),
                   label: const Text('Manual Refresh'),
@@ -139,7 +151,8 @@ class PollingExample extends HookWidget {
     );
   }
 
-  Widget _buildTimeDisplay(QueryResult<ServerTime, Object> query, bool isPolling, int fetchCount) {
+  Widget _buildTimeDisplay(
+      QueryResult<ServerTime, Object> query, bool isPolling, int fetchCount) {
     return Container(
       padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
@@ -178,7 +191,8 @@ class PollingExample extends HookWidget {
           if (query.isLoading && query.data == null)
             const CircularProgressIndicator()
           else if (query.isError)
-            Text('Error: ${query.error}', style: const TextStyle(color: Colors.red))
+            Text('Error: ${query.error}',
+                style: const TextStyle(color: Colors.red))
           else if (query.data != null) ...[
             Text(
               _formatTime(query.data!.time),
@@ -192,7 +206,8 @@ class PollingExample extends HookWidget {
             const SizedBox(height: 8),
             Text(
               _formatDate(query.data!.time),
-              style: TextStyle(fontSize: 16, color: Colors.white.withAlpha(128)),
+              style:
+                  TextStyle(fontSize: 16, color: Colors.white.withAlpha(128)),
             ),
           ],
           const SizedBox(height: 24),
@@ -204,7 +219,8 @@ class PollingExample extends HookWidget {
             ),
             child: Text(
               'Fetched $fetchCount times',
-              style: TextStyle(fontSize: 12, color: Colors.white.withAlpha(128)),
+              style:
+                  TextStyle(fontSize: 12, color: Colors.white.withAlpha(128)),
             ),
           ),
         ],
@@ -219,7 +235,20 @@ class PollingExample extends HookWidget {
   }
 
   String _formatDate(DateTime time) {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
+    ];
     return '${months[time.month - 1]} ${time.day}, ${time.year}';
   }
 }

@@ -35,7 +35,8 @@ class ActivityTile extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   _formatTimeAgo(activity.timestamp),
-                  style: TextStyle(color: Colors.white.withAlpha(128), fontSize: 11),
+                  style: TextStyle(
+                      color: Colors.white.withAlpha(128), fontSize: 11),
                 ),
               ],
             ),
@@ -99,5 +100,3 @@ class ActivityTile extends StatelessWidget {
     }
   }
 }
-
-

@@ -1,5 +1,5 @@
 /// Nested Queries Example
-/// 
+///
 /// Demonstrates complex master-detail patterns with:
 /// - Per-item queries (each list item fetches its own data)
 /// - Modal with dependent queries
@@ -18,4 +18,3 @@ export 'widgets/activity_tile.dart' show ActivityTile;
 
 // Hooks
 export 'hooks/use_todo_mutations.dart' show useTodoMutations, TodoMutations;
-

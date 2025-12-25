@@ -1,5 +1,5 @@
 /// FluQuery - Powerful asynchronous state management for Flutter
-/// 
+///
 /// Inspired by TanStack Query (React Query), FluQuery provides:
 /// - Automatic caching and cache invalidation
 /// - Background refetching
@@ -10,7 +10,7 @@
 /// - Infinite/paginated queries
 /// - Offline support
 /// - And much more!
-/// 
+///
 /// Example usage:
 /// ```dart
 /// // Wrap your app with QueryClientProvider
@@ -18,7 +18,7 @@
 ///   client: QueryClient(),
 ///   child: MyApp(),
 /// );
-/// 
+///
 /// // Use the useQuery hook in a HookWidget
 /// class TodoList extends HookWidget {
 ///   @override
@@ -27,10 +27,10 @@
 ///       queryKey: ['todos'],
 ///       queryFn: (_) => fetchTodos(),
 ///     );
-/// 
+///
 ///     if (todos.isLoading) return CircularProgressIndicator();
 ///     if (todos.isError) return Text('Error: ${todos.error}');
-/// 
+///
 ///     return ListView(
 ///       children: todos.data!.map((t) => Text(t.title)).toList(),
 ///     );
