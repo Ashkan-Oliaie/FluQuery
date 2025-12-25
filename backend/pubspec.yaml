@@ -1,0 +1,16 @@
+name: fluquery_backend
+description: REST API backend for FluQuery example app
+version: 1.0.0
+publish_to: none
+
+environment:
+  sdk: ^3.0.0
+
+dependencies:
+  shelf: ^1.4.1
+  shelf_router: ^1.1.4
+  shelf_cors_headers: ^0.1.5
+
+dev_dependencies:
+  lints: ^4.0.0
+

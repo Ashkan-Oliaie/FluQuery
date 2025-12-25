@@ -1,0 +1,25 @@
+name: fluquery
+description: "Powerful asynchronous state management, server-state utilities and data fetching for Flutter. Inspired by TanStack Query."
+version: 1.0.0
+homepage: https://github.com/yourusername/fluquery
+repository: https://github.com/yourusername/fluquery
+issue_tracker: https://github.com/yourusername/fluquery/issues
+
+environment:
+  sdk: ^3.8.0
+  flutter: ">=3.38.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_hooks: ^0.20.5
+  collection: ^1.18.0
+  connectivity_plus: ^6.1.4
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  mocktail: ^1.0.4
+
+flutter:
