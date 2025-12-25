@@ -4,10 +4,10 @@ description: >-
   for Flutter. Inspired by TanStack Query (React Query). Features automatic caching, 
   background refetching, mutations, infinite queries, and optimistic updates.
 version: 1.0.0
-homepage: https://github.com/AshkanAbd/fluquery
-repository: https://github.com/AshkanAbd/fluquery
-issue_tracker: https://github.com/AshkanAbd/fluquery/issues
-documentation: https://github.com/AshkanAbd/fluquery#readme
+homepage: https://github.com/Ashkan-Oliaie/FluQuery
+repository: https://github.com/Ashkan-Oliaie/FluQuery
+issue_tracker: https://github.com/Ashkan-Oliaie/FluQuery/issues
+documentation: https://github.com/Ashkan-Oliaie/FluQuery#readme
 
 topics:
   - state-management
@@ -17,8 +17,8 @@ topics:
   - query
 
 environment:
-  sdk: ^3.8.0
-  flutter: ">=3.38.0"
+  sdk: ">=3.2.0 <4.0.0"
+  flutter: ">=3.7.0"
 
 dependencies:
   flutter:
