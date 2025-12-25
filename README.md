@@ -493,6 +493,56 @@ Check out the [example](./example) directory for a comprehensive demo app showca
    flutter run -d chrome  # or any other platform
    ```
 
+## 🗺️ Roadmap
+
+We're continuously improving FluQuery. Here's what's coming:
+
+### 🔥 High Priority
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| 💾 **Persister Plugin** | 🔜 Planned | Save/restore cache to disk (Hive, SharedPrefs, SQLite) |
+| 🔧 **DevTools** | 🔜 Planned | Debug overlay to inspect cache, queries, and mutations |
+| 📊 **Max Cache Size** | 🔜 Planned | Limit cache entries to prevent memory issues |
+| 🛡️ **QueryErrorBoundary** | 🔜 Planned | Widget for graceful error handling and recovery |
+
+### ⚡ Medium Priority
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| 📴 **Offline Mutation Queue** | 📋 Backlog | Queue mutations when offline, execute on reconnect |
+| 📦 **Request Batching** | 📋 Backlog | Combine multiple requests into one |
+| 🔄 **Structural Sharing** | 📋 Backlog | Optimize re-renders with deep comparison |
+| 🎭 **Suspense-like Boundary** | 📋 Backlog | Loading boundary widget for child queries |
+
+### 🚀 Future
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| 🔌 **WebSocket Integration** | 💡 Idea | Real-time updates via WebSocket |
+| 📡 **GraphQL Adapter** | 💡 Idea | First-class GraphQL support |
+| 🔐 **Auth Token Refresh** | 💡 Idea | Automatic 401 handling with token refresh |
+| ⚖️ **Optimistic Locking** | 💡 Idea | Conflict resolution for concurrent updates |
+
+### ✅ Completed Features
+
+- [x] Automatic caching & background refetching
+- [x] Window focus & network reconnection handling
+- [x] Mutations with cache invalidation
+- [x] Infinite/paginated queries
+- [x] Optimistic updates with rollback
+- [x] Dependent & parallel queries
+- [x] Race condition handling with CancellationToken
+- [x] Select/Transform data (`useQuerySelect`)
+- [x] Keep Previous Data for smooth transitions
+- [x] Polling/interval refetching
+- [x] Retry with exponential backoff
+- [x] Garbage collection
+
+> 💡 Have a feature request? [Open an issue](https://github.com/Ashkan-Oliaie/FluQuery/issues)!
+
+---
+
 ## 🤝 Contributing
 
 Contributions are welcome! Please read our contributing guidelines before submitting a PR.
@@ -508,4 +558,4 @@ MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
-Made with ❤️ by the Flutter community
+Made with ❤️ for the Flutter community
