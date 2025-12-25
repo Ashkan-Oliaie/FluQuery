@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2024-12-25
+
+### Fixed
+- **Polling**: Fixed interval changes not taking effect - `refetchInterval` now properly updates the polling timer when changed
+- Lowered `flutter_lints` version to `^5.0.0` for broader SDK compatibility
+
+### Added
+- **Nested Queries Example**: Complex master-detail pattern demonstrating:
+  - Per-item queries (each list item fetches its own data)
+  - Modal with multiple dependent queries
+  - Optimistic updates on subtasks
+  - Cache invalidation cascading
+  - Real-time activity tracking with auto-polling
+- New backend endpoints for todo details, subtasks, and activities
+
+### Changed
+- Removed Docker files from repository (simplified to Dart-only backend)
+- Updated documentation with expanded API endpoints
+
 ## [1.0.0] - 2024-12-25
 
 ### Added

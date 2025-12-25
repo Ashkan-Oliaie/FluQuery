@@ -21,23 +21,47 @@ The server will start at `http://localhost:8080`.
 
 ## API Endpoints
 
+### Todos
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/health` | Health check |
 | GET | `/api/todos` | Get all todos |
 | GET | `/api/todos/:id` | Get todo by ID |
 | POST | `/api/todos` | Create todo |
 | PUT | `/api/todos/:id` | Update todo |
 | DELETE | `/api/todos/:id` | Delete todo |
+| GET | `/api/todos/:id/details` | Get todo with subtasks, activities, assignee |
+| GET | `/api/todos/:id/subtasks` | Get subtasks for a todo |
+| POST | `/api/todos/:id/subtasks` | Add subtask to a todo |
+| GET | `/api/todos/:id/activities` | Get activity log for a todo |
+| PUT | `/api/todos/:id/priority` | Update todo priority |
+
+### Subtasks
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| PUT | `/api/subtasks/:id` | Toggle/update subtask |
+| DELETE | `/api/subtasks/:id` | Delete subtask |
+
+### Posts
+| Method | Endpoint | Description |
+|--------|----------|-------------|
 | GET | `/api/posts?page=1&limit=10` | Get paginated posts |
 | GET | `/api/posts/:id` | Get post by ID |
+| GET | `/api/posts/:id/comments` | Get post comments |
+| POST | `/api/posts/:id/comments` | Add comment |
+
+### Users
+| Method | Endpoint | Description |
+|--------|----------|-------------|
 | GET | `/api/users` | Get all users |
 | GET | `/api/users/:id` | Get user by ID |
 | GET | `/api/users/:id/posts` | Get user's posts |
 | GET | `/api/users/search?q=query` | Search users by name/email |
+
+### Other
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/health` | Health check |
 | GET | `/api/time` | Get server time |
-| GET | `/api/posts/:id/comments` | Get post comments |
-| POST | `/api/posts/:id/comments` | Add comment |
 
 ## Example Requests
 

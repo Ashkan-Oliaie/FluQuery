@@ -99,6 +99,14 @@ Select, keepPreviousData, and more:
 - **Keep Previous Tab**: Smooth transitions between queries
 - **Comparison Tab**: When to use each feature
 
+### 9. Nested Queries (Complex Example)
+Master-detail pattern with multiple related queries:
+- **List with per-item queries**: Each todo fetches its subtask count separately
+- **Modal with dependent data**: Details, subtasks, and activity log
+- **Optimistic updates**: Instant feedback when toggling subtasks
+- **Cache invalidation cascade**: Updates propagate to all related queries
+- **Real-time activity**: Auto-refreshing activity log with polling
+
 ## 🔧 Configuration
 
 The example app is configured with debug logging enabled. You can see all FluQuery operations in the console:

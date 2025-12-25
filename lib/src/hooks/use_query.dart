@@ -54,7 +54,7 @@ QueryResult<TData, TError> useQuery<TData, TError>({
     return d;
   }
 
-  // Create options
+  // Create options - include refetchInterval in dependencies for polling updates
   final options = useMemoized(
     () => QueryOptions<TData, TError>(
       queryKey: queryKey,
@@ -74,7 +74,7 @@ QueryResult<TData, TError> useQuery<TData, TError>({
       initialData: initialData,
       initialDataUpdatedAt: initialDataUpdatedAt,
     ),
-    [queryKey.toString(), enabled, staleTime, retry],
+    [queryKey.toString(), enabled, staleTime, retry, refetchInterval?.inMilliseconds],
   );
 
   // Observer reference
@@ -267,7 +267,7 @@ QueryResult<TSelect, TError> useQuerySelect<TData, TError, TSelect>({
     return d;
   }
 
-  // Create options
+  // Create options - include refetchInterval in dependencies for polling updates
   final options = useMemoized(
     () => QueryOptions<TData, TError>(
       queryKey: queryKey,
@@ -287,7 +287,7 @@ QueryResult<TSelect, TError> useQuerySelect<TData, TError, TSelect>({
       initialData: initialData,
       initialDataUpdatedAt: initialDataUpdatedAt,
     ),
-    [queryKey.toString(), enabled, staleTime, retry],
+    [queryKey.toString(), enabled, staleTime, retry, refetchInterval?.inMilliseconds],
   );
 
   // Observer reference

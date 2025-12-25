@@ -84,6 +84,163 @@ void main() async {
     return Response.ok(jsonEncode({'success': true}), headers: {'Content-Type': 'application/json'});
   });
 
+  // ============ TODO DETAILS & SUBTASKS ============
+  // Get todo details with extended info
+  router.get('/api/todos/<id>/details', (Request request, String id) async {
+    await _simulateDelay(minMs: 300, maxMs: 600);
+    final todoId = int.parse(id);
+    final todo = _db.todos.firstWhere(
+      (t) => t['id'] == todoId,
+      orElse: () => {},
+    );
+    if (todo.isEmpty) {
+      return Response.notFound(jsonEncode({'error': 'Todo not found'}));
+    }
+    
+    // Get subtasks for this todo
+    final subtasks = _db.subtasks.where((s) => s['todoId'] == todoId).toList();
+    // Get activity log
+    final activities = _db.activities.where((a) => a['todoId'] == todoId).toList();
+    
+    final details = {
+      ...todo,
+      'subtasks': subtasks,
+      'activities': activities,
+      'priority': _db.todoPriorities[todoId] ?? 'medium',
+      'dueDate': DateTime.now().add(Duration(days: todoId % 7)).toIso8601String(),
+      'assignee': _db.users[(todoId - 1) % _db.users.length],
+      'tags': ['tag-${todoId % 3}', 'tag-${todoId % 5}'],
+      'estimatedHours': (todoId % 8) + 1,
+      'completedHours': todo['completed'] == true ? (todoId % 8) + 1 : (todoId % 4),
+    };
+    
+    return Response.ok(jsonEncode(details), headers: {'Content-Type': 'application/json'});
+  });
+
+  // Get subtasks for a todo
+  router.get('/api/todos/<id>/subtasks', (Request request, String id) async {
+    await _simulateDelay(minMs: 200, maxMs: 400);
+    final todoId = int.parse(id);
+    final subtasks = _db.subtasks.where((s) => s['todoId'] == todoId).toList();
+    return Response.ok(jsonEncode(subtasks), headers: {'Content-Type': 'application/json'});
+  });
+
+  // Add subtask
+  router.post('/api/todos/<id>/subtasks', (Request request, String id) async {
+    await _simulateDelay();
+    final todoId = int.parse(id);
+    final body = await request.readAsString();
+    final data = jsonDecode(body) as Map<String, dynamic>;
+    
+    final subtask = {
+      'id': _db.nextSubtaskId++,
+      'todoId': todoId,
+      'title': data['title'] ?? 'Untitled subtask',
+      'completed': data['completed'] ?? false,
+      'createdAt': DateTime.now().toIso8601String(),
+    };
+    _db.subtasks.add(subtask);
+    
+    // Add activity
+    _db.activities.add({
+      'id': _db.nextActivityId++,
+      'todoId': todoId,
+      'action': 'subtask_added',
+      'description': 'Added subtask: ${subtask['title']}',
+      'timestamp': DateTime.now().toIso8601String(),
+    });
+    
+    return Response.ok(jsonEncode(subtask), headers: {'Content-Type': 'application/json'});
+  });
+
+  // Toggle subtask
+  router.put('/api/subtasks/<id>', (Request request, String id) async {
+    await _simulateDelay();
+    final subtaskId = int.parse(id);
+    final index = _db.subtasks.indexWhere((s) => s['id'] == subtaskId);
+    
+    if (index == -1) {
+      return Response.notFound(jsonEncode({'error': 'Subtask not found'}));
+    }
+    
+    final body = await request.readAsString();
+    final data = jsonDecode(body) as Map<String, dynamic>;
+    
+    final subtask = _db.subtasks[index];
+    _db.subtasks[index] = {
+      ...subtask,
+      if (data.containsKey('title')) 'title': data['title'],
+      if (data.containsKey('completed')) 'completed': data['completed'],
+      'updatedAt': DateTime.now().toIso8601String(),
+    };
+    
+    // Add activity
+    if (data.containsKey('completed')) {
+      _db.activities.add({
+        'id': _db.nextActivityId++,
+        'todoId': subtask['todoId'],
+        'action': data['completed'] ? 'subtask_completed' : 'subtask_uncompleted',
+        'description': '${data['completed'] ? 'Completed' : 'Uncompleted'} subtask: ${subtask['title']}',
+        'timestamp': DateTime.now().toIso8601String(),
+      });
+    }
+    
+    return Response.ok(jsonEncode(_db.subtasks[index]), headers: {'Content-Type': 'application/json'});
+  });
+
+  // Delete subtask
+  router.delete('/api/subtasks/<id>', (Request request, String id) async {
+    await _simulateDelay();
+    final subtaskId = int.parse(id);
+    final subtask = _db.subtasks.firstWhere((s) => s['id'] == subtaskId, orElse: () => {});
+    
+    if (subtask.isNotEmpty) {
+      _db.subtasks.removeWhere((s) => s['id'] == subtaskId);
+      
+      // Add activity
+      _db.activities.add({
+        'id': _db.nextActivityId++,
+        'todoId': subtask['todoId'],
+        'action': 'subtask_deleted',
+        'description': 'Deleted subtask: ${subtask['title']}',
+        'timestamp': DateTime.now().toIso8601String(),
+      });
+    }
+    
+    return Response.ok(jsonEncode({'success': true}), headers: {'Content-Type': 'application/json'});
+  });
+
+  // Get activity log for a todo
+  router.get('/api/todos/<id>/activities', (Request request, String id) async {
+    await _simulateDelay(minMs: 150, maxMs: 300);
+    final todoId = int.parse(id);
+    final activities = _db.activities.where((a) => a['todoId'] == todoId).toList();
+    // Sort by timestamp descending
+    activities.sort((a, b) => (b['timestamp'] as String).compareTo(a['timestamp'] as String));
+    return Response.ok(jsonEncode(activities), headers: {'Content-Type': 'application/json'});
+  });
+
+  // Update todo priority
+  router.put('/api/todos/<id>/priority', (Request request, String id) async {
+    await _simulateDelay();
+    final todoId = int.parse(id);
+    final body = await request.readAsString();
+    final data = jsonDecode(body) as Map<String, dynamic>;
+    
+    _db.todoPriorities[todoId] = data['priority'] ?? 'medium';
+    
+    // Add activity
+    _db.activities.add({
+      'id': _db.nextActivityId++,
+      'todoId': todoId,
+      'action': 'priority_changed',
+      'description': 'Priority changed to ${_db.todoPriorities[todoId]}',
+      'timestamp': DateTime.now().toIso8601String(),
+    });
+    
+    return Response.ok(jsonEncode({'priority': _db.todoPriorities[todoId]}), headers: {'Content-Type': 'application/json'});
+  });
+
   // ============ POSTS (Paginated) ============
   router.get('/api/posts', (Request request) async {
     await _simulateDelay();
@@ -221,19 +378,32 @@ void main() async {
   print('🚀 FluQuery API Server running on http://${server.address.host}:${server.port}');
   print('📚 Endpoints:');
   print('   GET  /health');
+  print('   --- Todos ---');
   print('   GET  /api/todos');
   print('   POST /api/todos');
+  print('   GET  /api/todos/:id');
   print('   PUT  /api/todos/:id');
   print('   DELETE /api/todos/:id');
+  print('   GET  /api/todos/:id/details');
+  print('   GET  /api/todos/:id/subtasks');
+  print('   POST /api/todos/:id/subtasks');
+  print('   GET  /api/todos/:id/activities');
+  print('   PUT  /api/todos/:id/priority');
+  print('   --- Subtasks ---');
+  print('   PUT  /api/subtasks/:id');
+  print('   DELETE /api/subtasks/:id');
+  print('   --- Posts ---');
   print('   GET  /api/posts?page=1&limit=10');
   print('   GET  /api/posts/:id');
+  print('   GET  /api/posts/:id/comments');
+  print('   POST /api/posts/:id/comments');
+  print('   --- Users ---');
   print('   GET  /api/users');
   print('   GET  /api/users/:id');
   print('   GET  /api/users/:id/posts');
   print('   GET  /api/users/search?q=query');
+  print('   --- Other ---');
   print('   GET  /api/time');
-  print('   GET  /api/posts/:id/comments');
-  print('   POST /api/posts/:id/comments');
 }
 
 Future<void> _simulateDelay({int minMs = 200, int maxMs = 800}) async {
@@ -244,12 +414,34 @@ Future<void> _simulateDelay({int minMs = 200, int maxMs = 800}) async {
 class InMemoryDatabase {
   int nextTodoId = 21;
   int nextCommentId = 101;
+  int nextSubtaskId = 61;
+  int nextActivityId = 101;
+  
+  final Map<int, String> todoPriorities = {};
   
   final List<Map<String, dynamic>> todos = List.generate(20, (i) => {
     'id': i + 1,
     'title': 'Todo ${i + 1}: ${_todoTitles[i % _todoTitles.length]}',
     'completed': i % 3 == 0,
     'createdAt': DateTime.now().subtract(Duration(days: 20 - i)).toIso8601String(),
+  });
+  
+  // Subtasks for todos
+  final List<Map<String, dynamic>> subtasks = List.generate(60, (i) => {
+    'id': i + 1,
+    'todoId': (i % 20) + 1,
+    'title': 'Subtask ${i + 1}: ${_subtaskTitles[i % _subtaskTitles.length]}',
+    'completed': i % 4 == 0,
+    'createdAt': DateTime.now().subtract(Duration(hours: 60 - i)).toIso8601String(),
+  });
+  
+  // Activity log for todos
+  final List<Map<String, dynamic>> activities = List.generate(100, (i) => {
+    'id': i + 1,
+    'todoId': (i % 20) + 1,
+    'action': _activityActions[i % _activityActions.length],
+    'description': _activityDescriptions[i % _activityDescriptions.length],
+    'timestamp': DateTime.now().subtract(Duration(hours: 100 - i)).toIso8601String(),
   });
   
   final List<Map<String, dynamic>> posts = List.generate(100, (i) => {
@@ -334,6 +526,45 @@ class InMemoryDatabase {
     'I have a question about the implementation.',
     'Very well written article.',
     'This is exactly what I was looking for.',
+  ];
+  
+  static const _subtaskTitles = [
+    'Research requirements',
+    'Create initial draft',
+    'Review with team',
+    'Implement changes',
+    'Write tests',
+    'Update documentation',
+    'Get approval',
+    'Deploy changes',
+    'Monitor results',
+    'Gather feedback',
+  ];
+  
+  static const _activityActions = [
+    'created',
+    'updated',
+    'completed',
+    'reopened',
+    'commented',
+    'assigned',
+    'priority_changed',
+    'due_date_changed',
+    'subtask_added',
+    'subtask_completed',
+  ];
+  
+  static const _activityDescriptions = [
+    'Task was created',
+    'Task details were updated',
+    'Task was marked as completed',
+    'Task was reopened',
+    'A comment was added',
+    'Task was assigned to a team member',
+    'Priority was changed',
+    'Due date was updated',
+    'A new subtask was added',
+    'A subtask was completed',
   ];
 }
 

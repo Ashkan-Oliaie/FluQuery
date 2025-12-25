@@ -11,6 +11,7 @@ import 'examples/polling_example.dart';
 import 'examples/optimistic_update_example.dart';
 import 'examples/race_condition_example.dart';
 import 'examples/advanced_features_example.dart';
+import 'examples/nested_queries/screens/todo_list_screen.dart';
 
 void main() {
   runApp(const FluQueryExampleApp());
@@ -392,6 +393,14 @@ class _ExamplesHomePageState extends State<ExamplesHomePage> {
                       description: 'Select, keepPreviousData, and more',
                       color: const Color(0xFF14B8A6),
                       onTap: () => _navigate(context, const AdvancedFeaturesExample()),
+                    ),
+                    const SizedBox(height: 12),
+                    _ExampleCard(
+                      icon: Icons.account_tree,
+                      title: 'Nested Queries',
+                      description: 'Complex list → detail with subtasks & activities',
+                      color: const Color(0xFFA855F7),
+                      onTap: () => _navigate(context, const NestedQueriesScreen()),
                     ),
                     const SizedBox(height: 24),
                   ]),
