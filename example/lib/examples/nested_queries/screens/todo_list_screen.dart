@@ -12,6 +12,8 @@ class NestedQueriesScreen extends HookWidget {
   @override
   Widget build(BuildContext context) {
     final client = useQueryClient();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accentColor = Theme.of(context).colorScheme.primary;
 
     // Main todos list query
     final todosQuery = useQuery<List<Todo>, Object>(
@@ -27,11 +29,11 @@ class NestedQueriesScreen extends HookWidget {
           // Refresh all
           IconButton(
             icon: todosQuery.isFetching
-                ? const SizedBox(
+                ? SizedBox(
                     width: 20,
                     height: 20,
                     child: CircularProgressIndicator(
-                        strokeWidth: 2, color: Colors.white),
+                        strokeWidth: 2, color: accentColor),
                   )
                 : const Icon(Icons.refresh),
             onPressed: () => todosQuery.refetch(),
@@ -41,12 +43,16 @@ class NestedQueriesScreen extends HookWidget {
           IconButton(
             icon: const Icon(Icons.clear_all),
             onPressed: () {
-              client.invalidateQueries(queryKey: ['todos'], refetchType: true);
+              client.invalidateQueries(
+                  queryKey: ['todos'], refetch: RefetchType.active);
               client.removeQueries(queryKey: ['todo-details']);
               client.removeQueries(queryKey: ['subtasks']);
               client.removeQueries(queryKey: ['todo-activities']);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('All caches cleared')),
+                SnackBar(
+                  content: const Text('All caches cleared'),
+                  backgroundColor: accentColor,
+                ),
               );
             },
             tooltip: 'Clear all caches',
@@ -54,12 +60,18 @@ class NestedQueriesScreen extends HookWidget {
         ],
       ),
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF0F0F1A), Color(0xFF1A1A2E)],
-          ),
+        decoration: BoxDecoration(
+          gradient: isDark
+              ? const LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xFF0F0F1A), Color(0xFF1A1A2E)],
+                )
+              : LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Colors.grey.shade50, Colors.white],
+                ),
         ),
         child: Column(
           children: [
@@ -80,8 +92,11 @@ class NestedQueriesScreen extends HookWidget {
     QueryResult<List<Todo>, Object> todosQuery,
     QueryClient client,
   ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accentColor = Theme.of(context).colorScheme.primary;
+
     if (todosQuery.isLoading && !todosQuery.hasData) {
-      return const Center(child: CircularProgressIndicator());
+      return Center(child: CircularProgressIndicator(color: accentColor));
     }
 
     if (todosQuery.isError) {
@@ -91,11 +106,14 @@ class NestedQueriesScreen extends HookWidget {
           children: [
             const Icon(Icons.error_outline, size: 48, color: Colors.red),
             const SizedBox(height: 16),
-            Text('Error: ${todosQuery.error}',
-                style: const TextStyle(color: Colors.white)),
+            Text(
+              'Error: ${todosQuery.error}',
+              style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+            ),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () => todosQuery.refetch(),
+              style: ElevatedButton.styleFrom(backgroundColor: accentColor),
               child: const Text('Retry'),
             ),
           ],
@@ -106,6 +124,7 @@ class NestedQueriesScreen extends HookWidget {
     final todos = todosQuery.data ?? [];
 
     return RefreshIndicator(
+      color: accentColor,
       onRefresh: () => todosQuery.refetch(),
       child: ListView.builder(
         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -147,6 +166,9 @@ class _CacheStatsBar extends HookWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accentColor = Theme.of(context).colorScheme.primary;
+
     // Force rebuild periodically to update stats
     final updateTrigger = useState(0);
     useEffect(() {
@@ -171,20 +193,20 @@ class _CacheStatsBar extends HookWidget {
             icon: Icons.article,
             label: 'Details',
             value: '$cachedDetails',
-            color: const Color(0xFF6366F1),
+            color: accentColor,
           ),
           const SizedBox(width: 12),
           _StatChip(
             icon: Icons.checklist,
             label: 'Subtasks',
             value: '$cachedSubtasks',
-            color: const Color(0xFF10B981),
+            color: Color.lerp(accentColor, const Color(0xFF10B981), 0.5)!,
           ),
           const Spacer(),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: const Color(0xFF2A2A3E),
+              color: isDark ? const Color(0xFF2A2A3E) : Colors.grey.shade100,
               borderRadius: BorderRadius.circular(20),
             ),
             child: Row(
@@ -192,13 +214,13 @@ class _CacheStatsBar extends HookWidget {
                 Icon(
                   Icons.info_outline,
                   size: 14,
-                  color: Colors.white.withAlpha(128),
+                  color: isDark ? Colors.white54 : Colors.black38,
                 ),
                 const SizedBox(width: 6),
                 Text(
                   'No refetch on mutations!',
                   style: TextStyle(
-                    color: Colors.white.withAlpha(128),
+                    color: isDark ? Colors.white54 : Colors.black38,
                     fontSize: 11,
                   ),
                 ),

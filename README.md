@@ -147,7 +147,7 @@ class CreateTodo extends HookWidget {
       mutationFn: (title) => createTodo(title),
       onSuccess: (data, variables, _) {
         // Invalidate and refetch todos
-        client.invalidateQueries(queryKey: ['todos'], refetchType: true);
+        client.invalidateQueries(queryKey: ['todos'], refetch: RefetchType.active);
       },
     );
 
@@ -196,7 +196,7 @@ final toggleMutation = useMutation<Todo, Object, Todo, List<Todo>>(
   
   onSettled: (_, __, ___, ____) {
     // Refetch after mutation
-    client.invalidateQueries(queryKey: ['todos'], refetchType: true);
+    client.invalidateQueries(queryKey: ['todos'], refetch: RefetchType.active);
   },
 );
 ```

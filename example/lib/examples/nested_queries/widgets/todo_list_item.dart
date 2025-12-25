@@ -19,11 +19,10 @@ class TodoListItem extends HookWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accentColor = Theme.of(context).colorScheme.primary;
+
     // Per-item query for subtask count - each todo has its own cached query
-    // This demonstrates:
-    // 1. Query deduplication (same key = same query)
-    // 2. Per-item caching (each todo.id gets its own cache entry)
-    // 3. Stale time management (5 min before refetch)
     final subtasksQuery = useQuery<List<Subtask>, Object>(
       queryKey: ['subtasks', todo.id],
       queryFn: (_) => ApiClient.getSubtasks(todo.id),
@@ -44,14 +43,28 @@ class TodoListItem extends HookWidget {
           child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFF1A1A2E),
+              // Card background gets a subtle tint from global accent
+              color: isDark
+                  ? Color.lerp(const Color(0xFF1A1A2E), accentColor, 0.05)
+                  : Color.lerp(Colors.white, accentColor, 0.02),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0x1AFFFFFF)),
+              border: Border.all(
+                color: isDark
+                    ? accentColor.withAlpha(35)
+                    : accentColor.withAlpha(20),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: accentColor.withAlpha(isDark ? 12 : 15),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
             child: Row(
               children: [
                 // Completion indicator
-                _CompletionBadge(completed: todo.completed),
+                _CompletionBadge(completed: todo.completed, color: accentColor),
                 const SizedBox(width: 16),
                 // Title and subtask info
                 Expanded(
@@ -61,7 +74,7 @@ class TodoListItem extends HookWidget {
                       Text(
                         todo.title,
                         style: TextStyle(
-                          color: Colors.white,
+                          color: isDark ? Colors.white : Colors.black87,
                           fontSize: 16,
                           decoration: todo.completed
                               ? TextDecoration.lineThrough
@@ -78,7 +91,10 @@ class TodoListItem extends HookWidget {
                   ),
                 ),
                 // Arrow
-                const Icon(Icons.chevron_right, color: Colors.white38),
+                Icon(
+                  Icons.chevron_right,
+                  color: isDark ? Colors.white38 : Colors.black26,
+                ),
               ],
             ),
           ),
@@ -90,8 +106,9 @@ class TodoListItem extends HookWidget {
 
 class _CompletionBadge extends StatelessWidget {
   final bool completed;
+  final Color color;
 
-  const _CompletionBadge({required this.completed});
+  const _CompletionBadge({required this.completed, required this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -100,9 +117,9 @@ class _CompletionBadge extends StatelessWidget {
       height: 24,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: completed ? const Color(0xFF10B981) : Colors.transparent,
+        color: completed ? color : Colors.transparent,
         border: Border.all(
-          color: completed ? const Color(0xFF10B981) : Colors.white38,
+          color: completed ? color : Colors.grey,
           width: 2,
         ),
       ),
@@ -126,19 +143,23 @@ class _SubtaskInfo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accentColor = Theme.of(context).colorScheme.primary;
+
     return Row(
       children: [
         if (query.isFetching && !query.hasData)
-          const SizedBox(
+          SizedBox(
             width: 12,
             height: 12,
-            child: CircularProgressIndicator(strokeWidth: 1),
+            child:
+                CircularProgressIndicator(strokeWidth: 1, color: accentColor),
           )
         else
           Text(
             '$completedCount / $totalCount subtasks',
             style: TextStyle(
-              color: Colors.white.withAlpha(128),
+              color: isDark ? Colors.white54 : Colors.black45,
               fontSize: 12,
             ),
           ),
@@ -162,10 +183,11 @@ class _SubtaskInfo extends StatelessWidget {
         ],
         if (query.isFetching && query.hasData) ...[
           const SizedBox(width: 8),
-          const SizedBox(
+          SizedBox(
             width: 10,
             height: 10,
-            child: CircularProgressIndicator(strokeWidth: 1),
+            child:
+                CircularProgressIndicator(strokeWidth: 1, color: accentColor),
           ),
         ],
       ],

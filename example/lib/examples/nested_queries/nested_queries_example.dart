@@ -1,12 +1,3 @@
-/// Nested Queries Example
-///
-/// Demonstrates complex master-detail patterns with:
-/// - Per-item queries (each list item fetches its own data)
-/// - Modal with dependent queries
-/// - Optimistic updates (no refetch needed!)
-/// - Cache invalidation strategies
-/// - Real-time activity tracking
-
 // Main entry point
 export 'screens/todo_list_screen.dart' show NestedQueriesScreen;
 

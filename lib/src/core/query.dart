@@ -151,6 +151,18 @@ class Query<TData, TError> {
     }
   }
 
+  /// Subscribe to state changes without widget lifecycle
+  /// Returns an unsubscribe function
+  VoidCallback subscribe(
+      void Function(QueryState<TData, TError> state) listener) {
+    void wrappedListener(dynamic state) {
+      listener(state as QueryState<TData, TError>);
+    }
+
+    addObserver(wrappedListener);
+    return () => removeObserver(wrappedListener);
+  }
+
   /// Notify all observers of state change
   void _notifyObservers() {
     for (final observer in _observers) {

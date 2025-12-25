@@ -9,6 +9,8 @@ class BasicQueryExample extends HookWidget {
   @override
   Widget build(BuildContext context) {
     final client = useQueryClient();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accentColor = Theme.of(context).colorScheme.primary;
 
     // Use FluQuery's useQuery hook to fetch todos
     final todosQuery = useQuery<List<Todo>, Object>(
@@ -26,27 +28,28 @@ class BasicQueryExample extends HookWidget {
       appBar: AppBar(
         title: const Text('Basic Query'),
         actions: [
-          // Invalidate button - marks data as stale and refetches
           IconButton(
             icon: const Icon(Icons.sync_problem),
             tooltip: 'Invalidate Cache',
             onPressed: () {
-              client.invalidateQueries(queryKey: ['todos'], refetchType: true);
+              client.invalidateQueries(
+                  queryKey: ['todos'], refetch: RefetchType.active);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Cache invalidated - refetching...'),
-                  duration: Duration(seconds: 1),
+                SnackBar(
+                  content: const Text('Cache invalidated - refetching...'),
+                  duration: const Duration(seconds: 1),
+                  backgroundColor: accentColor,
                 ),
               );
             },
           ),
-          // Refresh button
           IconButton(
             icon: todosQuery.isFetching
-                ? const SizedBox(
+                ? SizedBox(
                     width: 20,
                     height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: accentColor),
                   )
                 : const Icon(Icons.refresh),
             tooltip: 'Refetch',
@@ -56,12 +59,18 @@ class BasicQueryExample extends HookWidget {
         ],
       ),
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF0F0F1A), Color(0xFF1A1A2E)],
-          ),
+        decoration: BoxDecoration(
+          gradient: isDark
+              ? const LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xFF0F0F1A), Color(0xFF1A1A2E)],
+                )
+              : LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Colors.grey.shade50, Colors.white],
+                ),
         ),
         child: _buildContent(context, todosQuery, client),
       ),
@@ -70,16 +79,19 @@ class BasicQueryExample extends HookWidget {
 
   Widget _buildContent(BuildContext context,
       QueryResult<List<Todo>, Object> query, QueryClient client) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accentColor = Theme.of(context).colorScheme.primary;
+
     if (query.isLoading) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
+            CircularProgressIndicator(color: accentColor),
+            const SizedBox(height: 16),
             Text(
               'Loading todos...',
-              style: TextStyle(color: Colors.white70),
+              style: TextStyle(color: isDark ? Colors.white70 : Colors.black54),
             ),
           ],
         ),
@@ -104,6 +116,7 @@ class BasicQueryExample extends HookWidget {
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () => query.refetch(),
+              style: ElevatedButton.styleFrom(backgroundColor: accentColor),
               child: const Text('Retry'),
             ),
           ],
@@ -119,9 +132,18 @@ class BasicQueryExample extends HookWidget {
           padding: const EdgeInsets.all(16),
           margin: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: const Color(0xFF1A1A2E),
+            color: isDark
+                ? Color.lerp(const Color(0xFF1A1A2E), accentColor, 0.05)
+                : Color.lerp(Colors.white, accentColor, 0.03),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0x1AFFFFFF)),
+            border: Border.all(color: accentColor.withAlpha(isDark ? 40 : 25)),
+            boxShadow: [
+              BoxShadow(
+                color: accentColor.withAlpha(isDark ? 15 : 20),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: Column(
             children: [
@@ -131,22 +153,21 @@ class BasicQueryExample extends HookWidget {
                   _StatusChip(
                     label: 'Total',
                     value: '${todos.length}',
-                    color: Colors.blue,
+                    color: accentColor,
                   ),
                   _StatusChip(
                     label: 'Done',
                     value: '${todos.where((t) => t.completed).length}',
-                    color: Colors.green,
+                    color: Color.lerp(accentColor, Colors.green, 0.5)!,
                   ),
                   _StatusChip(
                     label: 'Pending',
                     value: '${todos.where((t) => !t.completed).length}',
-                    color: Colors.orange,
+                    color: Color.lerp(accentColor, Colors.orange, 0.5)!,
                   ),
                 ],
               ),
               const SizedBox(height: 12),
-              // Cache info
               Text(
                 query.isStale ? '⚠️ Data is stale' : '✅ Data is fresh',
                 style: TextStyle(
@@ -159,15 +180,13 @@ class BasicQueryExample extends HookWidget {
                   'Updated: ${_formatTime(query.dataUpdatedAt!)}',
                   style: TextStyle(
                     fontSize: 11,
-                    color: Colors.white.withAlpha(100),
+                    color: isDark ? Colors.white38 : Colors.black26,
                   ),
                 ),
             ],
           ),
         ),
-        // Background fetch indicator
-        if (query.isRefetching) const LinearProgressIndicator(),
-        // Todo list
+        if (query.isRefetching) LinearProgressIndicator(color: accentColor),
         Expanded(
           child: ListView.builder(
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -208,6 +227,8 @@ class _StatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Column(
       children: [
         Text(
@@ -222,7 +243,7 @@ class _StatusChip extends StatelessWidget {
           label,
           style: TextStyle(
             fontSize: 12,
-            color: Colors.white.withAlpha(128),
+            color: isDark ? Colors.white54 : Colors.black45,
           ),
         ),
       ],
@@ -237,13 +258,18 @@ class _TodoTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accentColor = Theme.of(context).colorScheme.primary;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1A2E),
+        color: isDark
+            ? Color.lerp(const Color(0xFF1A1A2E), accentColor, 0.04)
+            : Color.lerp(Colors.white, accentColor, 0.02),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0x1AFFFFFF)),
+        border: Border.all(color: accentColor.withAlpha(isDark ? 30 : 18)),
       ),
       child: Row(
         children: [
@@ -253,15 +279,19 @@ class _TodoTile extends StatelessWidget {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: todo.completed
-                  ? Colors.green.withAlpha(51)
-                  : Colors.white.withAlpha(26),
+                  ? accentColor.withAlpha(51)
+                  : (isDark
+                      ? Colors.white.withAlpha(26)
+                      : Colors.black.withAlpha(13)),
               border: Border.all(
-                color: todo.completed ? Colors.green : Colors.white30,
+                color: todo.completed
+                    ? accentColor
+                    : (isDark ? Colors.white30 : Colors.black26),
                 width: 2,
               ),
             ),
             child: todo.completed
-                ? const Icon(Icons.check, size: 14, color: Colors.green)
+                ? Icon(Icons.check, size: 14, color: accentColor)
                 : null,
           ),
           const SizedBox(width: 12),
@@ -269,7 +299,9 @@ class _TodoTile extends StatelessWidget {
             child: Text(
               todo.title,
               style: TextStyle(
-                color: todo.completed ? Colors.white54 : Colors.white,
+                color: todo.completed
+                    ? (isDark ? Colors.white54 : Colors.black38)
+                    : (isDark ? Colors.white : Colors.black87),
                 decoration: todo.completed ? TextDecoration.lineThrough : null,
               ),
             ),
@@ -278,7 +310,7 @@ class _TodoTile extends StatelessWidget {
             '#${todo.id}',
             style: TextStyle(
               fontSize: 12,
-              color: Colors.white.withAlpha(77),
+              color: isDark ? Colors.white30 : Colors.black26,
             ),
           ),
         ],

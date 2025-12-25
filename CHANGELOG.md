@@ -6,6 +6,35 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.0.5] - 2024-12-25
+
+### Added
+- **QueryStore**: Persistent query stores that exist independently of widget lifecycle
+  - Background polling without widgets
+  - Never garbage collected (until disposed)
+  - Stream-based subscriptions
+  - Direct data manipulation (`setData`, `updateData`)
+  - `client.createStore()` factory method
+  - `client.getStore()`, `client.removeStore()` management
+- **Query.subscribe()**: Subscribe to query state changes without widget lifecycle
+- **client.subscribeToQuery()**: Lightweight subscription to any query
+
+### Example
+```dart
+// Create a persistent store
+final userStore = client.createStore<User, Object>(
+  queryKey: ['user'],
+  queryFn: fetchUser,
+  refetchInterval: Duration(minutes: 5),
+);
+
+// Access anywhere
+userStore.data;
+userStore.subscribe((state) => print(state));
+userStore.refetch();
+userStore.dispose();
+```
+
 ## [1.0.4] - 2024-12-25
 
 ### Fixed

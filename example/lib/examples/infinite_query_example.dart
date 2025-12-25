@@ -9,8 +9,9 @@ class InfiniteQueryExample extends HookWidget {
   @override
   Widget build(BuildContext context) {
     final scrollController = useScrollController();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accentColor = Theme.of(context).colorScheme.primary;
 
-    // Use FluQuery's useInfiniteQuery hook
     final postsQuery = useInfiniteQuery<PostsPage, Object, int>(
       queryKey: ['posts'],
       queryFn: (ctx) async {
@@ -22,7 +23,6 @@ class InfiniteQueryExample extends HookWidget {
       initialPageParam: 1,
     );
 
-    // Handle scroll for infinite loading
     useEffect(() {
       void onScroll() {
         if (scrollController.position.pixels >=
@@ -43,10 +43,12 @@ class InfiniteQueryExample extends HookWidget {
         actions: [
           IconButton(
             icon: postsQuery.isFetching && !postsQuery.isFetchingNextPage
-                ? const SizedBox(
+                ? SizedBox(
                     width: 20,
                     height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2))
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: accentColor),
+                  )
                 : const Icon(Icons.refresh),
             onPressed:
                 postsQuery.isFetching ? null : () => postsQuery.refetch(),
@@ -54,24 +56,34 @@ class InfiniteQueryExample extends HookWidget {
         ],
       ),
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF0F0F1A), Color(0xFF1A1A2E)],
-          ),
+        decoration: BoxDecoration(
+          gradient: isDark
+              ? const LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xFF0F0F1A), Color(0xFF1A1A2E)],
+                )
+              : LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Colors.grey.shade50, Colors.white],
+                ),
         ),
-        child: _buildContent(postsQuery, scrollController),
+        child: _buildContent(context, postsQuery, scrollController),
       ),
     );
   }
 
   Widget _buildContent(
+    BuildContext context,
     UseInfiniteQueryResult<PostsPage, Object, int> query,
     ScrollController scrollController,
   ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accentColor = Theme.of(context).colorScheme.primary;
+
     if (query.isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return Center(child: CircularProgressIndicator(color: accentColor));
     }
 
     if (query.isError) {
@@ -86,6 +98,7 @@ class InfiniteQueryExample extends HookWidget {
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () => query.refetch(),
+              style: ElevatedButton.styleFrom(backgroundColor: accentColor),
               child: const Text('Retry'),
             ),
           ],
@@ -98,14 +111,15 @@ class InfiniteQueryExample extends HookWidget {
 
     return Column(
       children: [
-        // Stats
         Container(
           padding: const EdgeInsets.all(16),
           margin: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: const Color(0xFF1A1A2E),
+            color: isDark
+                ? Color.lerp(const Color(0xFF1A1A2E), accentColor, 0.05)
+                : Color.lerp(Colors.white, accentColor, 0.03),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0x1AFFFFFF)),
+            border: Border.all(color: accentColor.withAlpha(isDark ? 40 : 25)),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -113,21 +127,25 @@ class InfiniteQueryExample extends HookWidget {
               _Stat(
                   label: 'Loaded',
                   value: '${allPosts.length}',
-                  color: Colors.blue),
-              _Stat(label: 'Total', value: '$total', color: Colors.purple),
+                  color: accentColor),
+              _Stat(
+                  label: 'Total',
+                  value: '$total',
+                  color: Color.lerp(accentColor, Colors.purple, 0.5)!),
               _Stat(
                   label: 'Pages',
                   value: '${query.pages.length}',
-                  color: Colors.green),
+                  color: Color.lerp(accentColor, Colors.green, 0.5)!),
               _Stat(
                 label: 'More',
                 value: query.hasNextPage ? 'Yes' : 'No',
-                color: query.hasNextPage ? Colors.orange : Colors.grey,
+                color: query.hasNextPage
+                    ? Color.lerp(accentColor, Colors.orange, 0.5)!
+                    : Colors.grey,
               ),
             ],
           ),
         ),
-        // List
         Expanded(
           child: ListView.builder(
             controller: scrollController,
@@ -139,10 +157,11 @@ class InfiniteQueryExample extends HookWidget {
                   padding: const EdgeInsets.all(24),
                   alignment: Alignment.center,
                   child: query.isFetchingNextPage
-                      ? const CircularProgressIndicator()
+                      ? CircularProgressIndicator(color: accentColor)
                       : TextButton(
                           onPressed: () => query.fetchNextPage(),
-                          child: const Text('Load More'),
+                          child: Text('Load More',
+                              style: TextStyle(color: accentColor)),
                         ),
                 );
               }
@@ -164,6 +183,8 @@ class _Stat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Column(
       children: [
         Text(value,
@@ -171,7 +192,8 @@ class _Stat extends StatelessWidget {
                 fontSize: 18, fontWeight: FontWeight.bold, color: color)),
         const SizedBox(height: 4),
         Text(label,
-            style: TextStyle(fontSize: 11, color: Colors.white.withAlpha(128))),
+            style: TextStyle(
+                fontSize: 11, color: isDark ? Colors.white54 : Colors.black45)),
       ],
     );
   }
@@ -184,13 +206,18 @@ class _PostCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accentColor = Theme.of(context).colorScheme.primary;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1A2E),
+        color: isDark
+            ? Color.lerp(const Color(0xFF1A1A2E), accentColor, 0.04)
+            : Color.lerp(Colors.white, accentColor, 0.02),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0x1AFFFFFF)),
+        border: Border.all(color: accentColor.withAlpha(isDark ? 30 : 18)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -200,33 +227,40 @@ class _PostCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF6366F1).withAlpha(51),
+                  color: accentColor.withAlpha(51),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
                   '#${post.id}',
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontSize: 12,
-                      color: Color(0xFF6366F1),
+                      color: accentColor,
                       fontWeight: FontWeight.bold),
                 ),
               ),
               const Spacer(),
-              Text('User ${post.userId}',
-                  style: TextStyle(
-                      fontSize: 12, color: Colors.white.withAlpha(102))),
+              Text(
+                'User ${post.userId}',
+                style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? Colors.white38 : Colors.black26),
+              ),
             ],
           ),
           const SizedBox(height: 12),
           Text(
             post.title,
-            style: const TextStyle(
-                fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
             post.body,
-            style: TextStyle(fontSize: 14, color: Colors.white.withAlpha(153)),
+            style: TextStyle(
+                fontSize: 14, color: isDark ? Colors.white60 : Colors.black54),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),

@@ -277,6 +277,60 @@ class ApiClient {
     return ServerTime.fromJson(
         jsonDecode(response.body) as Map<String, dynamic>);
   }
+
+  // ============ APP CONFIG ============
+  static Future<AppConfig> getConfig() async {
+    final response = await _client.get(
+      Uri.parse('${ApiConfig.baseUrl}/api/config'),
+    );
+
+    if (response.statusCode != 200) {
+      throw ApiException('Failed to fetch config: ${response.statusCode}');
+    }
+
+    return AppConfig.fromJson(
+        jsonDecode(response.body) as Map<String, dynamic>);
+  }
+
+  static Future<AppConfig> updateConfig({
+    String? theme,
+    String? accentColor,
+    String? fontSize,
+    bool? compactMode,
+    bool? animationsEnabled,
+  }) async {
+    final response = await _client.put(
+      Uri.parse('${ApiConfig.baseUrl}/api/config'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        if (theme != null) 'theme': theme,
+        if (accentColor != null) 'accentColor': accentColor,
+        if (fontSize != null) 'fontSize': fontSize,
+        if (compactMode != null) 'compactMode': compactMode,
+        if (animationsEnabled != null) 'animationsEnabled': animationsEnabled,
+      }),
+    );
+
+    if (response.statusCode != 200) {
+      throw ApiException('Failed to update config: ${response.statusCode}');
+    }
+
+    return AppConfig.fromJson(
+        jsonDecode(response.body) as Map<String, dynamic>);
+  }
+
+  static Future<AppConfig> randomizeConfig() async {
+    final response = await _client.post(
+      Uri.parse('${ApiConfig.baseUrl}/api/config/randomize'),
+    );
+
+    if (response.statusCode != 200) {
+      throw ApiException('Failed to randomize config: ${response.statusCode}');
+    }
+
+    return AppConfig.fromJson(
+        jsonDecode(response.body) as Map<String, dynamic>);
+  }
 }
 
 // ============ MODELS ============
@@ -551,4 +605,57 @@ class ApiException implements Exception {
 
   @override
   String toString() => 'ApiException: $message';
+}
+
+// ============ APP CONFIG ============
+class AppConfig {
+  final String theme;
+  final String accentColor;
+  final String fontSize;
+  final bool compactMode;
+  final bool animationsEnabled;
+  final int version;
+  final DateTime updatedAt;
+
+  const AppConfig({
+    required this.theme,
+    required this.accentColor,
+    required this.fontSize,
+    required this.compactMode,
+    required this.animationsEnabled,
+    required this.version,
+    required this.updatedAt,
+  });
+
+  factory AppConfig.fromJson(Map<String, dynamic> json) {
+    return AppConfig(
+      theme: json['theme'] as String? ?? 'dark',
+      accentColor: json['accentColor'] as String? ?? 'indigo',
+      fontSize: json['fontSize'] as String? ?? 'medium',
+      compactMode: json['compactMode'] as bool? ?? false,
+      animationsEnabled: json['animationsEnabled'] as bool? ?? true,
+      version: json['version'] as int? ?? 1,
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.parse(json['updatedAt'] as String)
+          : DateTime.now(),
+    );
+  }
+
+  AppConfig copyWith({
+    String? theme,
+    String? accentColor,
+    String? fontSize,
+    bool? compactMode,
+    bool? animationsEnabled,
+  }) {
+    return AppConfig(
+      theme: theme ?? this.theme,
+      accentColor: accentColor ?? this.accentColor,
+      fontSize: fontSize ?? this.fontSize,
+      compactMode: compactMode ?? this.compactMode,
+      animationsEnabled: animationsEnabled ?? this.animationsEnabled,
+      version: version,
+      updatedAt: updatedAt,
+    );
+  }
 }

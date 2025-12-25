@@ -7,12 +7,6 @@ import 'subtask_tile.dart';
 import 'activity_tile.dart';
 
 /// Modal showing todo details with multiple queries and optimistic updates
-///
-/// Key FluQuery features demonstrated:
-/// 1. Multiple queries in one widget (details + activities)
-/// 2. Optimistic updates (no refetch on mutation!)
-/// 3. Auto-polling for activities
-/// 4. Cache invalidation strategies
 class TodoDetailsModal extends HookWidget {
   final int todoId;
   final ScrollController scrollController;
@@ -25,6 +19,8 @@ class TodoDetailsModal extends HookWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accentColor = Theme.of(context).colorScheme.primary;
     final client = useQueryClient();
     final newSubtaskController = useTextEditingController();
 
@@ -47,9 +43,9 @@ class TodoDetailsModal extends HookWidget {
     final mutations = useTodoMutations(todoId: todoId, context: context);
 
     return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xFF1A1A2E),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1A1A2E) : Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: Column(
         children: [
@@ -59,14 +55,14 @@ class TodoDetailsModal extends HookWidget {
             height: 4,
             margin: const EdgeInsets.symmetric(vertical: 12),
             decoration: BoxDecoration(
-              color: Colors.white24,
+              color: isDark ? Colors.white24 : Colors.black12,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
           // Content
           Expanded(
             child: detailsQuery.isLoading && !detailsQuery.hasData
-                ? const Center(child: CircularProgressIndicator())
+                ? Center(child: CircularProgressIndicator(color: accentColor))
                 : detailsQuery.isError
                     ? _ErrorView(
                         error: detailsQuery.error.toString(),
@@ -96,15 +92,25 @@ class _ErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accentColor = Theme.of(context).colorScheme.primary;
+
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           const Icon(Icons.error_outline, size: 48, color: Colors.red),
           const SizedBox(height: 16),
-          Text('Error: $error', style: const TextStyle(color: Colors.white)),
+          Text(
+            'Error: $error',
+            style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+          ),
           const SizedBox(height: 16),
-          ElevatedButton(onPressed: onRetry, child: const Text('Retry')),
+          ElevatedButton(
+            onPressed: onRetry,
+            style: ElevatedButton.styleFrom(backgroundColor: accentColor),
+            child: const Text('Retry'),
+          ),
         ],
       ),
     );
@@ -132,32 +138,34 @@ class _DetailsContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accentColor = Theme.of(context).colorScheme.primary;
+
     return ListView(
       controller: scrollController,
       padding: const EdgeInsets.all(20),
       children: [
         // Header
         _Header(
-          title: details.title,
-          onRefresh: () => client.invalidateQueries(
-            queryKey: ['todo-details', todoId],
-            refetchType: true,
-          ),
-        ),
+            title: details.title,
+            onRefresh: () => client.invalidateQueries(
+                  queryKey: ['todo-details', todoId],
+                  refetch: RefetchType.active,
+                )),
         const SizedBox(height: 16),
 
         // Progress bar
         _ProgressBar(
           completedHours: details.completedHours,
           estimatedHours: details.estimatedHours,
+          accentColor: accentColor,
         ),
         const SizedBox(height: 20),
 
         // Meta info row
         _MetaRow(
-          details: details,
-          onPriorityTap: () => _showPriorityPicker(context),
-        ),
+            details: details,
+            onPriorityTap: () => _showPriorityPicker(context)),
         const SizedBox(height: 8),
 
         // Tags
@@ -166,8 +174,14 @@ class _DetailsContent extends StatelessWidget {
             spacing: 8,
             children: details.tags
                 .map((tag) => Chip(
-                      label: Text(tag, style: const TextStyle(fontSize: 12)),
-                      backgroundColor: const Color(0xFF2A2A3E),
+                      label: Text(tag,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isDark ? Colors.white : Colors.black87,
+                          )),
+                      backgroundColor: isDark
+                          ? const Color(0xFF2A2A3E)
+                          : Colors.grey.shade100,
                       side: BorderSide.none,
                     ))
                 .toList(),
@@ -180,7 +194,7 @@ class _DetailsContent extends StatelessWidget {
           title: 'Subtasks',
           trailing: Text(
             '${details.subtasks.where((s) => s.completed).length}/${details.subtasks.length}',
-            style: const TextStyle(color: Colors.white70),
+            style: TextStyle(color: isDark ? Colors.white70 : Colors.black54),
           ),
         ),
         const SizedBox(height: 12),
@@ -198,7 +212,7 @@ class _DetailsContent extends StatelessWidget {
         ),
         const SizedBox(height: 12),
 
-        // Subtasks list - cache updated on success, no refetch!
+        // Subtasks list
         ...details.subtasks.map((subtask) => SubtaskTile(
               subtask: subtask,
               isToggling: mutations.toggle.isPending &&
@@ -218,10 +232,11 @@ class _DetailsContent extends StatelessWidget {
         _SectionHeader(
           title: 'Activity',
           trailing: activitiesQuery.isFetching
-              ? const SizedBox(
+              ? SizedBox(
                   width: 16,
                   height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: accentColor),
                 )
               : Row(
                   mainAxisSize: MainAxisSize.min,
@@ -245,8 +260,11 @@ class _DetailsContent extends StatelessWidget {
                         ),
                       ),
                     IconButton(
-                      icon: const Icon(Icons.refresh,
-                          size: 18, color: Colors.white70),
+                      icon: Icon(
+                        Icons.refresh,
+                        size: 18,
+                        color: isDark ? Colors.white70 : Colors.black54,
+                      ),
                       onPressed: () => activitiesQuery.refetch(),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
@@ -257,19 +275,25 @@ class _DetailsContent extends StatelessWidget {
         const SizedBox(height: 8),
         Text(
           'Auto-refreshes every 30s',
-          style: TextStyle(color: Colors.white.withAlpha(77), fontSize: 11),
+          style: TextStyle(
+            color: isDark ? Colors.white38 : Colors.black26,
+            fontSize: 11,
+          ),
         ),
         const SizedBox(height: 12),
 
         // Activities list
         if (activitiesQuery.isLoading && !activitiesQuery.hasData)
-          const Center(child: CircularProgressIndicator())
+          Center(child: CircularProgressIndicator(color: accentColor))
         else if (activitiesQuery.hasData)
           ...activitiesQuery.data!
               .take(10)
               .map((activity) => ActivityTile(activity: activity))
         else
-          const Text('No activities', style: TextStyle(color: Colors.white54)),
+          Text(
+            'No activities',
+            style: TextStyle(color: isDark ? Colors.white54 : Colors.black45),
+          ),
 
         const SizedBox(height: 40),
       ],
@@ -277,9 +301,11 @@ class _DetailsContent extends StatelessWidget {
   }
 
   void _showPriorityPicker(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF2A2A3E),
+      backgroundColor: isDark ? const Color(0xFF2A2A3E) : Colors.white,
       builder: (context) => Column(
         mainAxisSize: MainAxisSize.min,
         children: ['low', 'medium', 'high', 'urgent'].map((priority) {
@@ -289,12 +315,15 @@ class _DetailsContent extends StatelessWidget {
             title: Text(
               priority.toUpperCase(),
               style: TextStyle(
-                color: isSelected ? Colors.white : Colors.white70,
+                color: isSelected
+                    ? (isDark ? Colors.white : Colors.black87)
+                    : (isDark ? Colors.white70 : Colors.black54),
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
               ),
             ),
             trailing: isSelected
-                ? const Icon(Icons.check, color: Colors.white)
+                ? Icon(Icons.check,
+                    color: isDark ? Colors.white : Colors.black87)
                 : null,
             onTap: () {
               mutations.priority.mutate(priority);
@@ -330,22 +359,25 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Row(
       children: [
         Expanded(
           child: Text(
             title,
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: isDark ? Colors.white : Colors.black87,
               fontSize: 24,
               fontWeight: FontWeight.bold,
             ),
           ),
         ),
         IconButton(
-          icon: const Icon(Icons.refresh, color: Colors.white70),
+          icon: Icon(Icons.refresh,
+              color: isDark ? Colors.white70 : Colors.black54),
           onPressed: onRefresh,
-          tooltip: 'Force refetch (normally not needed!)',
+          tooltip: 'Force refetch',
         ),
       ],
     );
@@ -355,12 +387,17 @@ class _Header extends StatelessWidget {
 class _ProgressBar extends StatelessWidget {
   final int completedHours;
   final int estimatedHours;
+  final Color accentColor;
 
-  const _ProgressBar(
-      {required this.completedHours, required this.estimatedHours});
+  const _ProgressBar({
+    required this.completedHours,
+    required this.estimatedHours,
+    required this.accentColor,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final progress = estimatedHours > 0 ? completedHours / estimatedHours : 0.0;
 
     return Column(
@@ -371,13 +408,17 @@ class _ProgressBar extends StatelessWidget {
           children: [
             Text(
               'Progress',
-              style:
-                  TextStyle(color: Colors.white.withAlpha(179), fontSize: 12),
+              style: TextStyle(
+                color: isDark ? Colors.white70 : Colors.black54,
+                fontSize: 12,
+              ),
             ),
             Text(
               '$completedHours / $estimatedHours hours',
-              style:
-                  TextStyle(color: Colors.white.withAlpha(179), fontSize: 12),
+              style: TextStyle(
+                color: isDark ? Colors.white70 : Colors.black54,
+                fontSize: 12,
+              ),
             ),
           ],
         ),
@@ -386,11 +427,9 @@ class _ProgressBar extends StatelessWidget {
           borderRadius: BorderRadius.circular(4),
           child: LinearProgressIndicator(
             value: progress.clamp(0.0, 1.0),
-            backgroundColor: Colors.white.withAlpha(26),
+            backgroundColor: isDark ? Colors.white12 : Colors.grey.shade200,
             valueColor: AlwaysStoppedAnimation(
-              progress >= 1.0
-                  ? const Color(0xFF10B981)
-                  : const Color(0xFF6366F1),
+              progress >= 1.0 ? const Color(0xFF10B981) : accentColor,
             ),
             minHeight: 8,
           ),
@@ -408,6 +447,8 @@ class _MetaRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final accentColor = Theme.of(context).colorScheme.primary;
+
     return Wrap(
       spacing: 12,
       runSpacing: 12,
@@ -422,7 +463,7 @@ class _MetaRow extends StatelessWidget {
           _MetaChip(
             icon: Icons.person,
             label: details.assignee!.name,
-            color: const Color(0xFF6366F1),
+            color: accentColor,
           ),
         if (details.dueDate != null)
           _MetaChip(
@@ -520,13 +561,15 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
           title,
-          style: const TextStyle(
-            color: Colors.white,
+          style: TextStyle(
+            color: isDark ? Colors.white : Colors.black87,
             fontSize: 18,
             fontWeight: FontWeight.bold,
           ),
@@ -550,17 +593,22 @@ class _AddSubtaskInput extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accentColor = Theme.of(context).colorScheme.primary;
+
     return Row(
       children: [
         Expanded(
           child: TextField(
             controller: controller,
-            style: const TextStyle(color: Colors.white),
+            style: TextStyle(color: isDark ? Colors.white : Colors.black87),
             decoration: InputDecoration(
               hintText: 'Add new subtask...',
-              hintStyle: TextStyle(color: Colors.white.withAlpha(77)),
+              hintStyle:
+                  TextStyle(color: isDark ? Colors.white38 : Colors.black26),
               filled: true,
-              fillColor: const Color(0xFF2A2A3E),
+              fillColor:
+                  isDark ? const Color(0xFF2A2A3E) : Colors.grey.shade100,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
                 borderSide: BorderSide.none,
@@ -574,12 +622,13 @@ class _AddSubtaskInput extends StatelessWidget {
         const SizedBox(width: 12),
         IconButton(
           icon: isLoading
-              ? const SizedBox(
+              ? SizedBox(
                   width: 20,
                   height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: accentColor),
                 )
-              : const Icon(Icons.add_circle, color: Color(0xFF6366F1)),
+              : Icon(Icons.add_circle, color: accentColor),
           onPressed: () => onSubmit(controller.text),
         ),
       ],
