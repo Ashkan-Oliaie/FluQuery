@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:fluquery/fluquery.dart';
-import '../api/api_client.dart';
-import '../main.dart' show GlobalConfigStore;
+import '../../api/api_client.dart';
+import '../../main.dart' show GlobalConfigStore;
 
 /// The Global Store Example Page - demonstrates the QueryStore API
 class GlobalStoreExample extends HookWidget {

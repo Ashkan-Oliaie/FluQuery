@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:fluquery/fluquery.dart';
-import '../api/api_client.dart';
+import '../../api/api_client.dart';
 
 /// Race Condition Examples - demonstrates different scenarios
 class RaceConditionExample extends HookWidget {

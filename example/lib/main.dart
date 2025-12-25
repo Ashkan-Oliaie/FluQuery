@@ -4,16 +4,16 @@ import 'package:fluquery/fluquery.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'api/api_client.dart';
-import 'examples/basic_query_example.dart';
-import 'examples/mutation_example.dart';
-import 'examples/infinite_query_example.dart';
-import 'examples/dependent_queries_example.dart';
-import 'examples/polling_example.dart';
-import 'examples/optimistic_update_example.dart';
-import 'examples/race_condition_example.dart';
-import 'examples/advanced_features_example.dart';
+import 'examples/basic_query/basic_query_example.dart';
+import 'examples/mutation/mutation_example.dart';
+import 'examples/infinite_query/infinite_query_example.dart';
+import 'examples/dependent_queries/dependent_queries_example.dart';
+import 'examples/polling/polling_example.dart';
+import 'examples/optimistic_update/optimistic_update_example.dart';
+import 'examples/race_condition/race_condition_example.dart';
+import 'examples/advanced_features/advanced_features_example.dart';
 import 'examples/nested_queries/screens/todo_list_screen.dart';
-import 'examples/global_store_example.dart';
+import 'examples/global_store/global_store_example.dart';
 
 void main() {
   runApp(const FluQueryExampleApp());
