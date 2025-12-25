@@ -76,6 +76,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Advanced features example (with 3 demos: Select, Keep Previous Data, Comparison)
 
 ### Backend
-- Dockerized Dart backend for testing
+- Simple Dart backend for testing (run with `dart run bin/server.dart`)
 - In-memory database with todos, posts, users, comments
 - Configurable artificial delays for race condition demos
