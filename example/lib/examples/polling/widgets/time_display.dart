@@ -80,8 +80,18 @@ class TimeDisplay extends StatelessWidget {
 
   String _formatDate(DateTime time) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
     ];
     return '${months[time.month - 1]} ${time.day}, ${time.year}';
   }
@@ -121,4 +131,3 @@ class _StatusIndicator extends StatelessWidget {
     );
   }
 }
-

@@ -54,4 +54,3 @@ class SmallSpinner extends StatelessWidget {
     );
   }
 }
-

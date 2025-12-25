@@ -47,7 +47,8 @@ class InfiniteQueryExample extends HookWidget {
             icon: postsQuery.isFetching && !postsQuery.isFetchingNextPage
                 ? SmallSpinner(color: accentColor)
                 : const Icon(Icons.refresh),
-            onPressed: postsQuery.isFetching ? null : () => postsQuery.refetch(),
+            onPressed:
+                postsQuery.isFetching ? null : () => postsQuery.refetch(),
           ),
         ],
       ),
@@ -112,4 +113,3 @@ class InfiniteQueryExample extends HookWidget {
     );
   }
 }
-

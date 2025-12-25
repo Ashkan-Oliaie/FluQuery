@@ -67,7 +67,8 @@ class OptimisticTodoTile extends StatelessWidget {
                   color: todo.completed
                       ? (isDark ? Colors.white54 : Colors.black38)
                       : (isDark ? Colors.white : Colors.black87),
-                  decoration: todo.completed ? TextDecoration.lineThrough : null,
+                  decoration:
+                      todo.completed ? TextDecoration.lineThrough : null,
                 ),
               ),
             ),
@@ -91,4 +92,3 @@ class OptimisticTodoTile extends StatelessWidget {
     );
   }
 }
-

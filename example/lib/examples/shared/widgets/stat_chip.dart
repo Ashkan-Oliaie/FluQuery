@@ -39,4 +39,3 @@ class StatChip extends StatelessWidget {
     );
   }
 }
-

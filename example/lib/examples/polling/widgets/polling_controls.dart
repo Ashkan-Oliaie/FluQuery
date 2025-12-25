@@ -49,7 +49,8 @@ class PollingControls extends StatelessWidget {
             children: [
               Text(
                 'Interval: ${pollInterval?.inSeconds ?? 0}s',
-                style: TextStyle(color: isDark ? Colors.white60 : Colors.black54),
+                style:
+                    TextStyle(color: isDark ? Colors.white60 : Colors.black54),
               ),
               Row(
                 children: [1, 3, 5, 10].map((seconds) {
@@ -57,7 +58,8 @@ class PollingControls extends StatelessWidget {
                   return Padding(
                     padding: const EdgeInsets.only(left: 8),
                     child: GestureDetector(
-                      onTap: () => onIntervalChanged(Duration(seconds: seconds)),
+                      onTap: () =>
+                          onIntervalChanged(Duration(seconds: seconds)),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 12,
@@ -92,4 +94,3 @@ class PollingControls extends StatelessWidget {
     );
   }
 }
-

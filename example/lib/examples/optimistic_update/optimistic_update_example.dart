@@ -18,8 +18,10 @@ class OptimisticUpdateExample extends HookWidget {
       queryFn: (_) => ApiClient.getTodos(),
     );
 
-    final toggleMutation = useMutation<Todo, Object, ({int id, bool completed}), List<Todo>>(
-      mutationFn: (args) => ApiClient.updateTodo(args.id, completed: args.completed),
+    final toggleMutation =
+        useMutation<Todo, Object, ({int id, bool completed}), List<Todo>>(
+      mutationFn: (args) =>
+          ApiClient.updateTodo(args.id, completed: args.completed),
       onMutate: (args) {
         // Cancel any in-flight fetches to prevent race conditions
         client.cancelQueries(queryKey: ['todos']);
@@ -72,7 +74,8 @@ class OptimisticUpdateExample extends HookWidget {
             icon: todosQuery.isFetching
                 ? SmallSpinner(color: accentColor)
                 : const Icon(Icons.refresh),
-            onPressed: todosQuery.isFetching ? null : () => todosQuery.refetch(),
+            onPressed:
+                todosQuery.isFetching ? null : () => todosQuery.refetch(),
           ),
         ],
       ),
@@ -92,7 +95,8 @@ class OptimisticUpdateExample extends HookWidget {
   Widget _buildList(
     BuildContext context,
     QueryResult<List<Todo>, Object> query,
-    UseMutationResult<Todo, Object, ({int id, bool completed}), List<Todo>> toggleMutation,
+    UseMutationResult<Todo, Object, ({int id, bool completed}), List<Todo>>
+        toggleMutation,
   ) {
     if (query.isLoading) {
       return const LoadingIndicator();
@@ -170,4 +174,3 @@ class _InfoBanner extends StatelessWidget {
     );
   }
 }
-

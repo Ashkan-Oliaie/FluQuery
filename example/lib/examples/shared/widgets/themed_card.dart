@@ -43,4 +43,3 @@ class ThemedCard extends StatelessWidget {
     );
   }
 }
-

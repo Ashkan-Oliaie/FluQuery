@@ -187,4 +187,3 @@ class SimpleTodoTile extends StatelessWidget {
     );
   }
 }
-

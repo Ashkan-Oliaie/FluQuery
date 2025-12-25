@@ -70,7 +70,8 @@ class UserCard extends StatelessWidget {
                                 userQuery.data!.email,
                                 style: TextStyle(
                                   fontSize: 14,
-                                  color: isDark ? Colors.white54 : Colors.black45,
+                                  color:
+                                      isDark ? Colors.white54 : Colors.black45,
                                 ),
                               ),
                             ],
@@ -81,4 +82,3 @@ class UserCard extends StatelessWidget {
     );
   }
 }
-

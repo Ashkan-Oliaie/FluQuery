@@ -56,7 +56,8 @@ class PollingExample extends HookWidget {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: timeQuery.isFetching ? null : () => timeQuery.refetch(),
+                  onPressed:
+                      timeQuery.isFetching ? null : () => timeQuery.refetch(),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: accentColor,
                     padding: const EdgeInsets.symmetric(vertical: 16),
@@ -77,4 +78,3 @@ class PollingExample extends HookWidget {
     );
   }
 }
-

@@ -48,4 +48,3 @@ class PostsStatsBar extends StatelessWidget {
     );
   }
 }
-

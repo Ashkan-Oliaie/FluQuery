@@ -92,4 +92,3 @@ class DependentQueriesExample extends HookWidget {
     );
   }
 }
-

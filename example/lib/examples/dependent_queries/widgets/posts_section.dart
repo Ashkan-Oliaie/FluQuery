@@ -48,7 +48,8 @@ class PostsSection extends StatelessWidget {
               child: Center(
                 child: Text(
                   'Waiting for user data...',
-                  style: TextStyle(color: isDark ? Colors.white54 : Colors.black45),
+                  style: TextStyle(
+                      color: isDark ? Colors.white54 : Colors.black45),
                 ),
               ),
             )
@@ -70,7 +71,8 @@ class PostsSection extends StatelessWidget {
               child: Center(
                 child: Text(
                   'No posts found',
-                  style: TextStyle(color: isDark ? Colors.white54 : Colors.black45),
+                  style: TextStyle(
+                      color: isDark ? Colors.white54 : Colors.black45),
                 ),
               ),
             )
@@ -128,4 +130,3 @@ class _PostItem extends StatelessWidget {
     );
   }
 }
-

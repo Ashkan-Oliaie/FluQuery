@@ -29,8 +29,10 @@ class MutationExample extends HookWidget {
       },
     );
 
-    final toggleMutation = useMutation<Todo, Object, ({int id, bool completed}), void>(
-      mutationFn: (args) => ApiClient.updateTodo(args.id, completed: args.completed),
+    final toggleMutation =
+        useMutation<Todo, Object, ({int id, bool completed}), void>(
+      mutationFn: (args) =>
+          ApiClient.updateTodo(args.id, completed: args.completed),
       onSuccess: (data, variables, ctx) {
         client.invalidateQueries(
           queryKey: ['todos'],
@@ -115,7 +117,8 @@ class _AddTodoForm extends StatelessWidget {
               Expanded(
                 child: TextField(
                   controller: controller,
-                  style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                  style:
+                      TextStyle(color: isDark ? Colors.white : Colors.black87),
                   decoration: InputDecoration(
                     hintText: 'Enter new todo...',
                     hintStyle: TextStyle(
@@ -131,7 +134,8 @@ class _AddTodoForm extends StatelessWidget {
                 onPressed: isPending ? null : onSubmit,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: accentColor,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 ),
                 child: isPending
                     ? const SmallSpinner(color: Colors.white)
@@ -155,7 +159,8 @@ class _AddTodoForm extends StatelessWidget {
 
 class _TodoList extends StatelessWidget {
   final QueryResult<List<Todo>, Object> query;
-  final UseMutationResult<Todo, Object, ({int id, bool completed}), void> toggleMutation;
+  final UseMutationResult<Todo, Object, ({int id, bool completed}), void>
+      toggleMutation;
   final UseMutationResult<void, Object, int, void> deleteMutation;
 
   const _TodoList({
@@ -199,7 +204,8 @@ class _TodoList extends StatelessWidget {
 
         return TodoTile(
           todo: todo,
-          onToggle: () => toggleMutation.mutate((id: todo.id, completed: !todo.completed)),
+          onToggle: () =>
+              toggleMutation.mutate((id: todo.id, completed: !todo.completed)),
           onDelete: () => deleteMutation.mutate(todo.id),
           isToggling: isTogglingThis,
           isDeleting: isDeletingThis,
@@ -208,4 +214,3 @@ class _TodoList extends StatelessWidget {
     );
   }
 }
-

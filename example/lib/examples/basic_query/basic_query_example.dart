@@ -50,7 +50,8 @@ class BasicQueryExample extends HookWidget {
                 ? SmallSpinner(color: accentColor)
                 : const Icon(Icons.refresh),
             tooltip: 'Refetch',
-            onPressed: todosQuery.isFetching ? null : () => todosQuery.refetch(),
+            onPressed:
+                todosQuery.isFetching ? null : () => todosQuery.refetch(),
           ),
         ],
       ),
@@ -60,7 +61,8 @@ class BasicQueryExample extends HookWidget {
     );
   }
 
-  Widget _buildContent(BuildContext context, QueryResult<List<Todo>, Object> query) {
+  Widget _buildContent(
+      BuildContext context, QueryResult<List<Todo>, Object> query) {
     final accentColor = Theme.of(context).colorScheme.primary;
 
     if (query.isLoading) {
@@ -84,8 +86,7 @@ class BasicQueryExample extends HookWidget {
           isStale: query.isStale,
           dataUpdatedAt: query.dataUpdatedAt,
         ),
-        if (query.isRefetching)
-          LinearProgressIndicator(color: accentColor),
+        if (query.isRefetching) LinearProgressIndicator(color: accentColor),
         Expanded(
           child: ListView.builder(
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -97,4 +98,3 @@ class BasicQueryExample extends HookWidget {
     );
   }
 }
-
