@@ -1,5 +1,6 @@
 import 'package:flutter_hooks/flutter_hooks.dart';
 import '../core/types.dart';
+import '../core/query_key.dart';
 import '../core/infinite_query.dart';
 import '../widgets/query_client_provider.dart';
 
@@ -122,38 +123,52 @@ UseInfiniteQueryResult<TData, TError, TPageParam>
   final context = useContext();
   final client = QueryClientProvider.of(context);
 
-  // Create options
-  final options = useMemoized(
-    () => InfiniteQueryOptions<TData, TError, TPageParam>(
-      queryKey: queryKey,
-      queryFn: queryFn,
-      initialPageParam: initialPageParam,
-      getNextPageParam: getNextPageParam,
-      getPreviousPageParam: getPreviousPageParam,
-      staleTime: staleTime,
-      gcTime: gcTime,
-      enabled: enabled,
-      refetchOnWindowFocus: refetchOnWindowFocus,
-      refetchOnReconnect: refetchOnReconnect,
-      retry: retry,
-      retryDelay: retryDelay,
-      maxPages: maxPages,
-    ),
-    [queryKey.toString(), enabled],
-  );
+  // Create a stable hash of the query key
+  final queryKeyHash = QueryKeyUtils.hashKey(queryKey);
 
-  // Get or create infinite query
+  // Get or create infinite query from cache (pure lookup, no option updates)
   final query = useMemoized(
-    () => client.getInfiniteQuery(options),
-    [options],
+    () => client.getOrCreateInfiniteQuery<TData, TError, TPageParam>(
+      queryKey: queryKey,
+      initialPageParam: initialPageParam,
+    ),
+    [queryKeyHash],
   );
 
-  // State
-  final stateNotifier = useState<InfiniteQueryState<TData, TError, TPageParam>>(
-    query.state,
+  // Create current options (these may change each render)
+  final currentOptions = InfiniteQueryOptions<TData, TError, TPageParam>(
+    queryKey: queryKey,
+    queryFn: queryFn,
+    initialPageParam: initialPageParam,
+    getNextPageParam: getNextPageParam,
+    getPreviousPageParam: getPreviousPageParam,
+    staleTime: staleTime,
+    gcTime: gcTime,
+    enabled: enabled,
+    refetchOnWindowFocus: refetchOnWindowFocus,
+    refetchOnReconnect: refetchOnReconnect,
+    retry: retry,
+    retryDelay: retryDelay,
+    maxPages: maxPages,
   );
 
-  // Subscribe to query
+  // Update options on the query (for when we actually fetch)
+  query.setOptions(currentOptions);
+
+  // State - track query state changes
+  final stateNotifier = useState(query.state);
+
+  // Use a ref to track the previous query hash
+  final prevHashRef = useRef<String?>(null);
+
+  // When query key changes, immediately show cached data
+  if (prevHashRef.value != queryKeyHash) {
+    prevHashRef.value = queryKeyHash;
+    // Synchronously update state to show cached data
+    stateNotifier.value = query.state;
+  }
+
+  // Subscribe to query updates and handle fetching
   useEffect(() {
     void listener(InfiniteQueryState<TData, TError, TPageParam> state) {
       stateNotifier.value = state;
@@ -161,13 +176,12 @@ UseInfiniteQueryResult<TData, TError, TPageParam>
 
     query.addObserver(listener);
 
-    // Initial fetch if enabled
-    if (enabled && (query.isStale || !query.state.hasData)) {
-      query.fetch().then((_) {
-        stateNotifier.value = query.state;
-      }).catchError((_) {
-        stateNotifier.value = query.state;
-      });
+    // Always sync state first
+    stateNotifier.value = query.state;
+
+    // Only fetch if enabled AND (no data OR stale)
+    if (enabled && (!query.state.hasData || query.isStale)) {
+      query.fetch();
     }
 
     return () => query.removeObserver(listener);

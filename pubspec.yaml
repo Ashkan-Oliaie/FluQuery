@@ -1,9 +1,6 @@
 name: fluquery
-description: >-
-  Powerful asynchronous state management, server-state utilities and data fetching 
-  for Flutter. Inspired by TanStack Query (React Query). Features automatic caching, 
-  background refetching, mutations, infinite queries, and optimistic updates.
-version: 1.0.3
+description: Async state management & data fetching for Flutter. Caching, mutations, infinite queries, optimistic updates.
+version: 1.0.4
 homepage: https://github.com/Ashkan-Oliaie/FluQuery
 repository: https://github.com/Ashkan-Oliaie/FluQuery
 issue_tracker: https://github.com/Ashkan-Oliaie/FluQuery/issues

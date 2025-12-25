@@ -334,6 +334,33 @@ class QueryClient {
     return query;
   }
 
+  /// Get or create an infinite query without updating options
+  /// Used by hooks to get cached query with preserved state
+  InfiniteQuery<TData, TError, TPageParam>
+      getOrCreateInfiniteQuery<TData, TError, TPageParam>({
+    required QueryKey queryKey,
+    required TPageParam? initialPageParam,
+  }) {
+    final queryHash = QueryKeyUtils.hashKey(queryKey);
+    var query = _infiniteQueries[queryHash]
+        as InfiniteQuery<TData, TError, TPageParam>?;
+
+    if (query == null) {
+      // Create with minimal options - they will be set by the hook
+      query = InfiniteQuery<TData, TError, TPageParam>(
+        queryKey: queryKey,
+        options: InfiniteQueryOptions<TData, TError, TPageParam>(
+          queryKey: queryKey,
+          queryFn: (_) => throw StateError('queryFn not set'),
+          initialPageParam: initialPageParam,
+        ),
+      );
+      _infiniteQueries[queryHash] = query;
+    }
+
+    return query;
+  }
+
   /// Called when window gains focus
   void _onWindowFocus() {
     if (!_isMounted) return;
