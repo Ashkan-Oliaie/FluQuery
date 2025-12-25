@@ -11,13 +11,10 @@ enum LogLevel {
 
 /// Logger for FluQuery
 class FluQueryLogger {
-  static LogLevel _level = LogLevel.warn;
-
-  static set level(LogLevel value) => _level = value;
-  static LogLevel get level => _level;
+  static LogLevel level = LogLevel.warn;
 
   static void debug(String message, [Object? error, StackTrace? stackTrace]) {
-    if (_level.index >= LogLevel.debug.index) {
+    if (level.index >= LogLevel.debug.index) {
       developer.log(
         message,
         name: 'FluQuery',
@@ -28,7 +25,7 @@ class FluQueryLogger {
   }
 
   static void info(String message, [Object? error, StackTrace? stackTrace]) {
-    if (_level.index >= LogLevel.info.index) {
+    if (level.index >= LogLevel.info.index) {
       developer.log(
         message,
         name: 'FluQuery',
@@ -39,7 +36,7 @@ class FluQueryLogger {
   }
 
   static void warn(String message, [Object? error, StackTrace? stackTrace]) {
-    if (_level.index >= LogLevel.warn.index) {
+    if (level.index >= LogLevel.warn.index) {
       developer.log(
         message,
         name: 'FluQuery',
@@ -51,7 +48,7 @@ class FluQueryLogger {
   }
 
   static void error(String message, [Object? error, StackTrace? stackTrace]) {
-    if (_level.index >= LogLevel.error.index) {
+    if (level.index >= LogLevel.error.index) {
       developer.log(
         message,
         name: 'FluQuery',

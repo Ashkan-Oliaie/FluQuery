@@ -37,7 +37,7 @@
 ///   }
 /// }
 /// ```
-library fluquery;
+library;
 
 // Core exports
 export 'src/core/types.dart';

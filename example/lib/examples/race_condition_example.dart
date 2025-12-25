@@ -456,28 +456,6 @@ class _ManualCancellationDemo extends HookWidget {
               ],
             ),
           ),
-          const SizedBox(height: 24),
-
-          // Code example
-          _CodeCard(
-            title: 'Cancellation Code',
-            code: '''
-// In your queryFn, check the cancellation token
-queryFn: (ctx) async {
-  for (int i = 0; i < 10; i++) {
-    // Check if cancelled before each step
-    if (ctx.signal?.isCancelled == true) {
-      throw QueryCancelledException();
-    }
-    await doWork();
-  }
-  return result;
-}
-
-// Cancel from anywhere
-client.cancelQueries(queryKey: ['slow-query']);
-''',
-          ),
         ],
       ),
     );
@@ -797,35 +775,3 @@ class _FilterChip extends StatelessWidget {
   }
 }
 
-class _CodeCard extends StatelessWidget {
-  final String title;
-  final String code;
-
-  const _CodeCard({required this.title, required this.code});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0D0D1A),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0x33FFFFFF)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.code, color: Colors.green, size: 16),
-              const SizedBox(width: 8),
-              Text(title, style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 12)),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(code, style: const TextStyle(color: Colors.white70, fontFamily: 'monospace', fontSize: 11)),
-        ],
-      ),
-    );
-  }
-}

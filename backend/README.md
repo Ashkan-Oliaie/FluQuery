@@ -48,6 +48,7 @@ docker run -p 8080:8080 fluquery-backend
 | GET | `/api/users` | Get all users |
 | GET | `/api/users/:id` | Get user by ID |
 | GET | `/api/users/:id/posts` | Get user's posts |
+| GET | `/api/users/search?q=query` | Search users by name/email |
 | GET | `/api/time` | Get server time |
 | GET | `/api/posts/:id/comments` | Get post comments |
 | POST | `/api/posts/:id/comments` | Add comment |

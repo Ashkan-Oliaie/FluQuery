@@ -103,24 +103,6 @@ class _SelectExample extends HookWidget {
           if (viewType.value == 'names') const _SelectNamesDemo(),
           if (viewType.value == 'emails') const _SelectEmailsDemo(),
           if (viewType.value == 'count') const _SelectCountDemo(),
-
-          const SizedBox(height: 24),
-
-          // Code example
-          _CodeCard(
-            title: 'Code Example',
-            code: '''
-// Fetch all users but only get their names
-final userNames = useQuerySelect<List<User>, Object, List<String>>(
-  queryKey: ['users'],
-  queryFn: (_) => fetchUsers(),
-  select: (users) => users.map((u) => u.name).toList(),
-);
-
-// Result is List<String>, not List<User>
-print(userNames.data); // ['John', 'Jane', ...]
-''',
-          ),
         ],
       ),
     );
@@ -309,32 +291,6 @@ class _KeepPreviousDataExample extends HookWidget {
               ),
             ],
           ),
-
-          const SizedBox(height: 24),
-
-          // Code example
-          _CodeCard(
-            title: 'Code Example',
-            code: '''
-// Without keepPreviousData - shows loading on every key change
-final userPosts = useQuery<List<Post>, Object>(
-  queryKey: ['posts', userId],
-  queryFn: (_) => fetchUserPosts(userId),
-);
-
-// With keepPreviousData - smooth transitions
-final userPosts = useQuery<List<Post>, Object>(
-  queryKey: ['posts', userId],
-  queryFn: (_) => fetchUserPosts(userId),
-  keepPreviousData: true,  // <-- Magic!
-);
-
-// Check if showing previous data
-if (userPosts.isPreviousData) {
-  showIndicator('Updating...');
-}
-''',
-          ),
         ],
       ),
     );
@@ -479,28 +435,6 @@ class _ComparisonExample extends HookWidget {
             useCase: 'Data from parent, SSR hydration',
             example: 'Data passed from list to detail',
           ),
-
-          const SizedBox(height: 24),
-
-          // Combined example
-          _CodeCard(
-            title: 'Combined Usage',
-            code: '''
-// Powerful combination: select + keepPreviousData
-final todoCount = useQuerySelect<List<Todo>, Object, int>(
-  queryKey: ['todos', filter],
-  queryFn: (_) => fetchTodos(filter),
-  select: (todos) => todos.length,
-  keepPreviousData: true,
-);
-
-// When filter changes:
-// 1. Previous count stays visible (no loading spinner)
-// 2. New data is fetched in background
-// 3. Count updates smoothly when new data arrives
-// 4. Only the count (int) is returned, not full todo list
-''',
-          ),
         ],
       ),
     );
@@ -632,53 +566,6 @@ class _ResultCard extends StatelessWidget {
             child!
           else
             const Text('No data', style: TextStyle(color: Colors.white38)),
-        ],
-      ),
-    );
-  }
-}
-
-class _CodeCard extends StatelessWidget {
-  final String title;
-  final String code;
-
-  const _CodeCard({required this.title, required this.code});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0D0D1A),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0x33FFFFFF)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.code, color: Colors.green, size: 16),
-              const SizedBox(width: 8),
-              Text(
-                title,
-                style: const TextStyle(
-                  color: Colors.green,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            code,
-            style: const TextStyle(
-              color: Colors.white70,
-              fontFamily: 'monospace',
-              fontSize: 11,
-            ),
-          ),
         ],
       ),
     );
