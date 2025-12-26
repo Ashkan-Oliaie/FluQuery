@@ -54,6 +54,8 @@ export 'src/core/infinite_query.dart';
 export 'src/core/query_store.dart';
 export 'src/core/query_client.dart';
 export 'src/core/logger.dart';
+export 'src/core/persister.dart';
+export 'src/core/hive_persister.dart';
 
 // Widget exports
 export 'src/widgets/query_client_provider.dart';

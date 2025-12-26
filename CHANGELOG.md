@@ -6,6 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.1.0] - 2025-12-26
+
+### Added
+- **Persistence**: Persist query data to storage and restore on app restart
+  - `useQuery` hook now supports `persist` option
+  - `QueryClient` now supports `persister` option
+  - `HiveCePersister` implementation for production use
+  - `InMemoryPersister` implementation for testing
+  - `PersistOptions` for configuring persistence
+
+
+## [1.0.6] - 2024-12-26
+
+### Fixed
+- Fix issue with multiple query keys for the same query function
+
+
 ## [1.0.5] - 2024-12-25
 
 ### Added

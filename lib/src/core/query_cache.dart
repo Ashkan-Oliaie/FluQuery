@@ -27,6 +27,9 @@ class QueryCache {
   final StreamController<QueryCacheEvent> _eventController =
       StreamController<QueryCacheEvent>.broadcast();
 
+  /// Callback for persisting query data on success
+  void Function(QueryKey key, Object? data, DateTime? dataUpdatedAt)? onDataSuccess;
+
   /// Stream of cache events
   Stream<QueryCacheEvent> get events => _eventController.stream;
 
@@ -65,6 +68,7 @@ class QueryCache {
     );
 
     query.onGc = _onQueryGc;
+    query.onDataSuccess = onDataSuccess;
     _add(query);
     return query;
   }
@@ -112,6 +116,46 @@ class QueryCache {
   /// Get a query by hash
   Query? getByHash(String queryHash) {
     return _queries[queryHash];
+  }
+
+  /// Get all queries in the cache
+  List<Query> getAll() {
+    return _queries.values.toList();
+  }
+
+  /// Hydrate a query from persisted storage.
+  /// Creates a query with the serialized data, which will be deserialized
+  /// when a component subscribes with the appropriate serializer.
+  void hydrateQuery({
+    required QueryKey queryKey,
+    required String queryHash,
+    required dynamic serializedData,
+    DateTime? dataUpdatedAt,
+  }) {
+    // Don't overwrite existing queries
+    if (_queries.containsKey(queryHash)) {
+      FluQueryLogger.debug('Skipping hydration for $queryKey - query already exists');
+      return;
+    }
+
+    // Create a hydrated query entry
+    // Store the serialized data - it will be deserialized when accessed
+    final query = Query<dynamic, dynamic>(
+      queryKey: queryKey,
+      queryHash: queryHash,
+      initialState: QueryState<dynamic, dynamic>(
+        data: serializedData,
+        status: QueryStatus.success,
+        fetchStatus: FetchStatus.idle,
+        dataUpdatedAt: dataUpdatedAt,
+        dataUpdateCount: 1,
+      ),
+    );
+
+    query.onGc = _onQueryGc;
+    _queries[queryHash] = query;
+
+    FluQueryLogger.debug('Hydrated query from persistence: $queryKey');
   }
 
   /// Find queries matching a filter
@@ -327,6 +371,14 @@ class _TypedQueryWrapper<TData, TError> implements Query<TData, TError> {
   @override
   set onGc(void Function(Query<TData, TError>) callback) {
     _inner.onGc = (q) => callback(this);
+  }
+
+  @override
+  void Function(QueryKey key, Object? data, DateTime? dataUpdatedAt)? get onDataSuccess => _inner.onDataSuccess;
+
+  @override
+  set onDataSuccess(void Function(QueryKey key, Object? data, DateTime? dataUpdatedAt)? callback) {
+    _inner.onDataSuccess = callback;
   }
 
   @override

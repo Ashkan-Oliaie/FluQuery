@@ -76,6 +76,9 @@ class Query<TData, TError> {
   /// Merged options computed from all observers (uses most conservative values)
   QueryOptions<TData, TError>? _mergedOptions;
 
+  /// Callback for when data is successfully fetched (used for persistence)
+  void Function(QueryKey key, Object? data, DateTime? dataUpdatedAt)? onDataSuccess;
+
   Query({
     required this.queryKey,
     String? queryHash,
@@ -314,6 +317,9 @@ class Query<TData, TError> {
       // Set state with raw data
       _state = _state.withSuccess(rawData);
       _notifyObservers();
+
+      // Trigger persistence callback if registered
+      onDataSuccess?.call(queryKey, rawData, _state.dataUpdatedAt);
 
       FluQueryLogger.debug('Query success: $queryKey');
       return rawData;

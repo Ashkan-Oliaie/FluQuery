@@ -25,6 +25,7 @@ FluQuery makes fetching, caching, synchronizing, and updating server state in yo
 - 🪝 **Hooks API** - Beautiful Flutter Hooks integration
 - 🔍 **Select/Transform** - Transform query data before returning (`useQuerySelect`)
 - 📍 **Keep Previous Data** - Smooth transitions between queries with `keepPreviousData`
+- 💾 **Persistence** - Save query data to disk and restore on app restart
 
 ## 📦 Installation
 
@@ -47,6 +48,7 @@ Check out the [example](./example) directory for a comprehensive demo app showca
 - ✅ Polling/realtime updates
 - ✅ Optimistic updates with rollback
 - ✅ Race condition handling
+- ✅ Query persistence to disk
 
 ### Running the Example
 
@@ -396,6 +398,122 @@ QueryBuilder<List<Todo>, Object>(
 )
 ```
 
+### Persistence (Save/Restore Cache)
+
+Persist query data to disk so it survives app restarts. Users see cached data instantly while fresh data loads in the background.
+
+#### 1. Configure a Persister
+
+```dart
+import 'package:fluquery/fluquery.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Create and initialize the Hive CE persister
+  // Data is stored in the app's documents directory
+  final persister = HiveCePersister();
+  await persister.init();
+
+  // Create QueryClient with persister
+  final queryClient = QueryClient(persister: persister);
+  
+  // Restore cached data on app start
+  await queryClient.hydrate();
+
+  runApp(
+    QueryClientProvider(
+      client: queryClient,
+      child: MyApp(),
+    ),
+  );
+}
+```
+
+#### 2. Enable Persistence on Queries
+
+```dart
+// Create a serializer for your data type
+class TodoListSerializer implements QueryDataSerializer<List<Todo>> {
+  @override
+  dynamic serialize(List<Todo> data) {
+    return data.map((todo) => todo.toJson()).toList();
+  }
+
+  @override
+  List<Todo> deserialize(dynamic json) {
+    return (json as List)
+        .map((item) => Todo.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+}
+
+// Use the persist option
+final todosQuery = useQuery<List<Todo>, Object>(
+  queryKey: ['todos'],
+  queryFn: (_) => fetchTodos(),
+  persist: PersistOptions<List<Todo>>(
+    serializer: TodoListSerializer(),
+    maxAge: Duration(days: 7), // Optional: expire old data
+  ),
+);
+```
+
+#### Built-in Persisters
+
+| Persister | Use Case |
+|-----------|----------|
+| `HiveCePersister` | **Recommended** - Fast, encrypted local storage using [Hive CE](https://pub.dev/packages/hive_ce) |
+| `InMemoryPersister` | Testing and development only (data lost on app close) |
+| `SharedPrefsPersister` | Simple key-value storage (requires SharedPreferences adapter) |
+
+#### HiveCePersister Options
+
+```dart
+// Basic usage
+final persister = HiveCePersister();
+
+// Custom box name
+final persister = HiveCePersister(boxName: 'my_cache');
+
+// With encryption
+import 'package:hive_ce/hive_ce.dart';
+final encryptionKey = Hive.generateSecureKey();
+final persister = HiveCePersister(
+  boxName: 'secure_cache',
+  encryptionCipher: HiveAesCipher(encryptionKey),
+);
+```
+
+#### Custom Persister
+
+Implement the `Persister` interface for your storage backend:
+
+```dart
+class MyCustomPersister implements Persister {
+  @override
+  Future<void> init() async { /* Open database */ }
+  
+  @override
+  Future<void> persistQuery(PersistedQuery query) async { /* Save */ }
+  
+  @override
+  Future<PersistedQuery?> restoreQuery(String hash) async { /* Load */ }
+  
+  @override
+  Future<List<PersistedQuery>> restoreAll() async { /* Load all */ }
+  
+  @override
+  Future<void> removeQuery(String hash) async { /* Delete */ }
+  
+  @override
+  Future<void> clear() async { /* Clear all */ }
+  
+  @override
+  Future<void> close() async { /* Cleanup */ }
+}
+```
+
 ## ⚙️ Configuration
 
 ### QueryClient Options
@@ -503,7 +621,7 @@ We're continuously improving FluQuery. Here's what's coming:
 
 | Feature | Status | Description |
 |---------|--------|-------------|
-| 💾 **Persister Plugin** | 🔜 Planned | Save/restore cache to disk (Hive, SharedPrefs, SQLite) |
+| 💾 **Persister Plugin** | ✅ Done | Save/restore cache to disk (Hive, SharedPrefs, SQLite) |
 | 🔧 **DevTools** | 🔜 Planned | Debug overlay to inspect cache, queries, and mutations |
 | 📊 **Max Cache Size** | 🔜 Planned | Limit cache entries to prevent memory issues |
 | 🛡️ **QueryErrorBoundary** | 🔜 Planned | Widget for graceful error handling and recovery |
@@ -540,6 +658,7 @@ We're continuously improving FluQuery. Here's what's coming:
 - [x] Polling/interval refetching
 - [x] Retry with exponential backoff
 - [x] Garbage collection
+- [x] **Persistence** - Save/restore query data to disk
 
 > 💡 Have a feature request? [Open an issue](https://github.com/Ashkan-Oliaie/FluQuery/issues)!
 

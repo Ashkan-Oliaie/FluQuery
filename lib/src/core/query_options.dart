@@ -1,3 +1,4 @@
+import 'persister.dart';
 import 'types.dart';
 
 /// Options for configuring a query
@@ -61,6 +62,22 @@ class QueryOptions<TData, TError> {
   /// Throw errors instead of returning them
   final bool throwOnError;
 
+  /// Persistence options for this query.
+  /// When set, query data will be persisted to storage and restored on app restart.
+  ///
+  /// Example:
+  /// ```dart
+  /// useQuery<List<Todo>, Error>(
+  ///   ['todos'],
+  ///   () => api.getTodos(),
+  ///   persist: PersistOptions(
+  ///     serializer: TodoListSerializer(),
+  ///     maxAge: Duration(days: 7),
+  ///   ),
+  /// );
+  /// ```
+  final PersistOptions<TData>? persist;
+
   const QueryOptions({
     required this.queryKey,
     this.queryFn,
@@ -81,6 +98,7 @@ class QueryOptions<TData, TError> {
     this.meta = const {},
     this.structuralSharing = true,
     this.throwOnError = false,
+    this.persist,
   });
 
   /// Copy with new values
@@ -104,6 +122,7 @@ class QueryOptions<TData, TError> {
     Map<String, dynamic>? meta,
     bool? structuralSharing,
     bool? throwOnError,
+    PersistOptions<TData>? persist,
   }) {
     return QueryOptions<TData, TError>(
       queryKey: queryKey ?? this.queryKey,
@@ -126,6 +145,7 @@ class QueryOptions<TData, TError> {
       meta: meta ?? this.meta,
       structuralSharing: structuralSharing ?? this.structuralSharing,
       throwOnError: throwOnError ?? this.throwOnError,
+      persist: persist ?? this.persist,
     );
   }
 }

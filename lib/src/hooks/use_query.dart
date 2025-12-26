@@ -3,6 +3,7 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 import '../core/types.dart';
 import '../core/query_options.dart';
 import '../core/query_observer.dart';
+import '../core/persister.dart';
 import '../widgets/query_client_provider.dart';
 
 /// Result type for useQuery hook
@@ -33,6 +34,22 @@ QueryResult<TData, TError> useQuery<TData, TError>({
   /// Keep the previous data visible while fetching new data
   /// Great for paginated UIs where you want smooth transitions
   bool keepPreviousData = false,
+
+  /// Persistence options for saving query data to storage.
+  /// When provided, query data will be persisted and restored on app restart.
+  /// 
+  /// Example:
+  /// ```dart
+  /// useQuery<List<Todo>, Error>(
+  ///   queryKey: ['todos'],
+  ///   queryFn: (_) => fetchTodos(),
+  ///   persist: PersistOptions(
+  ///     serializer: TodoListSerializer(),
+  ///     maxAge: Duration(days: 7),
+  ///   ),
+  /// );
+  /// ```
+  PersistOptions<TData>? persist,
 }) {
   final context = useContext();
   final client = QueryClientProvider.of(context);
@@ -73,15 +90,25 @@ QueryResult<TData, TError> useQuery<TData, TError>({
           placeholderData != null ? PlaceholderValue(placeholderData) : null,
       initialData: initialData,
       initialDataUpdatedAt: initialDataUpdatedAt,
+      persist: persist,
     ),
     [
       queryKey.toString(),
       enabled,
       staleTime,
       retry,
-      refetchInterval?.inMilliseconds
+      refetchInterval?.inMilliseconds,
+      persist != null,
     ],
   );
+
+  // Register persistence options with client
+  useEffect(() {
+    if (persist != null) {
+      client.registerPersistOptions<TData>(queryKey, persist);
+    }
+    return null;
+  }, [persist != null, queryKey.toString()]);
 
   // Observer reference
   final observerRef = useRef<QueryObserver<TData, TError>?>(null);
