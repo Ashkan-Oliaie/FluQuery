@@ -1,10 +1,8 @@
 import 'dart:async';
-import 'types.dart';
-import 'query.dart';
-import 'query_key.dart';
+import '../common/common.dart';
+import 'query_impl.dart';
 import 'query_options.dart';
 import 'query_state.dart';
-import 'logger.dart';
 
 /// Event types for query cache
 enum QueryCacheEventType {

@@ -1,10 +1,9 @@
 import 'dart:async';
-import 'types.dart';
-import 'query.dart';
+import '../common/common.dart';
+import 'query_impl.dart';
 import 'query_state.dart';
 import 'query_options.dart';
 import 'query_cache.dart';
-import 'logger.dart';
 
 /// A persistent query store that exists independently of widget lifecycle.
 ///
@@ -98,24 +97,18 @@ class QueryStore<TData, TError> {
     // Start refetch interval if configured
     _startRefetchInterval();
 
-    // Initial fetch (log errors instead of swallowing silently)
-    _query.fetch(queryFn: queryFn).catchError((e) {
-      FluQueryLogger.warn('QueryStore initial fetch failed for $queryKey: $e');
-      return null;
-    });
+    // Initial fetch - errors are stored in state, not thrown
+    _query.fetch(queryFn: queryFn);
 
     FluQueryLogger.debug('QueryStore created: $queryKey');
   }
 
-  /// Performs a background refetch with error logging
+  /// Performs a background refetch
   void _backgroundRefetch() {
     if (_isDisposed) return;
     FluQueryLogger.debug('QueryStore refetch interval: $queryKey');
-    _query.fetch(queryFn: queryFn, forceRefetch: true).catchError((e) {
-      FluQueryLogger.warn(
-          'QueryStore background refetch failed for $queryKey: $e');
-      return null;
-    });
+    // Errors are stored in state, not thrown
+    _query.fetch(queryFn: queryFn, forceRefetch: true);
   }
 
   void _startRefetchInterval() {
@@ -176,31 +169,23 @@ class QueryStore<TData, TError> {
   }
 
   /// Fetch data (respects stale time)
+  /// Returns the data if successful, null if failed (check state.error)
   Future<TData?> fetch() async {
     if (_isDisposed) return null;
 
-    try {
-      final result = await _query.fetch(queryFn: queryFn);
-      final dynamic d = result;
-      return d as TData?;
-    } catch (e) {
-      FluQueryLogger.warn('QueryStore fetch failed for $queryKey: $e');
-      return null;
-    }
+    final result = await _query.fetch(queryFn: queryFn);
+    final dynamic d = result;
+    return d as TData?;
   }
 
   /// Force refetch (ignores stale time)
+  /// Returns the data if successful, null if failed (check state.error)
   Future<TData?> refetch() async {
     if (_isDisposed) return null;
 
-    try {
-      final result = await _query.fetch(queryFn: queryFn, forceRefetch: true);
-      final dynamic d = result;
-      return d as TData?;
-    } catch (e) {
-      FluQueryLogger.warn('QueryStore refetch failed for $queryKey: $e');
-      return null;
-    }
+    final result = await _query.fetch(queryFn: queryFn, forceRefetch: true);
+    final dynamic d = result;
+    return d as TData?;
   }
 
   /// Set data directly in cache

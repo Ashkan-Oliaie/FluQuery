@@ -29,7 +29,7 @@ class PersistenceExample extends HookWidget {
       // Persistence configuration
       persist: PersistOptions<List<Todo>>(
         serializer: _TodoListSerializer(),
-        maxAge: const Duration(days: 7),
+        maxAge: const Duration(minutes: 5),
       ),
     );
 
@@ -82,7 +82,7 @@ class PersistenceExample extends HookWidget {
             'Data is saved to disk and restored on app restart. '
             'Try closing and reopening the app!',
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurface.withOpacity(0.7),
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
             ),
           ),
         ],
@@ -97,73 +97,22 @@ class PersistenceExample extends HookWidget {
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: ThemedCard(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.info_outline,
-                    color: theme.colorScheme.primary,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Persistence Status',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              _StatusRow(
-                label: 'Persister',
-                value: persister != null ? 'Configured ✓' : 'Not configured',
-                isActive: persister != null,
-              ),
-              const SizedBox(height: 8),
-              _StatusRow(
-                label: 'Cache Hydrated',
-                value: isHydrated ? 'Yes ✓' : 'No',
-                isActive: isHydrated,
-              ),
-              const SizedBox(height: 12),
-                Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest
-                      .withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.lightbulb_outline,
-                      size: 16,
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        persister != null
-                            ? 'Using HiveCePersister - data saved to device storage. '
-                                'Close and reopen the app to see cached data restored!'
-                            : 'No persister configured. Add HiveCePersister to QueryClient.',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+      child: Row(
+        children: [
+          Icon(
+            persister != null ? Icons.check_circle : Icons.error_outline,
+            size: 16,
+            color: persister != null ? theme.colorScheme.primary : theme.colorScheme.error,
           ),
-        ),
+          const SizedBox(width: 6),
+          Text(
+            persister != null
+                ? 'Persister: Active${isHydrated ? ' • Hydrated' : ''}' : 'No persister',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -179,7 +128,9 @@ class PersistenceExample extends HookWidget {
       return const LoadingIndicator();
     }
 
-    if (query.isError) {
+    // Only show full error if we have NO data
+    // If we have cached data, show it with an error indicator instead
+    if (query.isError && !query.hasData) {
       return ErrorView(
         error: query.error,
         onRetry: query.refetch,
@@ -190,6 +141,39 @@ class PersistenceExample extends HookWidget {
 
     return Column(
       children: [
+        // Offline/error banner when we have cached data but refetch failed
+        if (query.isRefetchError)
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.errorContainer,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.cloud_off,
+                  size: 16,
+                  color: theme.colorScheme.onErrorContainer,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Showing cached data • Network unavailable',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onErrorContainer,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => query.refetch(),
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          ),
+        if (query.isRefetchError) const SizedBox(height: 12),
         // Stats bar
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -203,9 +187,16 @@ class PersistenceExample extends HookWidget {
               const SizedBox(width: 8),
               StatChip(
                 label: 'Status',
-                value: query.isStale ? 'Stale' : 'Fresh',
-                color:
-                    query.isStale ? Colors.orange : theme.colorScheme.tertiary,
+                value: query.isRefetchError
+                    ? 'Offline'
+                    : query.isStale
+                        ? 'Stale'
+                        : 'Fresh',
+                color: query.isRefetchError
+                    ? theme.colorScheme.error
+                    : query.isStale
+                        ? Colors.orange
+                        : theme.colorScheme.tertiary,
               ),
               const Spacer(),
               if (query.isFetching)
@@ -318,54 +309,7 @@ class PersistenceExample extends HookWidget {
   }
 }
 
-class _StatusRow extends StatelessWidget {
-  final String label;
-  final String value;
-  final bool isActive;
-
-  const _StatusRow({
-    required this.label,
-    required this.value,
-    required this.isActive,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: theme.colorScheme.onSurface.withOpacity(0.7),
-          ),
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: isActive
-                ? theme.colorScheme.primaryContainer
-                : theme.colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: Text(
-            value,
-            style: theme.textTheme.bodySmall?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: isActive
-                  ? theme.colorScheme.onPrimaryContainer
-                  : theme.colorScheme.onSurface.withOpacity(0.6),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// Custom serializer for List<Todo>
+/// Custom serializer for Todo list
 class _TodoListSerializer implements QueryDataSerializer<List<Todo>> {
   @override
   dynamic serialize(List<Todo> data) {

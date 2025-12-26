@@ -1,9 +1,8 @@
 import 'dart:async';
 import 'package:flutter_hooks/flutter_hooks.dart';
-import '../core/types.dart';
-import '../core/query_options.dart';
-import '../core/query_observer.dart';
-import '../core/persister.dart';
+import '../core/common/common.dart';
+import '../core/query/query.dart';
+import '../core/persistence/persistence.dart';
 import '../widgets/query_client_provider.dart';
 
 /// Result type for useQuery hook
@@ -103,11 +102,21 @@ QueryResult<TData, TError> useQuery<TData, TError>({
   );
 
   // Register persistence options with client
+  // Uses useRef to track the query key for cleanup
+  final persistQueryKeyRef = useRef<QueryKey?>(null);
   useEffect(() {
     if (persist != null) {
       client.registerPersistOptions<TData>(queryKey, persist);
+      persistQueryKeyRef.value = queryKey;
     }
-    return null;
+    return () {
+      // Unregister on dispose or when query key changes
+      final registeredKey = persistQueryKeyRef.value;
+      if (registeredKey != null) {
+        client.unregisterPersistOptions(registeredKey);
+        persistQueryKeyRef.value = null;
+      }
+    };
   }, [persist != null, queryKey.toString()]);
 
   // Observer reference
@@ -159,6 +168,15 @@ QueryResult<TData, TError> useQuery<TData, TError>({
     );
   }
 
+  // Track if hook is mounted (to prevent updates after dispose)
+  final isMountedRef = useRef(true);
+  useEffect(() {
+    isMountedRef.value = true;
+    return () {
+      isMountedRef.value = false;
+    };
+  }, const []);
+
   // Setup and cleanup
   useEffect(() {
     // Check if query key changed - used for keepPreviousData
@@ -180,17 +198,21 @@ QueryResult<TData, TError> useQuery<TData, TError>({
 
     // Subscribe to stream - this updates state on every change
     final subscription = observer.stream.listen((result) {
-      resultState.value = transformResult(result);
+      if (isMountedRef.value) {
+        resultState.value = transformResult(result);
+      }
     });
 
     // Start fetching asynchronously
     () async {
       try {
         final result = await observer.start();
-        resultState.value = transformResult(result);
+        if (isMountedRef.value) {
+          resultState.value = transformResult(result);
+        }
       } catch (_) {
         // Error is captured in observer's currentResult
-        if (observer.currentResult != null) {
+        if (isMountedRef.value && observer.currentResult != null) {
           resultState.value = transformResult(observer.currentResult!);
         }
       }
@@ -381,6 +403,15 @@ QueryResult<TSelect, TError> useQuerySelect<TData, TError, TSelect>({
     );
   }
 
+  // Track if hook is mounted (to prevent updates after dispose)
+  final isMountedRef = useRef(true);
+  useEffect(() {
+    isMountedRef.value = true;
+    return () {
+      isMountedRef.value = false;
+    };
+  }, const []);
+
   // Setup and cleanup
   useEffect(() {
     final currentKeyStr = queryKey.toString();
@@ -398,15 +429,19 @@ QueryResult<TSelect, TError> useQuerySelect<TData, TError, TSelect>({
     observerRef.value = observer;
 
     final subscription = observer.stream.listen((result) {
-      resultState.value = transformResult(result);
+      if (isMountedRef.value) {
+        resultState.value = transformResult(result);
+      }
     });
 
     () async {
       try {
         final result = await observer.start();
-        resultState.value = transformResult(result);
+        if (isMountedRef.value) {
+          resultState.value = transformResult(result);
+        }
       } catch (_) {
-        if (observer.currentResult != null) {
+        if (isMountedRef.value && observer.currentResult != null) {
           resultState.value = transformResult(observer.currentResult!);
         }
       }

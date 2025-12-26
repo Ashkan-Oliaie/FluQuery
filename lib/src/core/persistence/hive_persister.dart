@@ -1,8 +1,9 @@
 import 'dart:convert';
 import 'package:hive_ce_flutter/hive_flutter.dart';
 
+import '../common/common.dart';
+import 'persisted_query.dart';
 import 'persister.dart';
-import 'logger.dart';
 
 /// Hive CE-based persister for production use.
 ///

@@ -1,9 +1,7 @@
 import 'dart:async';
-import 'types.dart';
-import 'query_key.dart';
+import '../common/common.dart';
 import 'query_state.dart';
 import 'query_options.dart';
-import 'logger.dart';
 
 /// Retryer for handling query retries - uses Object? to avoid web type issues
 class Retryer {
@@ -49,12 +47,6 @@ class Retryer {
       }
     }
   }
-}
-
-/// Exception thrown when a query is cancelled
-class QueryCancelledException implements Exception {
-  @override
-  String toString() => 'QueryCancelledException';
 }
 
 /// A Query manages the state and lifecycle of a single piece of server data
@@ -266,6 +258,10 @@ class Query<TData, TError> {
   }
 
   /// Fetch data for this query - returns Object? to avoid web type issues
+  ///
+  /// IMPORTANT: This method never throws for network/data errors.
+  /// Errors are stored in state and can be checked via state.hasError.
+  /// This prevents unhandled promise rejections when futures are shared.
   Future<Object?> fetch({
     QueryFn<TData>? queryFn,
     bool forceRefetch = false,
@@ -275,9 +271,17 @@ class Query<TData, TError> {
       throw StateError('No queryFn provided for query: $queryKey');
     }
 
-    // Return existing fetch if in progress
+    // If a fetch is already in progress and we don't need to force,
+    // wait for it to complete. We wrap in try-catch because the shared
+    // future might throw, but we don't want to propagate to multiple callers.
     if (_currentFetch != null && !forceRefetch) {
-      return await _currentFetch!;
+      try {
+        return await _currentFetch!;
+      } catch (_) {
+        // Error was already handled by the original fetch initiator.
+        // Return cached data or null - caller should check state.hasError
+        return _state.hasData ? _state.rawData : null;
+      }
     }
 
     // Check if we should skip fetch (not stale and has data)
@@ -333,24 +337,29 @@ class Query<TData, TError> {
 
       FluQueryLogger.error('Query error: $queryKey', error, stackTrace);
 
-      // Store error in state
+      // Store error in state, but KEEP existing data for offline/fallback scenarios
+      // If we have cached data, status stays 'success' but we track the error
+      final hasExistingData = _state.hasData;
       _state = QueryState<TData, TError>(
-        data: _state.hasData ? _state.data : null,
+        data: hasExistingData ? _state.rawData : null,
         dataUpdateCount: _state.dataUpdateCount,
         dataUpdatedAt: _state.dataUpdatedAt,
-        error: null,
+        error: error,
         errorUpdateCount: _state.errorUpdateCount + 1,
         errorUpdatedAt: DateTime.now(),
         fetchFailureCount: _state.fetchFailureCount + 1,
         fetchFailureReason: error,
-        status: QueryStatus.error,
+        // Keep success status if we have data (stale-while-revalidate pattern)
+        status: hasExistingData ? QueryStatus.success : QueryStatus.error,
         fetchStatus: FetchStatus.idle,
         isInvalidated: _state.isInvalidated,
       );
       _notifyObservers();
 
-      // Rethrow to let caller know fetch failed
-      rethrow;
+      // Don't rethrow - error is stored in state
+      // Callers can check state.hasError or state.fetchFailureReason
+      // This prevents unhandled promise rejections in async contexts
+      return hasExistingData ? _state.rawData : null;
     } finally {
       _currentFetch = null;
     }

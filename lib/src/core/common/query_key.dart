@@ -1,11 +1,13 @@
 import 'package:collection/collection.dart';
-import 'types.dart';
+
+/// Query key type - can be a list of dynamic values
+typedef QueryKey = List<dynamic>;
 
 /// Utilities for working with query keys
 class QueryKeyUtils {
   const QueryKeyUtils._();
 
-  /// Create a query key from a string
+  /// Create a query key from various inputs
   static QueryKey from(dynamic key) {
     if (key is QueryKey) return key;
     if (key is String) return [key];
@@ -23,7 +25,7 @@ class QueryKeyUtils {
     return const DeepCollectionEquality().equals(a, b);
   }
 
-  /// Check if a query key matches a filter
+  /// Check if a query key matches a filter (prefix matching)
   static bool matchesFilter(QueryKey key, QueryKey filter) {
     if (filter.isEmpty) return true;
     if (key.length < filter.length) return false;
@@ -36,7 +38,7 @@ class QueryKeyUtils {
     return true;
   }
 
-  /// Serialize a query key to a string
+  /// Serialize a query key to a deterministic string
   static String _serializeKey(dynamic value) {
     if (value == null) return 'null';
     if (value is String) return '"$value"';

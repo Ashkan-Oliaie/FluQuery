@@ -1,7 +1,5 @@
 import 'dart:async';
-import 'types.dart';
-import 'query_key.dart';
-import 'logger.dart';
+import '../common/common.dart';
 
 /// State for infinite query pages
 class InfiniteQueryState<TData, TError, TPageParam> {

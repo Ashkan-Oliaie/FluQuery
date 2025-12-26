@@ -1,5 +1,5 @@
 import 'package:flutter_hooks/flutter_hooks.dart';
-import '../core/types.dart';
+import '../core/common/common.dart';
 import '../widgets/query_client_provider.dart';
 
 /// Hook to get the number of queries currently fetching

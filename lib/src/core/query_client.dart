@@ -1,14 +1,7 @@
-import 'types.dart';
-import 'query.dart';
-import 'query_cache.dart';
-import 'query_options.dart';
-import 'query_key.dart';
-import 'query_state.dart';
-import 'query_store.dart';
-import 'mutation_cache.dart';
-import 'infinite_query.dart';
-import 'logger.dart';
-import 'persister.dart';
+import 'common/common.dart';
+import 'query/query.dart';
+import 'mutation/mutation.dart';
+import 'persistence/persistence.dart';
 
 /// Configuration for QueryClient
 class QueryClientConfig {
@@ -62,7 +55,13 @@ class QueryClient {
   final Persister? _persister;
 
   /// Track which queries have persistence enabled and their serializers
+  /// Uses first-wins strategy: first observer to register persistence options
+  /// determines the serializer used for that query key.
   final Map<String, PersistOptions> _persistOptions = {};
+
+  /// Track how many observers are using persistence for each query
+  /// When count drops to 0, we can optionally clean up (but keep persisted data)
+  final Map<String, int> _persistObserverCounts = {};
 
   bool _isOnline = true;
   bool _isFocused = true;
@@ -199,12 +198,102 @@ class QueryClient {
 
   /// Register persistence options for a query.
   /// Called internally by useQuery when persist option is set.
+  ///
+  /// Uses first-wins strategy: the first observer to register persistence
+  /// options determines the serializer and maxAge for that query key.
+  /// Subsequent observers with different options will use the existing config.
+  ///
+  /// Also deserializes any hydrated data using the serializer and validates maxAge.
   void registerPersistOptions<TData>(
     QueryKey queryKey,
     PersistOptions<TData> options,
   ) {
     final hash = QueryKeyUtils.hashKey(queryKey);
+
+    // Increment observer count
+    _persistObserverCounts[hash] = (_persistObserverCounts[hash] ?? 0) + 1;
+
+    // First-wins: only use options from first observer
+    if (_persistOptions.containsKey(hash)) {
+      FluQueryLogger.debug(
+          'PersistOptions already registered for $queryKey, using existing (observer count: ${_persistObserverCounts[hash]})');
+      // Still try to deserialize with existing options if needed
+      _tryDeserializeHydratedData<TData>(queryKey, _persistOptions[hash]!);
+      return;
+    }
+
     _persistOptions[hash] = options;
+    FluQueryLogger.debug('Registered PersistOptions for $queryKey');
+
+    // Try to deserialize any hydrated data
+    _tryDeserializeHydratedData<TData>(queryKey, options);
+  }
+
+  /// Try to deserialize hydrated data for a query.
+  /// Validates maxAge and discards stale data.
+  void _tryDeserializeHydratedData<TData>(
+    QueryKey queryKey,
+    PersistOptions options,
+  ) {
+    final existingQuery = _queryCache.getUntyped(queryKey);
+    if (existingQuery == null || existingQuery.state.rawData == null) {
+      return;
+    }
+
+    final rawData = existingQuery.state.rawData;
+    final dataUpdatedAt = existingQuery.state.dataUpdatedAt;
+
+    // Validate maxAge - discard stale persisted data
+    if (options.maxAge != null && dataUpdatedAt != null) {
+      final age = DateTime.now().difference(dataUpdatedAt);
+      if (age > options.maxAge!) {
+        FluQueryLogger.debug(
+            'Hydrated data for $queryKey exceeded maxAge (${age.inMinutes}m > ${options.maxAge!.inMinutes}m), discarding');
+        _queryCache.remove(existingQuery);
+        // Also remove from persistence
+        unpersistQuery(queryKey);
+        return;
+      }
+    }
+
+    // Check if data is already the correct type (not serialized JSON)
+    if (rawData is TData) {
+      return; // Already deserialized
+    }
+
+    // Try to deserialize the hydrated data
+    try {
+      final deserialized = options.serializer.deserialize(rawData);
+      // Update the query state with deserialized data
+      _queryCache.setQueryData<TData>(
+        queryKey,
+        deserialized,
+        updatedAt: dataUpdatedAt,
+      );
+      FluQueryLogger.debug('Deserialized hydrated data for: $queryKey');
+    } catch (e) {
+      FluQueryLogger.error('Failed to deserialize hydrated data for $queryKey: $e');
+      // Remove the corrupted hydrated data
+      _queryCache.remove(existingQuery);
+      unpersistQuery(queryKey);
+    }
+  }
+
+  /// Unregister persistence options when an observer unmounts.
+  /// Called internally by useQuery dispose.
+  void unregisterPersistOptions(QueryKey queryKey) {
+    final hash = QueryKeyUtils.hashKey(queryKey);
+    final count = _persistObserverCounts[hash] ?? 0;
+
+    if (count <= 1) {
+      // Last observer - keep the options registered for potential
+      // future observers and to allow background persistence
+      _persistObserverCounts.remove(hash);
+      FluQueryLogger.debug('Last persistence observer unregistered for $queryKey (keeping options)');
+    } else {
+      _persistObserverCounts[hash] = count - 1;
+      FluQueryLogger.debug('Persistence observer unregistered for $queryKey (remaining: ${count - 1})');
+    }
   }
 
   /// Persist a query to storage.

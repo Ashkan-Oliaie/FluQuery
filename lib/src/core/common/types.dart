@@ -1,7 +1,17 @@
+/// Core types, typedefs, and enums for FluQuery
+library;
+
 import 'dart:async';
 
-/// Query key type - can be a string or list of dynamic values
-typedef QueryKey = List<dynamic>;
+import 'query_key.dart';
+import 'cancellation_token.dart' hide VoidCallback;
+
+// Re-export everything
+export 'query_key.dart';
+export 'cancellation_token.dart';
+export 'stale_time.dart';
+export 'cache_time.dart';
+export 'logger.dart';
 
 /// Function type for fetching query data
 typedef QueryFn<T> = FutureOr<T> Function(QueryFnContext context);
@@ -12,9 +22,16 @@ typedef MutationFn<TData, TVariables> = FutureOr<TData> Function(
 
 /// Context passed to query functions
 class QueryFnContext {
+  /// The query key
   final QueryKey queryKey;
+
+  /// Page parameter for infinite queries
   final Object? pageParam;
+
+  /// Cancellation signal
   final CancellationToken? signal;
+
+  /// Metadata attached to the query
   final Map<String, dynamic> meta;
 
   const QueryFnContext({
@@ -25,55 +42,42 @@ class QueryFnContext {
   });
 }
 
-/// Cancellation token for aborting requests
-class CancellationToken {
-  bool _isCancelled = false;
-  final List<VoidCallback> _listeners = [];
-
-  bool get isCancelled => _isCancelled;
-
-  void cancel() {
-    _isCancelled = true;
-    for (final listener in _listeners) {
-      listener();
-    }
-    _listeners.clear();
-  }
-
-  void addListener(VoidCallback listener) {
-    if (_isCancelled) {
-      listener();
-    } else {
-      _listeners.add(listener);
-    }
-  }
-
-  void removeListener(VoidCallback listener) {
-    _listeners.remove(listener);
-  }
-}
-
-typedef VoidCallback = void Function();
-
 /// Query status enum
 enum QueryStatus {
+  /// Initial pending state
   pending,
+
+  /// Error occurred
   error,
+
+  /// Successfully fetched
   success,
 }
 
 /// Fetch status enum
 enum FetchStatus {
+  /// Currently fetching
   fetching,
+
+  /// Paused (e.g., offline)
   paused,
+
+  /// Idle, not fetching
   idle,
 }
 
 /// Mutation status enum
 enum MutationStatus {
+  /// Not yet triggered
   idle,
+
+  /// Currently executing
   pending,
+
+  /// Error occurred
   error,
+
+  /// Successfully completed
   success,
 }
 
@@ -91,7 +95,7 @@ enum NetworkMode {
 
 /// Refetch behavior when invalidating queries
 enum RefetchType {
-  /// Refetch only queries that have active observers
+  /// Refetch only queries with active observers
   active,
 
   /// Refetch all matching queries
@@ -109,62 +113,18 @@ Duration defaultRetryDelay(int attemptIndex, Object error) {
   return Duration(milliseconds: 1000 * (1 << attemptIndex.clamp(0, 4)));
 }
 
-/// Stale time configuration
-class StaleTime {
-  final Duration duration;
-
-  const StaleTime(this.duration);
-
-  static const StaleTime zero = StaleTime(Duration.zero);
-  static const StaleTime infinity = StaleTime(Duration(days: 365 * 100));
-
-  bool isStale(DateTime dataUpdatedAt) {
-    if (this == infinity) return false;
-    return DateTime.now().difference(dataUpdatedAt) > duration;
-  }
-}
-
-/// How long unused/inactive query data remains in cache.
-///
-/// When a query has no active observers (no widgets using it),
-/// this duration determines how long the cached data is kept
-/// before being removed (garbage collected).
-///
-/// This is useful for:
-/// - Keeping data available for quick navigation back to a page
-/// - Freeing memory by removing stale unused data
-///
-/// Note: This is NOT the same as staleTime. Data can be "stale" but still
-/// cached. CacheTime only applies when NO components are using the query.
-class CacheTime {
-  final Duration duration;
-
-  const CacheTime(this.duration);
-
-  /// Remove from cache immediately when no observers
-  static const CacheTime zero = CacheTime(Duration.zero);
-
-  /// Default: keep in cache for 5 minutes after last observer
-  static const CacheTime defaultTime = CacheTime(Duration(minutes: 5));
-
-  /// Never remove from cache automatically
-  static const CacheTime infinity = CacheTime(Duration(days: 365 * 100));
-}
-
-/// @deprecated Use [CacheTime] instead. Will be removed in v2.0.0.
-@Deprecated('Use CacheTime instead')
-typedef GcTime = CacheTime;
-
 /// Placeholder data configuration
 sealed class PlaceholderData<T> {
   const PlaceholderData();
 }
 
+/// Placeholder with a static value
 class PlaceholderValue<T> extends PlaceholderData<T> {
   final T value;
   const PlaceholderValue(this.value);
 }
 
+/// Placeholder from cache
 class PlaceholderFromCache<T> extends PlaceholderData<T> {
   final T? Function(QueryKey key)? selector;
   const PlaceholderFromCache([this.selector]);
@@ -173,7 +133,7 @@ class PlaceholderFromCache<T> extends PlaceholderData<T> {
 /// Select function for transforming query data
 typedef SelectFn<TData, TResult> = TResult Function(TData data);
 
-/// Infinite query page param function
+/// Infinite query get next page param function
 typedef GetNextPageParamFn<TData, TPageParam> = TPageParam? Function(
   TData lastPage,
   List<TData> allPages,
@@ -181,6 +141,7 @@ typedef GetNextPageParamFn<TData, TPageParam> = TPageParam? Function(
   List<TPageParam?> allPageParams,
 );
 
+/// Infinite query get previous page param function
 typedef GetPreviousPageParamFn<TData, TPageParam> = TPageParam? Function(
   TData firstPage,
   List<TData> allPages,

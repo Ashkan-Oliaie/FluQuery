@@ -1,5 +1,5 @@
-import 'persister.dart';
-import 'types.dart';
+import '../common/common.dart';
+import '../persistence/persistence.dart';
 
 /// Options for configuring a query
 class QueryOptions<TData, TError> {

@@ -1,9 +1,8 @@
 import 'dart:async';
-import 'types.dart';
-import 'query.dart';
+import '../common/common.dart';
+import 'query_impl.dart';
 import 'query_cache.dart';
 import 'query_options.dart';
-import 'logger.dart';
 
 /// Result returned by a query observer
 /// Uses Object? internally to avoid web runtime generic cast issues
@@ -33,6 +32,10 @@ class QueryResult<TData, TError> {
   /// Whether the data is from a previous query (keepPreviousData)
   final bool isPreviousData;
 
+  /// Whether a refetch failed but we still have cached data
+  /// Useful for showing "offline" or "stale data" indicators
+  final bool isRefetchError;
+
   QueryResult({
     required Object? data,
     required Object? error,
@@ -54,6 +57,7 @@ class QueryResult<TData, TError> {
     required this.refetch,
     this.isPlaceholderData = false,
     this.isPreviousData = false,
+    this.isRefetchError = false,
   })  : _data = data,
         _error = error;
 
@@ -87,6 +91,9 @@ class QueryResult<TData, TError> {
     final Object? rawData = state.rawData;
     final Object? rawError = state.rawError;
 
+    // isRefetchError: we have data AND there was an error (network failed during refetch)
+    final isRefetchError = state.hasData && state.hasError;
+
     return QueryResult<TData, TError>(
       data: rawData,
       error: rawError,
@@ -105,6 +112,7 @@ class QueryResult<TData, TError> {
       errorUpdatedAt: state.errorUpdatedAt,
       failureCount: state.fetchFailureCount,
       failureReason: state.fetchFailureReason,
+      isRefetchError: isRefetchError,
       refetch: () async {
         final result = await query.fetch(forceRefetch: true);
         final dynamic d = result;

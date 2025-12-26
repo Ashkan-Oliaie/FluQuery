@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import '../core/query_client.dart';
-import '../core/logger.dart';
+import '../core/common/common.dart';
 
 import 'focus_manager_web.dart' if (dart.library.io) 'focus_manager_io.dart'
     as platform;

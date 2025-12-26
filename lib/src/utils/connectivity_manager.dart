@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import '../core/query_client.dart';
-import '../core/logger.dart';
+import '../core/common/common.dart';
 
 /// Manages network connectivity state for automatic refetching
 class ConnectivityManager {

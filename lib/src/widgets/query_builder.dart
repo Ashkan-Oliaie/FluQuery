@@ -1,8 +1,7 @@
 import 'dart:async';
 import 'package:flutter/widgets.dart';
-import '../core/types.dart';
-import '../core/query_options.dart';
-import '../core/query_observer.dart';
+import '../core/common/common.dart';
+import '../core/query/query.dart';
 import '../core/query_client.dart';
 import 'query_client_provider.dart';
 

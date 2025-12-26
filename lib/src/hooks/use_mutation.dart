@@ -1,7 +1,6 @@
 import 'package:flutter_hooks/flutter_hooks.dart';
-import '../core/types.dart';
-import '../core/mutation.dart';
-import '../core/mutation_state.dart';
+import '../core/common/common.dart';
+import '../core/mutation/mutation.dart';
 import '../widgets/query_client_provider.dart';
 
 /// Result type for useMutation hook
