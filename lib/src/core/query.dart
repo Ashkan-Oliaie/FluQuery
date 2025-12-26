@@ -63,13 +63,18 @@ class Query<TData, TError> {
   final String queryHash;
 
   QueryState<TData, TError> _state;
-  QueryOptions<TData, TError>? _options;
   CancellationToken? _currentCancellationToken;
   Timer? _cacheTimer;
 
   // Use dynamic to avoid web type issues with callbacks
   final List<void Function(dynamic)> _observers = [];
   Future<Object?>? _currentFetch;
+
+  /// Track all observer options to compute merged options
+  final List<QueryOptions<TData, TError>> _observerOptions = [];
+
+  /// Merged options computed from all observers (uses most conservative values)
+  QueryOptions<TData, TError>? _mergedOptions;
 
   Query({
     required this.queryKey,
@@ -78,7 +83,7 @@ class Query<TData, TError> {
     QueryOptions<TData, TError>? options,
   })  : queryHash = queryHash ?? QueryKeyUtils.hashKey(queryKey),
         _state = initialState ?? QueryState<TData, TError>(),
-        _options = options {
+        _mergedOptions = options {
     // Apply initial data if provided
     if (options?.initialData != null) {
       _state = _state.withSuccess(options!.initialData,
@@ -89,8 +94,8 @@ class Query<TData, TError> {
   /// Current state of the query
   QueryState<TData, TError> get state => _state;
 
-  /// Current options
-  QueryOptions<TData, TError>? get options => _options;
+  /// Current merged options (computed from all observers)
+  QueryOptions<TData, TError>? get options => _mergedOptions;
 
   /// Number of observers
   int get observerCount => _observers.length;
@@ -108,7 +113,7 @@ class Query<TData, TError> {
       FluQueryLogger.debug('Query.isStale: $queryKey - no dataUpdatedAt');
       return true;
     }
-    final staleTime = _options?.staleTime;
+    final staleTime = _mergedOptions?.staleTime;
     if (staleTime == null) {
       FluQueryLogger.debug('Query.isStale: $queryKey - no staleTime option');
       return true;
@@ -130,11 +135,87 @@ class Query<TData, TError> {
   bool get isInactive => !hasObservers;
 
   /// Whether the query is disabled
-  bool get isDisabled => _options?.enabled == false;
+  bool get isDisabled => _mergedOptions?.enabled == false;
 
-  /// Update options
+  /// Update options - deprecated, use addObserverOptions instead
+  @Deprecated('Use addObserverOptions/removeObserverOptions instead')
   void setOptions(QueryOptions<TData, TError> options) {
-    _options = options;
+    _mergedOptions = options;
+  }
+
+  /// Add observer options and recalculate merged options
+  void addObserverOptions(QueryOptions<TData, TError> options) {
+    _observerOptions.add(options);
+    _recalculateMergedOptions();
+    FluQueryLogger.debug('Query.addObserverOptions: $queryKey - observers=${_observerOptions.length}, '
+        'staleTime=${_mergedOptions?.staleTime.duration}, cacheTime=${_mergedOptions?.cacheTime.duration}');
+  }
+
+  /// Remove observer options and recalculate merged options
+  void removeObserverOptions(QueryOptions<TData, TError> options) {
+    _observerOptions.remove(options);
+    _recalculateMergedOptions();
+    FluQueryLogger.debug('Query.removeObserverOptions: $queryKey - observers=${_observerOptions.length}, '
+        'staleTime=${_mergedOptions?.staleTime.duration}, cacheTime=${_mergedOptions?.cacheTime.duration}');
+  }
+
+  /// Recalculate merged options from all observer options
+  /// Uses the most conservative values:
+  /// - staleTime: shortest (data becomes stale sooner)
+  /// - cacheTime: longest (keep data in cache longer)
+  /// - retry: highest (more retries)
+  void _recalculateMergedOptions() {
+    if (_observerOptions.isEmpty) {
+      // Keep last merged options for GC timing
+      // This is important: when all observers leave, we still need
+      // valid options for GC scheduling
+      return;
+    }
+
+    final first = _observerOptions.first;
+
+    // Start with first observer's values
+    Duration shortestStaleTime = first.staleTime.duration;
+    Duration longestCacheTime = first.cacheTime.duration;
+    int highestRetry = first.retry;
+    RetryDelayFn retryDelay = first.retryDelay;
+    QueryFn<TData>? queryFn = first.queryFn ?? _mergedOptions?.queryFn;
+
+    // Merge with other observers
+    for (int i = 1; i < _observerOptions.length; i++) {
+      final opts = _observerOptions[i];
+
+      // Shortest staleTime (most conservative - data stales faster)
+      if (opts.staleTime.duration < shortestStaleTime) {
+        shortestStaleTime = opts.staleTime.duration;
+      }
+
+      // Longest cacheTime (keep in cache for whoever needs it longest)
+      if (opts.cacheTime.duration > longestCacheTime) {
+        longestCacheTime = opts.cacheTime.duration;
+      }
+
+      // Highest retry count
+      if (opts.retry > highestRetry) {
+        highestRetry = opts.retry;
+      }
+
+      // Use first non-null queryFn
+      queryFn ??= opts.queryFn;
+    }
+
+    _mergedOptions = QueryOptions<TData, TError>(
+      queryKey: first.queryKey,
+      queryFn: queryFn,
+      staleTime: StaleTime(shortestStaleTime),
+      cacheTime: CacheTime(longestCacheTime),
+      retry: highestRetry,
+      retryDelay: retryDelay,
+      // These are observer-specific, use defaults at query level
+      refetchOnWindowFocus: true,
+      refetchOnReconnect: true,
+      refetchOnMount: true,
+    );
   }
 
   /// Add an observer - uses dynamic to avoid web type issues
@@ -186,7 +267,7 @@ class Query<TData, TError> {
     QueryFn<TData>? queryFn,
     bool forceRefetch = false,
   }) async {
-    final fn = queryFn ?? _options?.queryFn;
+    final fn = queryFn ?? _mergedOptions?.queryFn;
     if (fn == null) {
       throw StateError('No queryFn provided for query: $queryKey');
     }
@@ -211,7 +292,7 @@ class Query<TData, TError> {
     final context = QueryFnContext(
       queryKey: queryKey,
       signal: _currentCancellationToken,
-      meta: _options?.meta ?? {},
+      meta: _mergedOptions?.meta ?? {},
     );
 
     // Use Retryer - cast result to Object? to avoid web generic issues
@@ -220,8 +301,8 @@ class Query<TData, TError> {
         final dynamic result = await fn(context);
         return result as Object?;
       },
-      retryCount: _options?.retry ?? 3,
-      retryDelay: _options?.retryDelay ?? defaultRetryDelay,
+      retryCount: _mergedOptions?.retry ?? 3,
+      retryDelay: _mergedOptions?.retryDelay ?? defaultRetryDelay,
       signal: _currentCancellationToken,
     );
 
@@ -295,7 +376,7 @@ class Query<TData, TError> {
   /// Schedule garbage collection
   void _scheduleGc() {
     _cacheTimer?.cancel();
-    final cacheTime = _options?.cacheTime ?? CacheTime.defaultTime;
+    final cacheTime = _mergedOptions?.cacheTime ?? CacheTime.defaultTime;
     FluQueryLogger.debug(
         'Query._scheduleGc: $queryKey - cacheTime=${cacheTime.duration}');
     if (cacheTime == CacheTime.infinity) {

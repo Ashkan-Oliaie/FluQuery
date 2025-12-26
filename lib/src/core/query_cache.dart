@@ -37,6 +37,11 @@ class QueryCache {
   int get length => _queries.length;
 
   /// Build a query from options
+  /// 
+  /// If the query already exists, returns the existing query.
+  /// Options are NOT automatically applied here - the QueryObserver
+  /// is responsible for calling addObserverOptions/removeObserverOptions
+  /// to properly merge options from multiple observers.
   Query<TData, TError> build<TData, TError>({
     required QueryOptions<TData, TError> options,
     QueryState<TData, TError>? state,
@@ -46,12 +51,12 @@ class QueryCache {
     // Check if query exists with same hash
     final existing = _queries[queryHash];
     if (existing != null) {
-      // Query exists - update options and return wrapper
-      existing.setOptions(options as dynamic);
+      // Query exists - return wrapper without modifying options
+      // Options merging is handled by QueryObserver via addObserverOptions
       return _TypedQueryWrapper<TData, TError>(existing);
     }
 
-    // Create new query
+    // Create new query with initial options
     final query = Query<TData, TError>(
       queryKey: options.queryKey,
       queryHash: queryHash,
@@ -248,7 +253,18 @@ class _TypedQueryWrapper<TData, TError> implements Query<TData, TError> {
 
   @override
   void setOptions(QueryOptions<TData, TError> options) {
+    // ignore: deprecated_member_use_from_same_package
     _inner.setOptions(options as dynamic);
+  }
+
+  @override
+  void addObserverOptions(QueryOptions<TData, TError> options) {
+    _inner.addObserverOptions(options as dynamic);
+  }
+
+  @override
+  void removeObserverOptions(QueryOptions<TData, TError> options) {
+    _inner.removeObserverOptions(options as dynamic);
   }
 
   @override

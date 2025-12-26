@@ -145,6 +145,10 @@ class QueryResult<TData, TError> {
 }
 
 /// Observer for a query that manages subscriptions and state updates
+/// 
+/// Each observer maintains its own options for observer-specific behavior
+/// (like refetchInterval, refetchOnMount, etc.) while the Query maintains
+/// merged options for shared behavior (staleTime, cacheTime, retry).
 class QueryObserver<TData, TError> {
   final QueryCache _cache;
   QueryOptions<TData, TError> _options;
@@ -169,23 +173,30 @@ class QueryObserver<TData, TError> {
   /// Current result
   QueryResult<TData, TError>? get currentResult => _currentResult;
 
-  /// Current options
+  /// Current options (observer-specific)
   QueryOptions<TData, TError> get options => _options;
 
   /// Update options
-  void setOptions(QueryOptions<TData, TError> options) {
+  void setOptions(QueryOptions<TData, TError> newOptions) {
     final prevOptions = _options;
-    _options = options;
-
+    
     // If query key changed, we need to switch queries
     if (_currentQuery != null &&
-        _currentQuery!.queryHash != options.queryKey.toString()) {
+        _currentQuery!.queryHash != newOptions.queryKey.toString()) {
       _unsubscribe();
+      _options = newOptions;
       _subscribe();
+    } else if (_currentQuery != null) {
+      // Same query, update observer options
+      _currentQuery!.removeObserverOptions(prevOptions);
+      _options = newOptions;
+      _currentQuery!.addObserverOptions(newOptions);
+    } else {
+      _options = newOptions;
     }
 
-    // Update refetch interval if changed
-    if (prevOptions.refetchInterval != options.refetchInterval) {
+    // Update refetch interval if changed (observer-specific)
+    if (prevOptions.refetchInterval != newOptions.refetchInterval) {
       _updateRefetchInterval();
     }
   }
@@ -194,14 +205,18 @@ class QueryObserver<TData, TError> {
   void _subscribe() {
     _currentQuery = _cache.build<TData, TError>(options: _options);
     _currentQuery!.addObserver(_onQueryUpdate);
+    _currentQuery!.addObserverOptions(_options);
     _updateResult();
     _updateRefetchInterval();
   }
 
   /// Unsubscribe from current query
   void _unsubscribe() {
-    _currentQuery?.removeObserver(_onQueryUpdate);
-    _currentQuery = null;
+    if (_currentQuery != null) {
+      _currentQuery!.removeObserver(_onQueryUpdate);
+      _currentQuery!.removeObserverOptions(_options);
+      _currentQuery = null;
+    }
     _stopRefetchInterval();
   }
 
@@ -221,6 +236,11 @@ class QueryObserver<TData, TError> {
   /// Start the observer
   Future<QueryResult<TData, TError>> start() async {
     _subscribe();
+
+    // Ensure we have a result after subscribe
+    if (_currentResult == null) {
+      _updateResult();
+    }
 
     // Determine if we should fetch on mount
     final hasData = _currentQuery!.state.hasData;
@@ -247,6 +267,18 @@ class QueryObserver<TData, TError> {
         // Error is captured in state
       }
       _updateResult();
+    }
+
+    // Final safety check - create loading result if still null
+    if (_currentResult == null) {
+      return QueryResult.loading(refetch: () async {
+        final result = await _currentQuery!.fetch(
+          queryFn: _options.queryFn,
+          forceRefetch: true,
+        );
+        final dynamic d = result;
+        return d;
+      });
     }
 
     return _currentResult!;

@@ -17,10 +17,11 @@ class BasicQueryExample extends HookWidget {
     final todosQuery = useQuery<List<Todo>, Object>(
       queryKey: QueryKeys.todos,
       queryFn: (_) => ApiClient.getTodos(),
-      staleTime: const StaleTime(Duration(minutes: 20)),
+      staleTime: const StaleTime(Duration(seconds: 20)),
       retry: 3,
       cacheTime: CacheTime(Duration(seconds: 10)),
       refetchOnWindowFocus: true, // Remove from cache 10s after no observers
+      refetchInterval: Duration(seconds: 30),
     );
 
     return Scaffold(

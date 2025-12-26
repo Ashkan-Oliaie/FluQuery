@@ -19,6 +19,8 @@ class MutationExample extends HookWidget {
     final todosQuery = useQuery<List<Todo>, Object>(
       queryKey: QueryKeys.todos,
       queryFn: (_) => ApiClient.getTodos(),
+      staleTime: const StaleTime(Duration(seconds: 10)),
+      refetchInterval: Duration(seconds: 10),
     );
 
     final createMutation = useMutation<Todo, Object, String, void>(
