@@ -1,9 +1,18 @@
 import 'dart:async';
 import '../common/common.dart';
+import '../persistence/persistence.dart';
 import 'query_impl.dart';
 import 'query_state.dart';
 import 'query_options.dart';
 import 'query_cache.dart';
+
+/// Callback type for registering persistence options
+typedef PersistRegistrar = void Function<TData>(
+    QueryKey queryKey, PersistOptions<TData> options);
+
+/// Callback type for persisting query data
+typedef PersistCallback = Future<void> Function<TData>(
+    QueryKey queryKey, TData data, DateTime? dataUpdatedAt);
 
 /// A persistent query store that exists independently of widget lifecycle.
 ///
@@ -12,14 +21,19 @@ import 'query_cache.dart';
 /// - Can poll in the background indefinitely
 /// - Is never garbage collected (until disposed)
 /// - Can be accessed and manipulated from anywhere
+/// - Can optionally persist data to disk
 ///
 /// Example:
 /// ```dart
-/// // Create a store
+/// // Create a store with persistence
 /// final userStore = client.createStore<User, Object>(
 ///   queryKey: ['user'],
 ///   queryFn: fetchUser,
 ///   refetchInterval: Duration(minutes: 1),
+///   persist: PersistOptions(
+///     serializer: UserSerializer(),
+///     maxAge: Duration(days: 7),
+///   ),
 /// );
 ///
 /// // Access data anywhere
@@ -47,6 +61,15 @@ class QueryStore<TData, TError> {
   final bool refetchOnWindowFocus;
   final bool refetchOnReconnect;
 
+  /// Persistence options (optional)
+  final PersistOptions<TData>? persist;
+
+  /// Callback to register persistence options with QueryClient
+  final PersistRegistrar? _persistRegistrar;
+
+  /// Callback to persist data
+  final PersistCallback? _persistCallback;
+
   /// Current refetch interval (mutable to support setRefetchInterval)
   Duration? _refetchInterval;
 
@@ -68,12 +91,24 @@ class QueryStore<TData, TError> {
     Duration? refetchInterval,
     this.refetchOnWindowFocus = true,
     this.refetchOnReconnect = true,
+    this.persist,
+    PersistRegistrar? persistRegistrar,
+    PersistCallback? persistCallback,
   })  : _cache = cache,
-        _refetchInterval = refetchInterval {
+        _refetchInterval = refetchInterval,
+        _persistRegistrar = persistRegistrar,
+        _persistCallback = persistCallback {
     _initialize();
   }
 
   void _initialize() {
+    // Register persistence options if provided
+    final persistOpts = persist;
+    final registrar = _persistRegistrar;
+    if (persistOpts != null && registrar != null) {
+      registrar<TData>(queryKey, persistOpts);
+    }
+
     final options = QueryOptions<TData, TError>(
       queryKey: queryKey,
       queryFn: queryFn,
@@ -83,14 +118,28 @@ class QueryStore<TData, TError> {
       retryDelay: retryDelay,
       refetchOnWindowFocus: refetchOnWindowFocus,
       refetchOnReconnect: refetchOnReconnect,
+      persist: persist,
     );
 
     _query = _cache.build<TData, TError>(options: options);
 
     // Subscribe to query changes
+    final callback = _persistCallback;
     _querySubscription = _query.subscribe((state) {
       if (!_isDisposed) {
         _stateController.add(state);
+
+        // Persist on successful data updates
+        if (persistOpts != null &&
+            callback != null &&
+            state.hasData &&
+            state.rawData != null) {
+          callback<TData>(
+            queryKey,
+            state.rawData as TData,
+            state.dataUpdatedAt,
+          );
+        }
       }
     });
 
@@ -100,7 +149,7 @@ class QueryStore<TData, TError> {
     // Initial fetch - errors are stored in state, not thrown
     _query.fetch(queryFn: queryFn);
 
-    FluQueryLogger.debug('QueryStore created: $queryKey');
+    FluQueryLogger.debug('QueryStore created: $queryKey (persist: ${persist != null})');
   }
 
   /// Performs a background refetch

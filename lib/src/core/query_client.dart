@@ -230,7 +230,13 @@ class QueryClient {
   }
 
   /// Try to deserialize hydrated data for a query.
-  /// Validates maxAge and discards stale data.
+  ///
+  /// This method:
+  /// 1. Validates maxAge - discards data older than maxAge
+  /// 2. Attempts deserialization using the provided serializer
+  /// 3. Handles schema changes gracefully - if deserialization fails
+  ///    (e.g., due to a model change between app versions), the corrupted
+  ///    data is removed and a fresh fetch will occur
   void _tryDeserializeHydratedData<TData>(
     QueryKey queryKey,
     PersistOptions options,
@@ -250,7 +256,6 @@ class QueryClient {
         FluQueryLogger.debug(
             'Hydrated data for $queryKey exceeded maxAge (${age.inMinutes}m > ${options.maxAge!.inMinutes}m), discarding');
         _queryCache.remove(existingQuery);
-        // Also remove from persistence
         unpersistQuery(queryKey);
         return;
       }
@@ -271,11 +276,25 @@ class QueryClient {
         updatedAt: dataUpdatedAt,
       );
       FluQueryLogger.debug('Deserialized hydrated data for: $queryKey');
-    } catch (e) {
-      FluQueryLogger.error('Failed to deserialize hydrated data for $queryKey: $e');
-      // Remove the corrupted hydrated data
+    } catch (e, stackTrace) {
+      // Deserialization failed - likely due to schema change between app versions
+      // This is expected when:
+      // - A field was added/removed from the model
+      // - A field type changed
+      // - The serializer logic changed
+      FluQueryLogger.warn(
+          'Schema mismatch for $queryKey - persisted data incompatible with current model. '
+          'Discarding stale data and fetching fresh.');
+      FluQueryLogger.debug('Deserialization error: $e', e, stackTrace);
+
+      // Remove corrupted data from cache
       _queryCache.remove(existingQuery);
-      unpersistQuery(queryKey);
+
+      // Optionally remove from persistence (default: true)
+      if (options.removeOnDeserializationError) {
+        unpersistQuery(queryKey);
+      }
+      // Query will fetch fresh data on next access - no error thrown
     }
   }
 
@@ -298,12 +317,16 @@ class QueryClient {
 
   /// Persist a query to storage.
   /// Called automatically when query data is updated.
+  ///
+  /// Note: This is typically called internally. For manual persistence,
+  /// prefer using the `persist` option on `useQuery`.
   Future<void> persistQuery<TData>(
     QueryKey queryKey,
     TData data,
     DateTime? dataUpdatedAt,
   ) async {
     if (_persister == null) return;
+    if (data == null) return; // Don't persist null data
 
     final hash = QueryKeyUtils.hashKey(queryKey);
     final options = _persistOptions[hash];
@@ -313,9 +336,12 @@ class QueryClient {
       final serializer = options.serializer as QueryDataSerializer<TData>;
       final serialized = serializer.serialize(data);
 
+      // Apply keyPrefix if set
+      final effectiveHash = options.getEffectiveHash(hash);
+
       final persisted = PersistedQuery(
         queryKey: queryKey,
-        queryHash: hash,
+        queryHash: effectiveHash,
         serializedData: serialized,
         dataUpdatedAt: dataUpdatedAt,
         persistedAt: DateTime.now(),
@@ -323,7 +349,7 @@ class QueryClient {
       );
 
       await _persister.persistQuery(persisted);
-      FluQueryLogger.debug('Persisted query: $queryKey');
+      FluQueryLogger.debug('Persisted query: $queryKey (hash: $effectiveHash)');
     } catch (e) {
       FluQueryLogger.error('Failed to persist query $queryKey: $e');
     }
@@ -334,7 +360,12 @@ class QueryClient {
     if (_persister == null) return;
 
     final hash = QueryKeyUtils.hashKey(queryKey);
-    await _persister.removeQuery(hash);
+    final options = _persistOptions[hash];
+
+    // Apply keyPrefix if set
+    final effectiveHash = options?.getEffectiveHash(hash) ?? hash;
+
+    await _persister.removeQuery(effectiveHash);
     _persistOptions.remove(hash);
     FluQueryLogger.debug('Unpersisted query: $queryKey');
   }
@@ -709,6 +740,10 @@ class QueryClient {
   ///   queryKey: ['user'],
   ///   queryFn: fetchUser,
   ///   refetchInterval: Duration(minutes: 5),
+  ///   persist: PersistOptions(
+  ///     serializer: UserSerializer(),
+  ///     maxAge: Duration(days: 7),
+  ///   ),
   /// );
   ///
   /// // Access anywhere
@@ -724,6 +759,7 @@ class QueryClient {
     Duration? refetchInterval,
     bool refetchOnWindowFocus = true,
     bool refetchOnReconnect = true,
+    PersistOptions<TData>? persist,
   }) {
     final queryHash = QueryKeyUtils.hashKey(queryKey);
 
@@ -743,6 +779,9 @@ class QueryClient {
       refetchInterval: refetchInterval,
       refetchOnWindowFocus: refetchOnWindowFocus,
       refetchOnReconnect: refetchOnReconnect,
+      persist: persist,
+      persistRegistrar: _persister != null ? registerPersistOptions : null,
+      persistCallback: _persister != null ? persistQuery : null,
     );
 
     _stores[queryHash] = store;
