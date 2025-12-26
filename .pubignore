@@ -1,0 +1,3 @@
+# Exclude backend from published package (not auto-excluded like example/ and test/)
+backend/
+

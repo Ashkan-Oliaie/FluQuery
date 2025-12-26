@@ -2,34 +2,24 @@
 
 **Powerful asynchronous state management for Flutter** - Inspired by [TanStack Query](https://tanstack.com/query)
 
-FluQuery makes fetching, caching, synchronizing, and updating server state in your Flutter applications a breeze. Say goodbye to boilerplate code and complex state management!
-
 [![pub package](https://img.shields.io/pub/v/fluquery.svg)](https://pub.dev/packages/fluquery)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## ✨ Features
 
-- 🔄 **Automatic Caching** - Data is cached automatically with configurable stale times
-- 🔁 **Background Refetching** - Stale data is automatically refreshed in the background
-- 📱 **Window Focus Refetching** - Automatically refetch when app comes to foreground (mobile) or tab gains focus (web)
-- 🌐 **Network Reconnection Handling** - Refetch when network reconnects
-- ⏱️ **Polling/Realtime Updates** - Built-in interval-based refetching
+- 🔄 **Automatic Caching** - Data is cached with configurable stale times
+- 🔁 **Background Refetching** - Stale data is refreshed automatically
+- 📱 **Smart Refetching** - On window focus, network reconnect, or mount
+- ⏱️ **Polling** - Built-in interval-based refetching
 - 📄 **Infinite Queries** - Cursor-based pagination made easy
-- ✏️ **Mutations** - Create, update, delete with automatic cache invalidation
-- ⚡ **Optimistic Updates** - Instant UI updates with automatic rollback on error
-- 🔗 **Dependent Queries** - Sequential queries that depend on each other
-- 🔄 **Parallel Queries** - Run multiple queries simultaneously
+- ✏️ **Mutations** - CRUD operations with cache invalidation
+- ⚡ **Optimistic Updates** - Instant UI with automatic rollback
 - 🏎️ **Race Condition Handling** - Automatic cancellation of stale requests
-- 🎯 **Retry Logic** - Automatic retries with exponential backoff
-- 🧹 **Garbage Collection** - Automatic cleanup of unused cache entries
+- 💾 **Persistence** - Save query data to disk
+- 🧩 **Services** - Built-in dependency injection with lifecycle management
 - 🪝 **Hooks API** - Beautiful Flutter Hooks integration
-- 🔍 **Select/Transform** - Transform query data before returning (`useQuerySelect`)
-- 📍 **Keep Previous Data** - Smooth transitions between queries with `keepPreviousData`
-- 💾 **Persistence** - Save query data to disk and restore on app restart
 
 ## 📦 Installation
-
-Add FluQuery to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
@@ -37,42 +27,9 @@ dependencies:
   flutter_hooks: ^0.20.5
 ```
 
-## 📱 Example App
-
-Check out the [example](./example) directory for a comprehensive demo app showcasing:
-
-- ✅ Basic queries with loading/error states
-- ✅ Mutations with cache invalidation  
-- ✅ Infinite scroll pagination
-- ✅ Dependent/sequential queries
-- ✅ Polling/realtime updates
-- ✅ Optimistic updates with rollback
-- ✅ Race condition handling
-- ✅ Query persistence to disk
-
-### Running the Example
-
-1. **Start the backend server:**
-   ```bash
-   cd backend
-   dart pub get
-   dart run bin/server.dart
-   ```
-   The server runs at `http://localhost:8080`
-
-2. **Run the Flutter app:**
-   ```bash
-   cd example
-   flutter pub get
-   flutter run -d chrome  # or any other platform
-   ```
-
-
 ## 🚀 Quick Start
 
-### 1. Setup QueryClientProvider
-
-Wrap your app with `QueryClientProvider`:
+### 1. Setup
 
 ```dart
 import 'package:fluquery/fluquery.dart';
@@ -87,7 +44,7 @@ void main() {
 }
 ```
 
-### 2. Use Queries with Hooks
+### 2. Use Queries
 
 ```dart
 class TodoList extends HookWidget {
@@ -98,13 +55,8 @@ class TodoList extends HookWidget {
       queryFn: (_) => fetchTodos(),
     );
 
-    if (todos.isLoading) {
-      return CircularProgressIndicator();
-    }
-
-    if (todos.isError) {
-      return Text('Error: ${todos.error}');
-    }
+    if (todos.isLoading) return CircularProgressIndicator();
+    if (todos.isError) return Text('Error: ${todos.error}');
 
     return ListView(
       children: todos.data!.map((t) => TodoItem(todo: t)).toList(),
@@ -113,440 +65,171 @@ class TodoList extends HookWidget {
 }
 ```
 
-## 📖 Usage
-
-### Basic Query
+### 3. Mutations
 
 ```dart
-final query = useQuery<User, Object>(
-  queryKey: ['user', userId],
-  queryFn: (_) => fetchUser(userId),
-  staleTime: const StaleTime(Duration(minutes: 5)),
+final mutation = useMutation<Todo, Object, String, void>(
+  mutationFn: (title) => createTodo(title),
+  onSuccess: (data, variables, _) {
+    client.invalidateQueries(queryKey: ['todos']);
+  },
 );
 
-// Access data
-if (query.isSuccess) {
-  print(query.data);
-}
-
-// Refetch manually
-query.refetch();
+// Trigger
+mutation.mutate('New Todo');
 ```
 
-### Query with Options
+## 📖 Core Concepts
+
+### Query Options
 
 ```dart
-final query = useQuery<List<Post>, Object>(
+useQuery<List<Post>, Object>(
   queryKey: ['posts'],
   queryFn: (_) => fetchPosts(),
-  
-  // Time after which data is considered stale
-  staleTime: const StaleTime(Duration(minutes: 5)),
-  
-  // Garbage collection time (how long inactive data stays in cache)
-  gcTime: const GcTime(Duration(minutes: 10)),
-  
-  // Polling interval
+  staleTime: StaleTime(Duration(minutes: 5)),
+  cacheTime: CacheTime(Duration(minutes: 10)),
   refetchInterval: Duration(seconds: 30),
-  
-  // Retry configuration
   retry: 3,
-  retryDelay: (attempt, error) => Duration(seconds: attempt * 2),
-  
-  // Conditional fetching
   enabled: isLoggedIn,
-  
-  // Refetch behavior
-  refetchOnMount: true,        // Refetch when widget mounts (if stale)
-  refetchOnWindowFocus: true,  // Refetch when app/tab gains focus
-  refetchOnReconnect: true,    // Refetch when network reconnects
-  
-  // Initial/placeholder data
-  placeholderData: [],
-  initialData: cachedPosts,
 );
-```
-
-### Mutations
-
-```dart
-class CreateTodo extends HookWidget {
-  @override
-  Widget build(BuildContext context) {
-    final client = useQueryClient();
-    
-    final mutation = useMutation<Todo, Object, String, void>(
-      mutationFn: (title) => createTodo(title),
-      onSuccess: (data, variables, _) {
-        // Invalidate and refetch todos
-        client.invalidateQueries(queryKey: ['todos'], refetch: RefetchType.active);
-      },
-    );
-
-    return ElevatedButton(
-      onPressed: mutation.isPending 
-        ? null 
-        : () => mutation.mutate('New Todo'),
-      child: mutation.isPending 
-        ? CircularProgressIndicator()
-        : Text('Add Todo'),
-    );
-  }
-}
-```
-
-### Optimistic Updates
-
-```dart
-final toggleMutation = useMutation<Todo, Object, Todo, List<Todo>>(
-  mutationFn: (todo) => updateTodo(todo.id, completed: !todo.completed),
-  
-  onMutate: (todo) {
-    // Cancel outgoing refetches
-    client.cancelQueries(queryKey: ['todos']);
-    
-    // Snapshot previous value
-    final previousTodos = client.getQueryData<List<Todo>>(['todos']);
-    
-    // Optimistically update
-    if (previousTodos != null) {
-      final newTodos = previousTodos.map((t) {
-        return t.id == todo.id ? t.copyWith(completed: !t.completed) : t;
-      }).toList();
-      client.setQueryData(['todos'], newTodos);
-    }
-    
-    return previousTodos ?? [];
-  },
-  
-  onError: (error, todo, previousTodos) {
-    // Rollback on error
-    if (previousTodos != null) {
-      client.setQueryData(['todos'], previousTodos);
-    }
-  },
-  
-  onSettled: (_, __, ___, ____) {
-    // Refetch after mutation
-    client.invalidateQueries(queryKey: ['todos'], refetch: RefetchType.active);
-  },
-);
-```
-
-### Race Condition Handling
-
-FluQuery automatically handles race conditions. When a user types quickly in a search field, earlier (slower) requests won't override later (faster) results:
-
-```dart
-final searchQuery = useQuery<List<User>, Object>(
-  // Query key includes the search term - each unique term is a separate query
-  queryKey: ['users', 'search', searchTerm],
-  queryFn: (ctx) async {
-    // Check for cancellation periodically in long operations
-    if (ctx.signal?.isCancelled == true) {
-      throw QueryCancelledException();
-    }
-    
-    return await searchUsers(searchTerm);
-  },
-  enabled: searchTerm.isNotEmpty,
-);
-
-// Manually cancel previous queries when search term changes
-void onSearchChanged(String newTerm) {
-  // Cancel the previous search query
-  client.cancelQueries(queryKey: ['users', 'search', previousTerm]);
-  previousTerm = newTerm;
-}
 ```
 
 ### Infinite Queries
 
 ```dart
-final postsQuery = useInfiniteQuery<PostsPage, Object, int>(
+final posts = useInfiniteQuery<PostsPage, Object, int>(
   queryKey: ['posts'],
   queryFn: (ctx) => fetchPosts(page: ctx.pageParam ?? 1),
   initialPageParam: 1,
-  getNextPageParam: (lastPage, allPages, lastParam, allParams) {
-    return lastPage.hasMore ? lastPage.nextPage : null;
+  getNextPageParam: (lastPage, _, __, ___) => 
+    lastPage.hasMore ? lastPage.nextPage : null,
+);
+
+posts.fetchNextPage(); // Load more
+```
+
+### Optimistic Updates
+
+```dart
+useMutation<Todo, Object, Todo, List<Todo>>(
+  mutationFn: (todo) => updateTodo(todo),
+  onMutate: (todo) {
+    final previous = client.getQueryData<List<Todo>>(['todos']);
+    client.setQueryData(['todos'], [...previous!, todo]);
+    return previous;
   },
-);
-
-// Load more
-if (postsQuery.hasNextPage && !postsQuery.isFetchingNextPage) {
-  postsQuery.fetchNextPage();
-}
-
-// Access all pages
-final allPosts = postsQuery.pages.expand((page) => page.posts).toList();
-```
-
-### Dependent Queries
-
-```dart
-// First query
-final userQuery = useQuery<User, Object>(
-  queryKey: ['user', userId],
-  queryFn: (_) => fetchUser(userId),
-);
-
-// Dependent query - only runs when user query succeeds
-final postsQuery = useQuery<List<Post>, Object>(
-  queryKey: ['user-posts', userId],
-  queryFn: (_) => fetchUserPosts(userId),
-  enabled: userQuery.isSuccess,  // Only fetch when user is loaded
+  onError: (_, __, previous) => client.setQueryData(['todos'], previous),
+  onSettled: (_, __, ___, ____) => client.invalidateQueries(queryKey: ['todos']),
 );
 ```
 
-### Polling
+### Persistence
 
 ```dart
-final timeQuery = useQuery<ServerTime, Object>(
-  queryKey: ['server-time'],
-  queryFn: (_) => fetchServerTime(),
-  refetchInterval: Duration(seconds: 5),  // Poll every 5 seconds
-);
-```
-
-### Select (Data Transformation)
-
-Use `useQuerySelect` to transform data before returning. The raw data is still cached, but your component only receives the transformed result:
-
-```dart
-// Fetch all users but only return their names
-final userNames = useQuerySelect<List<User>, Object, List<String>>(
-  queryKey: ['users'],
-  queryFn: (_) => fetchUsers(),
-  select: (users) => users.map((u) => u.name).toList(),
-);
-
-// Result is List<String>, not List<User>!
-print(userNames.data); // ['John', 'Jane', 'Bob']
-
-// Compute derived values
-final userCount = useQuerySelect<List<User>, Object, int>(
-  queryKey: ['users'],
-  queryFn: (_) => fetchUsers(),
-  select: (users) => users.length,
-);
-
-print(userCount.data); // 42
-```
-
-### Keep Previous Data
-
-Enable smooth transitions between queries by keeping previous data visible while fetching:
-
-```dart
-final userPosts = useQuery<List<Post>, Object>(
-  queryKey: ['posts', userId],
-  queryFn: (_) => fetchUserPosts(userId),
-  keepPreviousData: true,  // Magic!
-);
-
-// When userId changes:
-// 1. Previous posts stay visible (no loading spinner!)
-// 2. New posts are fetched in background
-// 3. UI smoothly updates when new data arrives
-
-// Check if showing previous data
-if (userPosts.isPreviousData) {
-  showBadge('Updating...');
-}
-```
-
-### Parallel Queries
-
-```dart
-final results = useQueries(
-  queries: [
-    QueryConfig(
-      queryKey: ['users'],
-      queryFn: (_) => fetchUsers(),
-    ),
-    QueryConfig(
-      queryKey: ['posts'],
-      queryFn: (_) => fetchPosts(),
-    ),
-    QueryConfig(
-      queryKey: ['comments'],
-      queryFn: (_) => fetchComments(),
-    ),
-  ],
-);
-
-// Access individual results
-final usersResult = results[0];
-final postsResult = results[1];
-final commentsResult = results[2];
-```
-
-### QueryBuilder Widget (Alternative to Hooks)
-
-```dart
-QueryBuilder<List<Todo>, Object>(
-  queryKey: ['todos'],
-  queryFn: (_) => fetchTodos(),
-  builder: (context, result) {
-    if (result.isLoading) return CircularProgressIndicator();
-    if (result.isError) return Text('Error: ${result.error}');
-    
-    return ListView(
-      children: result.data!.map((t) => TodoItem(todo: t)).toList(),
-    );
-  },
-)
-```
-
-### Persistence (Save/Restore Cache)
-
-Persist query data to disk so it survives app restarts. Users see cached data instantly while fresh data loads in the background.
-
-#### 1. Configure a Persister
-
-```dart
-import 'package:fluquery/fluquery.dart';
-
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-
-  // Create and initialize the Hive CE persister
-  // Data is stored in the app's documents directory
-  final persister = HiveCePersister();
-  await persister.init();
-
-  // Create QueryClient with persister
-  final queryClient = QueryClient(persister: persister);
-  
-  // Restore cached data on app start
-  await queryClient.hydrate();
-
-  runApp(
-    QueryClientProvider(
-      client: queryClient,
-      child: MyApp(),
-    ),
-  );
-}
-```
-
-#### 2. Enable Persistence on Queries
-
-```dart
-// Create a serializer for your data type
-class TodoListSerializer implements QueryDataSerializer<List<Todo>> {
-  @override
-  dynamic serialize(List<Todo> data) {
-    return data.map((todo) => todo.toJson()).toList();
-  }
-
-  @override
-  List<Todo> deserialize(dynamic json) {
-    return (json as List)
-        .map((item) => Todo.fromJson(item as Map<String, dynamic>))
-        .toList();
-  }
-}
-
-// Use the persist option
-final todosQuery = useQuery<List<Todo>, Object>(
-  queryKey: ['todos'],
-  queryFn: (_) => fetchTodos(),
-  persist: PersistOptions<List<Todo>>(
-    serializer: TodoListSerializer(),
-    maxAge: Duration(days: 7), // Optional: expire old data
-  ),
-);
-```
-
-#### Built-in Persisters
-
-| Persister | Use Case |
-|-----------|----------|
-| `HiveCePersister` | **Recommended** - Fast, encrypted local storage using [Hive CE](https://pub.dev/packages/hive_ce) |
-| `InMemoryPersister` | Testing and development only (data lost on app close) |
-| `SharedPrefsPersister` | Simple key-value storage (requires SharedPreferences adapter) |
-
-#### HiveCePersister Options
-
-```dart
-// Basic usage
+// Setup
 final persister = HiveCePersister();
+await persister.init();
+final client = QueryClient(persister: persister);
+await client.hydrate();
 
-// Custom box name
-final persister = HiveCePersister(boxName: 'my_cache');
-
-// With encryption
-import 'package:hive_ce/hive_ce.dart';
-final encryptionKey = Hive.generateSecureKey();
-final persister = HiveCePersister(
-  boxName: 'secure_cache',
-  encryptionCipher: HiveAesCipher(encryptionKey),
+// Use
+useQuery<List<Todo>, Object>(
+  queryKey: ['todos'],
+  queryFn: (_) => fetchTodos(),
+  persist: PersistOptions(serializer: TodoListSerializer()),
 );
 ```
 
-#### Custom Persister
+## 🧩 Services (Dependency Injection)
 
-Implement the `Persister` interface for your storage backend:
+FluQuery includes a lightweight service layer for managing dependencies with async lifecycle hooks.
+
+### Define Services
 
 ```dart
-class MyCustomPersister implements Persister {
-  @override
-  Future<void> init() async { /* Open database */ }
+class AuthService extends Service {
+  final TokenStorage _tokens;
   
+  AuthService(ServiceRef ref) : _tokens = ref.getSync<TokenStorage>();
+
   @override
-  Future<void> persistQuery(PersistedQuery query) async { /* Save */ }
-  
+  Future<void> onInit() async {
+    await _loadSession();
+  }
+
   @override
-  Future<PersistedQuery?> restoreQuery(String hash) async { /* Load */ }
-  
-  @override
-  Future<List<PersistedQuery>> restoreAll() async { /* Load all */ }
-  
-  @override
-  Future<void> removeQuery(String hash) async { /* Delete */ }
-  
-  @override
-  Future<void> clear() async { /* Clear all */ }
-  
-  @override
-  Future<void> close() async { /* Cleanup */ }
+  Future<void> onDispose() async {
+    await _clearSession();
+  }
 }
+```
+
+### Register & Use
+
+```dart
+// Register
+await client.initServices((container) {
+  container.register<TokenStorage>((ref) => TokenStorage());
+  container.register<AuthService>((ref) => AuthService(ref));
+});
+
+// In widgets
+final auth = useService<AuthService>();
+
+// Or programmatically
+final auth = await client.getService<AuthService>();
+```
+
+### QueryStore in Services
+
+Services can own `QueryStore` instances that are automatically disposed:
+
+```dart
+class UserService extends Service {
+  late final QueryStore<User?, Object> userStore;
+
+  UserService(ServiceRef ref) {
+    userStore = ref.createStore(
+      queryKey: ['current-user'],
+      queryFn: (_) => fetchCurrentUser(),
+    );
+  }
+}
+
+// In widgets
+final store = useServiceStore<UserService, User?, Object>(
+  (service) => service.userStore,
+);
+```
+
+### Factory & Named Services
+
+```dart
+// Factory - new instance each time
+container.registerFactory<Logger>((ref) => Logger());
+final logger = container.create<Logger>();
+
+// Named - multiple instances of same type
+container.registerNamed<ApiClient>('v1', (ref) => ApiClient('api.v1'));
+container.registerNamed<ApiClient>('v2', (ref) => ApiClient('api.v2'));
+final v1 = await container.get<ApiClient>(name: 'v1');
 ```
 
 ## ⚙️ Configuration
 
-### QueryClient Options
-
 ```dart
-final client = QueryClient(
+QueryClient(
   config: QueryClientConfig(
     defaultOptions: DefaultQueryOptions(
       staleTime: StaleTime(Duration(minutes: 5)),
-      gcTime: GcTime(Duration(minutes: 10)),
+      cacheTime: CacheTime(Duration(minutes: 10)),
       retry: 3,
       refetchOnWindowFocus: true,
-      refetchOnReconnect: true,
-      refetchOnMount: true,
     ),
-    logLevel: LogLevel.debug,  // Set to LogLevel.warn for production
+    logLevel: LogLevel.warn,
   ),
 );
-```
-
-### Query Keys
-
-Query keys are used for caching and deduplication. They can be strings or arrays:
-
-```dart
-// Simple key
-queryKey: ['todos']
-
-// With variables - each unique combination is a separate cache entry
-queryKey: ['todo', todoId]
-
-// Complex keys
-queryKey: ['user', userId, 'posts', { 'status': 'active' }]
 ```
 
 ## 🎯 API Reference
@@ -558,124 +241,50 @@ queryKey: ['user', userId, 'posts', { 'status': 'active' }]
 | `useQuery` | Fetch and cache data |
 | `useQuerySelect` | Fetch with data transformation |
 | `useMutation` | Create/update/delete operations |
-| `useInfiniteQuery` | Paginated/infinite queries |
+| `useInfiniteQuery` | Paginated queries |
 | `useQueries` | Parallel queries |
-| `useQueryClient` | Access the QueryClient |
-| `useIsFetching` | Check if any queries are fetching |
-| `useIsMutating` | Check if any mutations are pending |
-| `useSimpleQuery` | Simplified query hook |
+| `useQueryClient` | Access QueryClient |
+| `useService` | Access a service |
+| `useServiceStore` | Access a service's QueryStore |
 
-### QueryResult Properties
+### QueryResult
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `data` | `T?` | The resolved data |
-| `error` | `E?` | Any error that occurred |
-| `isLoading` | `bool` | Initial load in progress |
-| `isFetching` | `bool` | Any fetch in progress |
-| `isError` | `bool` | Error state |
-| `isSuccess` | `bool` | Success state |
-| `isRefetching` | `bool` | Background refetch |
-| `isStale` | `bool` | Data is stale |
-| `isPending` | `bool` | Query hasn't run yet |
-| `hasData` | `bool` | Data is available |
-| `isPreviousData` | `bool` | Showing previous data (keepPreviousData) |
-| `isPlaceholderData` | `bool` | Showing placeholder data |
-| `refetch` | `Function` | Manually refetch |
-| `dataUpdatedAt` | `DateTime?` | When data was last updated |
+| Property | Description |
+|----------|-------------|
+| `data` | The resolved data |
+| `error` | Error if any |
+| `isLoading` | Initial load |
+| `isFetching` | Any fetch in progress |
+| `isError` / `isSuccess` | State checks |
+| `refetch()` | Manual refetch |
 
 ### QueryClient Methods
 
 | Method | Description |
 |--------|-------------|
-| `fetchQuery` | Fetch a query programmatically |
-| `prefetchQuery` | Prefetch a query |
-| `getQueryData` | Get cached data |
-| `setQueryData` | Set cached data directly |
-| `invalidateQueries` | Mark queries as stale and optionally refetch |
-| `refetchQueries` | Force refetch queries |
-| `cancelQueries` | Cancel in-flight queries |
-| `removeQueries` | Remove from cache |
-| `resetQueries` | Reset to initial state |
+| `fetchQuery` | Fetch programmatically |
+| `getQueryData` / `setQueryData` | Direct cache access |
+| `invalidateQueries` | Mark stale & refetch |
+| `cancelQueries` | Cancel in-flight |
+| `getService` | Get a service instance |
 
-### MutationResult Properties
+## 📱 Example App
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `data` | `T?` | The mutation result |
-| `error` | `E?` | Any error that occurred |
-| `isPending` | `bool` | Mutation in progress |
-| `isError` | `bool` | Error state |
-| `isSuccess` | `bool` | Success state |
-| `isIdle` | `bool` | Not yet triggered |
-| `variables` | `V?` | Current mutation variables |
-| `mutate` | `Function` | Trigger the mutation |
-| `reset` | `Function` | Reset mutation state |
+```bash
+# Start backend
+cd backend && dart pub get && dart run bin/server.dart
 
-
-## 🗺️ Roadmap
-
-We're continuously improving FluQuery. Here's what's coming:
-
-### 🔥 High Priority
-
-| Feature | Status | Description |
-|---------|--------|-------------|
-| 💾 **Persister Plugin** | ✅ Done | Save/restore cache to disk (Hive, SharedPrefs, SQLite) |
-| 🔧 **DevTools** | 🔜 Planned | Debug overlay to inspect cache, queries, and mutations |
-| 📊 **Max Cache Size** | 🔜 Planned | Limit cache entries to prevent memory issues |
-| 🛡️ **QueryErrorBoundary** | 🔜 Planned | Widget for graceful error handling and recovery |
-
-### ⚡ Medium Priority
-
-| Feature | Status | Description |
-|---------|--------|-------------|
-| 📴 **Offline Mutation Queue** | 📋 Backlog | Queue mutations when offline, execute on reconnect |
-| 📦 **Request Batching** | 📋 Backlog | Combine multiple requests into one |
-| 🔄 **Structural Sharing** | 📋 Backlog | Optimize re-renders with deep comparison |
-| 🎭 **Suspense-like Boundary** | 📋 Backlog | Loading boundary widget for child queries |
-
-### 🚀 Future
-
-| Feature | Status | Description |
-|---------|--------|-------------|
-| 🔌 **WebSocket Integration** | 💡 Idea | Real-time updates via WebSocket |
-| 📡 **GraphQL Adapter** | 💡 Idea | First-class GraphQL support |
-| 🔐 **Auth Token Refresh** | 💡 Idea | Automatic 401 handling with token refresh |
-| ⚖️ **Optimistic Locking** | 💡 Idea | Conflict resolution for concurrent updates |
-
-### ✅ Completed Features
-
-- [x] Automatic caching & background refetching
-- [x] Window focus & network reconnection handling
-- [x] Mutations with cache invalidation
-- [x] Infinite/paginated queries
-- [x] Optimistic updates with rollback
-- [x] Dependent & parallel queries
-- [x] Race condition handling with CancellationToken
-- [x] Select/Transform data (`useQuerySelect`)
-- [x] Keep Previous Data for smooth transitions
-- [x] Polling/interval refetching
-- [x] Retry with exponential backoff
-- [x] Garbage collection
-- [x] **Persistence** - Save/restore query data to disk
-
-> 💡 Have a feature request? [Open an issue](https://github.com/Ashkan-Oliaie/FluQuery/issues)!
-
----
+# Run app
+cd example && flutter run
+```
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please read our contributing guidelines before submitting a PR.
+Contributions welcome! Please open an issue or PR.
 
 ## 📄 License
 
-MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- Inspired by [TanStack Query](https://tanstack.com/query) (React Query)
-- Built with [flutter_hooks](https://pub.dev/packages/flutter_hooks)
+MIT License - see [LICENSE](LICENSE)
 
 ---
 

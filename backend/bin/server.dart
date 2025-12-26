@@ -79,6 +79,248 @@ void main() async {
     );
   });
 
+  // ============ AUTHENTICATION ============
+
+  // Login - Start authentication flow (returns pending verification)
+  router.post('/api/auth/login', (Request request) async {
+    await _simulateDelay(minMs: 300, maxMs: 600);
+    final body = await request.readAsString();
+    final data = jsonDecode(body) as Map<String, dynamic>;
+    final email = data['email'] as String? ?? 'user@example.com';
+
+    // Create a pending session that requires verification
+    final sessionId = _db.createPendingSession(email);
+
+    // Track activity
+    _db.trackActivity('auth', 'login_initiated', {
+      'email': email,
+      'sessionId': sessionId,
+    });
+
+    return Response.ok(
+      jsonEncode({
+        'status': 'pending_verification',
+        'sessionId': sessionId,
+        'message': 'Verification code sent. Press "Verify" to complete login.',
+        'expiresIn': 300, // 5 minutes
+      }),
+      headers: {'Content-Type': 'application/json'},
+    );
+  });
+
+  // Verify - Complete authentication with code
+  router.post('/api/auth/verify', (Request request) async {
+    await _simulateDelay(minMs: 200, maxMs: 400);
+    final body = await request.readAsString();
+    final data = jsonDecode(body) as Map<String, dynamic>;
+    final sessionId = data['sessionId'] as String?;
+    final code = data['code'] as String? ?? '123456'; // Any code works for demo
+
+    if (sessionId == null) {
+      return Response(400,
+          body: jsonEncode({'error': 'sessionId required'}),
+          headers: {'Content-Type': 'application/json'});
+    }
+
+    final session = _db.verifySession(sessionId);
+    if (session == null) {
+      _db.trackActivity('auth', 'verification_failed', {
+        'sessionId': sessionId,
+        'reason': 'invalid_session',
+      });
+      return Response(401,
+          body: jsonEncode({'error': 'Invalid or expired session'}),
+          headers: {'Content-Type': 'application/json'});
+    }
+
+    // Track activity
+    _db.trackActivity('auth', 'verification_success', {
+      'sessionId': sessionId,
+      'userId': session['userId'],
+    });
+
+    return Response.ok(
+      jsonEncode({
+        'status': 'authenticated',
+        'accessToken': session['accessToken'],
+        'refreshToken': session['refreshToken'],
+        'user': session['user'],
+        'expiresAt': session['expiresAt'],
+      }),
+      headers: {'Content-Type': 'application/json'},
+    );
+  });
+
+  // Get current session
+  router.get('/api/auth/session', (Request request) async {
+    await _simulateDelay(minMs: 100, maxMs: 200);
+    final authHeader = request.headers['authorization'];
+
+    if (authHeader == null || !authHeader.startsWith('Bearer ')) {
+      return Response(401,
+          body: jsonEncode({'error': 'No token provided'}),
+          headers: {'Content-Type': 'application/json'});
+    }
+
+    final token = authHeader.substring(7);
+    final session = _db.getSessionByToken(token);
+
+    if (session == null) {
+      return Response(401,
+          body: jsonEncode({'error': 'Invalid or expired token'}),
+          headers: {'Content-Type': 'application/json'});
+    }
+
+    _db.trackActivity('auth', 'session_checked', {
+      'userId': session['user']['id'],
+    });
+
+    return Response.ok(
+      jsonEncode({
+        'user': session['user'],
+        'expiresAt': session['expiresAt'],
+        'isValid': true,
+      }),
+      headers: {'Content-Type': 'application/json'},
+    );
+  });
+
+  // Refresh token
+  router.post('/api/auth/refresh', (Request request) async {
+    await _simulateDelay(minMs: 200, maxMs: 400);
+    final body = await request.readAsString();
+    final data = jsonDecode(body) as Map<String, dynamic>;
+    final refreshToken = data['refreshToken'] as String?;
+
+    if (refreshToken == null) {
+      return Response(400,
+          body: jsonEncode({'error': 'refreshToken required'}),
+          headers: {'Content-Type': 'application/json'});
+    }
+
+    final newTokens = _db.refreshSession(refreshToken);
+    if (newTokens == null) {
+      _db.trackActivity('auth', 'refresh_failed', {
+        'reason': 'invalid_refresh_token',
+      });
+      return Response(401,
+          body: jsonEncode({'error': 'Invalid refresh token'}),
+          headers: {'Content-Type': 'application/json'});
+    }
+
+    _db.trackActivity('auth', 'token_refreshed', {
+      'userId': newTokens['user']['id'],
+    });
+
+    return Response.ok(
+      jsonEncode(newTokens),
+      headers: {'Content-Type': 'application/json'},
+    );
+  });
+
+  // Logout
+  router.post('/api/auth/logout', (Request request) async {
+    await _simulateDelay(minMs: 100, maxMs: 200);
+    final authHeader = request.headers['authorization'];
+
+    if (authHeader != null && authHeader.startsWith('Bearer ')) {
+      final token = authHeader.substring(7);
+      final session = _db.getSessionByToken(token);
+      if (session != null) {
+        _db.trackActivity('auth', 'logout', {
+          'userId': session['user']['id'],
+        });
+      }
+      _db.invalidateToken(token);
+    }
+
+    return Response.ok(
+      jsonEncode({'status': 'logged_out'}),
+      headers: {'Content-Type': 'application/json'},
+    );
+  });
+
+  // Get activity log (for tracking service demo)
+  router.get('/api/auth/activities', (Request request) async {
+    await _simulateDelay(minMs: 100, maxMs: 200);
+    final limit =
+        int.tryParse(request.url.queryParameters['limit'] ?? '50') ?? 50;
+
+    return Response.ok(
+      jsonEncode({
+        'activities': _db.authActivities.take(limit).toList(),
+        'total': _db.authActivities.length,
+      }),
+      headers: {'Content-Type': 'application/json'},
+    );
+  });
+
+  // ============ USER PROFILE (requires auth) ============
+
+  router.get('/api/user/profile', (Request request) async {
+    await _simulateDelay(minMs: 150, maxMs: 300);
+    final authHeader = request.headers['authorization'];
+
+    if (authHeader == null || !authHeader.startsWith('Bearer ')) {
+      return Response(401,
+          body: jsonEncode({'error': 'Authentication required'}),
+          headers: {'Content-Type': 'application/json'});
+    }
+
+    final token = authHeader.substring(7);
+    final session = _db.getSessionByToken(token);
+
+    if (session == null) {
+      return Response(401,
+          body: jsonEncode({'error': 'Invalid token'}),
+          headers: {'Content-Type': 'application/json'});
+    }
+
+    _db.trackActivity('user', 'profile_viewed', {
+      'userId': session['user']['id'],
+    });
+
+    return Response.ok(
+      jsonEncode(session['user']),
+      headers: {'Content-Type': 'application/json'},
+    );
+  });
+
+  router.put('/api/user/profile', (Request request) async {
+    await _simulateDelay(minMs: 200, maxMs: 400);
+    final authHeader = request.headers['authorization'];
+
+    if (authHeader == null || !authHeader.startsWith('Bearer ')) {
+      return Response(401,
+          body: jsonEncode({'error': 'Authentication required'}),
+          headers: {'Content-Type': 'application/json'});
+    }
+
+    final token = authHeader.substring(7);
+    final session = _db.getSessionByToken(token);
+
+    if (session == null) {
+      return Response(401,
+          body: jsonEncode({'error': 'Invalid token'}),
+          headers: {'Content-Type': 'application/json'});
+    }
+
+    final body = await request.readAsString();
+    final updates = jsonDecode(body) as Map<String, dynamic>;
+
+    final updatedUser = _db.updateUserProfile(token, updates);
+
+    _db.trackActivity('user', 'profile_updated', {
+      'userId': session['user']['id'],
+      'fields': updates.keys.toList(),
+    });
+
+    return Response.ok(
+      jsonEncode(updatedUser),
+      headers: {'Content-Type': 'application/json'},
+    );
+  });
+
   // ============ TODOS ============
   router.get('/api/todos', (Request request) async {
     await _simulateDelay();
@@ -470,6 +712,16 @@ void main() async {
       '🚀 FluQuery API Server running on http://${server.address.host}:${server.port}');
   print('📚 Endpoints:');
   print('   GET  /health');
+  print('   --- Auth (Services Demo) ---');
+  print('   POST /api/auth/login');
+  print('   POST /api/auth/verify');
+  print('   GET  /api/auth/session');
+  print('   POST /api/auth/refresh');
+  print('   POST /api/auth/logout');
+  print('   GET  /api/auth/activities');
+  print('   --- User Profile (requires auth) ---');
+  print('   GET  /api/user/profile');
+  print('   PUT  /api/user/profile');
   print('   --- Todos ---');
   print('   GET  /api/todos');
   print('   POST /api/todos');
@@ -512,8 +764,168 @@ class InMemoryDatabase {
   int nextCommentId = 101;
   int nextSubtaskId = 61;
   int nextActivityId = 101;
+  int nextAuthActivityId = 1;
 
   final Map<int, String> todoPriorities = {};
+
+  // ============ AUTHENTICATION DATA ============
+
+  // Pending sessions (awaiting verification)
+  final Map<String, Map<String, dynamic>> _pendingSessions = {};
+
+  // Active sessions (authenticated)
+  final Map<String, Map<String, dynamic>> _activeSessions = {};
+
+  // Activity tracking for auth/user actions
+  final List<Map<String, dynamic>> authActivities = [];
+
+  // Demo user data
+  final Map<String, dynamic> _demoUser = {
+    'id': 'usr_demo_12345',
+    'email': 'user@example.com',
+    'name': 'Demo User',
+    'avatar': 'https://api.dicebear.com/7.x/avataaars/svg?seed=demo',
+    'role': 'user',
+    'createdAt': '2024-01-15T10:30:00Z',
+    'preferences': {
+      'theme': 'dark',
+      'notifications': true,
+      'language': 'en',
+    },
+  };
+
+  // Create a pending session (login initiated)
+  String createPendingSession(String email) {
+    final sessionId =
+        'sess_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(9999)}';
+    _pendingSessions[sessionId] = {
+      'email': email,
+      'createdAt': DateTime.now().toIso8601String(),
+      'expiresAt': DateTime.now().add(Duration(minutes: 5)).toIso8601String(),
+    };
+    return sessionId;
+  }
+
+  // Verify a pending session and create an active session
+  Map<String, dynamic>? verifySession(String sessionId) {
+    final pending = _pendingSessions.remove(sessionId);
+    if (pending == null) return null;
+
+    // Check expiry
+    final expiresAt = DateTime.parse(pending['expiresAt']);
+    if (DateTime.now().isAfter(expiresAt)) return null;
+
+    // Create tokens
+    final accessToken =
+        'at_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(99999)}';
+    final refreshToken =
+        'rt_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(99999)}';
+    final tokenExpiry = DateTime.now().add(Duration(hours: 1));
+
+    final session = {
+      'userId': _demoUser['id'],
+      'accessToken': accessToken,
+      'refreshToken': refreshToken,
+      'user': Map<String, dynamic>.from(_demoUser),
+      'expiresAt': tokenExpiry.toIso8601String(),
+      'createdAt': DateTime.now().toIso8601String(),
+    };
+
+    _activeSessions[accessToken] = session;
+    return session;
+  }
+
+  // Get session by access token
+  Map<String, dynamic>? getSessionByToken(String token) {
+    final session = _activeSessions[token];
+    if (session == null) return null;
+
+    // Check expiry
+    final expiresAt = DateTime.parse(session['expiresAt']);
+    if (DateTime.now().isAfter(expiresAt)) {
+      _activeSessions.remove(token);
+      return null;
+    }
+
+    return session;
+  }
+
+  // Refresh session with refresh token
+  Map<String, dynamic>? refreshSession(String refreshToken) {
+    // Find session with this refresh token
+    MapEntry<String, Map<String, dynamic>>? sessionEntry;
+    for (final entry in _activeSessions.entries) {
+      if (entry.value['refreshToken'] == refreshToken) {
+        sessionEntry = entry;
+        break;
+      }
+    }
+
+    if (sessionEntry == null) return null;
+
+    // Remove old session
+    _activeSessions.remove(sessionEntry.key);
+
+    // Create new tokens
+    final newAccessToken =
+        'at_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(99999)}';
+    final newRefreshToken =
+        'rt_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(99999)}';
+    final tokenExpiry = DateTime.now().add(Duration(hours: 1));
+
+    final newSession = {
+      'userId': sessionEntry.value['userId'],
+      'accessToken': newAccessToken,
+      'refreshToken': newRefreshToken,
+      'user': sessionEntry.value['user'],
+      'expiresAt': tokenExpiry.toIso8601String(),
+      'createdAt': DateTime.now().toIso8601String(),
+    };
+
+    _activeSessions[newAccessToken] = newSession;
+    return newSession;
+  }
+
+  // Invalidate a token (logout)
+  void invalidateToken(String token) {
+    _activeSessions.remove(token);
+  }
+
+  // Update user profile
+  Map<String, dynamic> updateUserProfile(
+      String token, Map<String, dynamic> updates) {
+    final session = _activeSessions[token];
+    if (session == null) return _demoUser;
+
+    final user = session['user'] as Map<String, dynamic>;
+    if (updates.containsKey('name')) user['name'] = updates['name'];
+    if (updates.containsKey('avatar')) user['avatar'] = updates['avatar'];
+    if (updates.containsKey('preferences')) {
+      user['preferences'] = {
+        ...user['preferences'] as Map<String, dynamic>,
+        ...updates['preferences'] as Map<String, dynamic>,
+      };
+    }
+
+    return user;
+  }
+
+  // Track activity
+  void trackActivity(
+      String category, String action, Map<String, dynamic> data) {
+    authActivities.insert(0, {
+      'id': nextAuthActivityId++,
+      'category': category,
+      'action': action,
+      'data': data,
+      'timestamp': DateTime.now().toIso8601String(),
+    });
+
+    // Keep only last 500 activities
+    if (authActivities.length > 500) {
+      authActivities.removeRange(500, authActivities.length);
+    }
+  }
 
   // App config for global store demo
   Map<String, dynamic> appConfig = {
