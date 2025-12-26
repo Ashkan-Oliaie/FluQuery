@@ -10,12 +10,12 @@ typedef VoidCallback = void Function();
 /// ```dart
 /// Future<Data> fetchData(QueryFnContext context) async {
 ///   final response = await http.get(url);
-///   
+///
 ///   // Check if cancelled before processing
 ///   if (context.signal?.isCancelled ?? false) {
 ///     throw QueryCancelledException();
 ///   }
-///   
+///
 ///   return parseData(response);
 /// }
 /// ```
@@ -63,4 +63,3 @@ class QueryCancelledException implements Exception {
   @override
   String toString() => 'QueryCancelledException: $message';
 }
-

@@ -51,4 +51,3 @@ class CacheTime {
 /// @deprecated Use [CacheTime] instead. Will be removed in v2.0.0.
 @Deprecated('Use CacheTime instead')
 typedef GcTime = CacheTime;
-

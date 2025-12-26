@@ -8,4 +8,3 @@ export 'persister.dart';
 export 'in_memory_persister.dart';
 export 'shared_prefs_persister.dart';
 export 'hive_persister.dart';
-

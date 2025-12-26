@@ -54,8 +54,7 @@ class TodoSerializer implements QueryDataSerializer<Todo> {
   dynamic serialize(Todo data) => data.toJson();
 
   @override
-  Todo deserialize(dynamic json) =>
-      Todo.fromJson(json as Map<String, dynamic>);
+  Todo deserialize(dynamic json) => Todo.fromJson(json as Map<String, dynamic>);
 }
 
 void main() {
@@ -210,7 +209,9 @@ void main() {
 
       test('does not overwrite existing queries during hydration', () async {
         // Add query to cache first
-        client.setQueryData<List<Todo>>(['todos'], [
+        client.setQueryData<List<Todo>>([
+          'todos'
+        ], [
           Todo(id: 99, title: 'In Memory', completed: true),
         ]);
 
@@ -289,7 +290,9 @@ void main() {
 
         // Verify internal state (via persistence behavior)
         // When data is set, it should persist
-        client.setQueryData<List<Todo>>(['todos'], [
+        client.setQueryData<List<Todo>>([
+          'todos'
+        ], [
           Todo(id: 1, title: 'Test', completed: false),
         ]);
 
@@ -472,7 +475,9 @@ void main() {
         );
 
         // Simulate successful data update
-        client.setQueryData<List<Todo>>(['todos'], [
+        client.setQueryData<List<Todo>>([
+          'todos'
+        ], [
           Todo(id: 1, title: 'New', completed: false),
         ]);
 
@@ -634,7 +639,9 @@ void main() {
     group('Dehydrate', () {
       test('exports all persistable queries', () async {
         // Set up data and register persistence
-        client.setQueryData<List<Todo>>(['todos'], [
+        client.setQueryData<List<Todo>>([
+          'todos'
+        ], [
           Todo(id: 1, title: 'Export', completed: false),
         ]);
 
@@ -655,7 +662,9 @@ void main() {
         client.setQueryData<String>(['no-persist'], 'test');
 
         // Query with persistence
-        client.setQueryData<List<Todo>>(['todos'], [
+        client.setQueryData<List<Todo>>([
+          'todos'
+        ], [
           Todo(id: 1, title: 'Export', completed: false),
         ]);
         client.registerPersistOptions<List<Todo>>(
@@ -920,7 +929,9 @@ void main() {
     });
 
     group('Different Persistence Settings', () {
-      test('first observer with persist, second without persist - data persists', () async {
+      test(
+          'first observer with persist, second without persist - data persists',
+          () async {
         // First observer registers with persistence
         client.registerPersistOptions<List<Todo>>(
           ['shared-key'],
@@ -934,7 +945,9 @@ void main() {
         // (Nothing to call - just not registering)
 
         // Set data (simulating a successful fetch)
-        client.setQueryData<List<Todo>>(['shared-key'], [
+        client.setQueryData<List<Todo>>([
+          'shared-key'
+        ], [
           Todo(id: 1, title: 'Shared', completed: false),
         ]);
 
@@ -951,7 +964,9 @@ void main() {
         expect(restored, isNotNull);
       });
 
-      test('first observer without persist, second with persist - data does NOT persist initially', () async {
+      test(
+          'first observer without persist, second with persist - data does NOT persist initially',
+          () async {
         // First observer does NOT register persistence
         // (Simulating useQuery without persist option)
 
@@ -966,7 +981,9 @@ void main() {
         );
 
         // Set data
-        client.setQueryData<List<Todo>>(['late-persist'], [
+        client.setQueryData<List<Todo>>([
+          'late-persist'
+        ], [
           Todo(id: 1, title: 'Late', completed: false),
         ]);
 
@@ -982,7 +999,8 @@ void main() {
         expect(restored, isNotNull);
       });
 
-      test('both observers with persist but different maxAge - first wins', () async {
+      test('both observers with persist but different maxAge - first wins',
+          () async {
         // First observer: short maxAge
         client.registerPersistOptions<List<Todo>>(
           ['dual-persist'],
@@ -1008,7 +1026,8 @@ void main() {
           serializedData: [
             {'id': 1, 'title': 'Old', 'completed': false}
           ],
-          dataUpdatedAt: DateTime.now().subtract(const Duration(minutes: 10)), // 10 min old
+          dataUpdatedAt: DateTime.now()
+              .subtract(const Duration(minutes: 10)), // 10 min old
           persistedAt: DateTime.now().subtract(const Duration(minutes: 10)),
           status: 'success',
         ));
@@ -1022,7 +1041,8 @@ void main() {
           ['dual-persist'],
           PersistOptions(
             serializer: TodoListSerializer(),
-            maxAge: const Duration(minutes: 5), // Data is 10 min old, should be discarded
+            maxAge: const Duration(
+                minutes: 5), // Data is 10 min old, should be discarded
           ),
         );
 
@@ -1033,7 +1053,8 @@ void main() {
         client2.dispose();
       });
 
-      test('both observers with persist but different keyPrefix - first wins', () async {
+      test('both observers with persist but different keyPrefix - first wins',
+          () async {
         // First observer: user A's namespace
         client.registerPersistOptions<List<Todo>>(
           ['namespaced'],
@@ -1139,7 +1160,9 @@ void main() {
     });
 
     group('Different StaleTime with Persistence', () {
-      test('query with short staleTime triggers refetch on mount, persisted data shows immediately', () async {
+      test(
+          'query with short staleTime triggers refetch on mount, persisted data shows immediately',
+          () async {
         // Pre-persist data
         await persister.persistQuery(PersistedQuery(
           queryKey: ['stale-test'],
@@ -1192,7 +1215,8 @@ void main() {
         expect(query!.state.rawData, isNotNull);
       });
 
-      test('persistence with maxAge vs query staleTime are independent', () async {
+      test('persistence with maxAge vs query staleTime are independent',
+          () async {
         // maxAge controls when PERSISTED data is discarded on hydration
         // staleTime controls when data is considered stale for refetching
         // These are independent concepts
@@ -1216,7 +1240,8 @@ void main() {
           ['age-vs-stale'],
           PersistOptions(
             serializer: TodoListSerializer(),
-            maxAge: const Duration(days: 1), // Data is only 2 hours old, within limit
+            maxAge: const Duration(
+                days: 1), // Data is only 2 hours old, within limit
           ),
         );
 
@@ -1230,7 +1255,9 @@ void main() {
         // is separate from being "too old" for persistence purposes.
       });
 
-      test('different observers same key - one persists, query still refetches based on staleTime', () async {
+      test(
+          'different observers same key - one persists, query still refetches based on staleTime',
+          () async {
         // Persist initial data
         await persister.persistQuery(PersistedQuery(
           queryKey: ['mixed-observers'],
@@ -1257,7 +1284,9 @@ void main() {
         expect(data!.first.title, equals('Initial'));
 
         // Simulate a refetch with new data
-        client.setQueryData<List<Todo>>(['mixed-observers'], [
+        client.setQueryData<List<Todo>>([
+          'mixed-observers'
+        ], [
           Todo(id: 2, title: 'Refetched', completed: true),
         ]);
 
@@ -1276,12 +1305,14 @@ void main() {
         final hash = QueryKeyUtils.hashKey(['mixed-observers']);
         final restored = await persister.restoreQuery(hash);
         expect(restored, isNotNull);
-        expect((restored!.serializedData as List).first['title'], equals('Refetched'));
+        expect((restored!.serializedData as List).first['title'],
+            equals('Refetched'));
       });
     });
 
     group('Complex Multi-Observer Scenarios', () {
-      test('3 observers: persist, no-persist, persist (different maxAge)', () async {
+      test('3 observers: persist, no-persist, persist (different maxAge)',
+          () async {
         // Observer 1: persist with 1 hour maxAge
         client.registerPersistOptions<List<Todo>>(
           ['three-observers'],
@@ -1304,7 +1335,9 @@ void main() {
         );
 
         // All observers share the same cached data
-        client.setQueryData<List<Todo>>(['three-observers'], [
+        client.setQueryData<List<Todo>>([
+          'three-observers'
+        ], [
           Todo(id: 1, title: 'Shared by 3', completed: false),
         ]);
 
@@ -1320,14 +1353,18 @@ void main() {
         expect(restored, isNotNull);
       });
 
-      test('observer A opens, persists data, closes; observer B opens, sees persisted data', () async {
+      test(
+          'observer A opens, persists data, closes; observer B opens, sees persisted data',
+          () async {
         // Observer A registers and persists
         client.registerPersistOptions<List<Todo>>(
           ['handoff'],
           PersistOptions(serializer: TodoListSerializer()),
         );
 
-        client.setQueryData<List<Todo>>(['handoff'], [
+        client.setQueryData<List<Todo>>([
+          'handoff'
+        ], [
           Todo(id: 1, title: 'From A', completed: false),
         ]);
 
@@ -1448,7 +1485,9 @@ void main() {
         queryKey: ['store-persist'],
         queryFn: (_) async {
           fetchCount++;
-          return [Todo(id: fetchCount, title: 'Store $fetchCount', completed: false)];
+          return [
+            Todo(id: fetchCount, title: 'Store $fetchCount', completed: false)
+          ];
         },
         persist: PersistOptions(serializer: TodoListSerializer()),
       );
@@ -1498,7 +1537,9 @@ void main() {
         queryKey: ['store-update'],
         queryFn: (_) async {
           fetchCount++;
-          return [Todo(id: fetchCount, title: 'Fetch $fetchCount', completed: false)];
+          return [
+            Todo(id: fetchCount, title: 'Fetch $fetchCount', completed: false)
+          ];
         },
         persist: PersistOptions(serializer: TodoListSerializer()),
       );
@@ -1612,7 +1653,8 @@ void main() {
       expect(query, isNull);
     });
 
-    test('removeOnDeserializationError=true removes from persistence', () async {
+    test('removeOnDeserializationError=true removes from persistence',
+        () async {
       await persister.persistQuery(PersistedQuery(
         queryKey: ['schema-remove'],
         queryHash: QueryKeyUtils.hashKey(['schema-remove']),
@@ -1666,4 +1708,3 @@ void main() {
     });
   });
 }
-

@@ -94,4 +94,3 @@ class SharedPrefsPersister implements Persister {
   @override
   Future<void> close() async {}
 }
-

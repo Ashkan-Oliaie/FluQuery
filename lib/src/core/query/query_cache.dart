@@ -26,7 +26,8 @@ class QueryCache {
       StreamController<QueryCacheEvent>.broadcast();
 
   /// Callback for persisting query data on success
-  void Function(QueryKey key, Object? data, DateTime? dataUpdatedAt)? onDataSuccess;
+  void Function(QueryKey key, Object? data, DateTime? dataUpdatedAt)?
+      onDataSuccess;
 
   /// Stream of cache events
   Stream<QueryCacheEvent> get events => _eventController.stream;
@@ -38,7 +39,7 @@ class QueryCache {
   int get length => _queries.length;
 
   /// Build a query from options
-  /// 
+  ///
   /// If the query already exists, returns the existing query.
   /// Options are NOT automatically applied here - the QueryObserver
   /// is responsible for calling addObserverOptions/removeObserverOptions
@@ -132,7 +133,8 @@ class QueryCache {
   }) {
     // Don't overwrite existing queries
     if (_queries.containsKey(queryHash)) {
-      FluQueryLogger.debug('Skipping hydration for $queryKey - query already exists');
+      FluQueryLogger.debug(
+          'Skipping hydration for $queryKey - query already exists');
       return;
     }
 
@@ -372,10 +374,13 @@ class _TypedQueryWrapper<TData, TError> implements Query<TData, TError> {
   }
 
   @override
-  void Function(QueryKey key, Object? data, DateTime? dataUpdatedAt)? get onDataSuccess => _inner.onDataSuccess;
+  void Function(QueryKey key, Object? data, DateTime? dataUpdatedAt)?
+      get onDataSuccess => _inner.onDataSuccess;
 
   @override
-  set onDataSuccess(void Function(QueryKey key, Object? data, DateTime? dataUpdatedAt)? callback) {
+  set onDataSuccess(
+      void Function(QueryKey key, Object? data, DateTime? dataUpdatedAt)?
+          callback) {
     _inner.onDataSuccess = callback;
   }
 

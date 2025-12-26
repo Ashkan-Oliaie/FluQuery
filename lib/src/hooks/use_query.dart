@@ -36,7 +36,7 @@ QueryResult<TData, TError> useQuery<TData, TError>({
 
   /// Persistence options for saving query data to storage.
   /// When provided, query data will be persisted and restored on app restart.
-  /// 
+  ///
   /// Example:
   /// ```dart
   /// useQuery<List<Todo>, Error>(

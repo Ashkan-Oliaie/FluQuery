@@ -70,4 +70,3 @@ class PersistOptions<TData> {
     return '$keyPrefix:$queryHash';
   }
 }
-

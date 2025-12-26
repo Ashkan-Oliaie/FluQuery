@@ -149,7 +149,8 @@ class QueryStore<TData, TError> {
     // Initial fetch - errors are stored in state, not thrown
     _query.fetch(queryFn: queryFn);
 
-    FluQueryLogger.debug('QueryStore created: $queryKey (persist: ${persist != null})');
+    FluQueryLogger.debug(
+        'QueryStore created: $queryKey (persist: ${persist != null})');
   }
 
   /// Performs a background refetch

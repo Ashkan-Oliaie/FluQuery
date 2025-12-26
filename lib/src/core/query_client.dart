@@ -86,7 +86,8 @@ class QueryClient {
   }
 
   /// Called when a query successfully fetches data
-  void _onQueryDataSuccess(QueryKey queryKey, Object? data, DateTime? dataUpdatedAt) {
+  void _onQueryDataSuccess(
+      QueryKey queryKey, Object? data, DateTime? dataUpdatedAt) {
     if (data == null) return;
 
     final hash = QueryKeyUtils.hashKey(queryKey);
@@ -169,7 +170,8 @@ class QueryClient {
 
     try {
       final persistedQueries = await _persister.restoreAll();
-      FluQueryLogger.info('Hydrating ${persistedQueries.length} queries from persistence');
+      FluQueryLogger.info(
+          'Hydrating ${persistedQueries.length} queries from persistence');
 
       for (final persisted in persistedQueries) {
         try {
@@ -182,9 +184,11 @@ class QueryClient {
             serializedData: persisted.serializedData,
             dataUpdatedAt: persisted.dataUpdatedAt,
           );
-          FluQueryLogger.debug('Hydrated query: ${persisted.queryKey} (updated: ${persisted.dataUpdatedAt})');
+          FluQueryLogger.debug(
+              'Hydrated query: ${persisted.queryKey} (updated: ${persisted.dataUpdatedAt})');
         } catch (e) {
-          FluQueryLogger.error('Failed to hydrate query ${persisted.queryKey}: $e');
+          FluQueryLogger.error(
+              'Failed to hydrate query ${persisted.queryKey}: $e');
         }
       }
 
@@ -308,10 +312,12 @@ class QueryClient {
       // Last observer - keep the options registered for potential
       // future observers and to allow background persistence
       _persistObserverCounts.remove(hash);
-      FluQueryLogger.debug('Last persistence observer unregistered for $queryKey (keeping options)');
+      FluQueryLogger.debug(
+          'Last persistence observer unregistered for $queryKey (keeping options)');
     } else {
       _persistObserverCounts[hash] = count - 1;
-      FluQueryLogger.debug('Persistence observer unregistered for $queryKey (remaining: ${count - 1})');
+      FluQueryLogger.debug(
+          'Persistence observer unregistered for $queryKey (remaining: ${count - 1})');
     }
   }
 

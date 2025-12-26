@@ -40,4 +40,3 @@ class StaleTime {
   @override
   String toString() => 'StaleTime(${duration.inSeconds}s)';
 }
-

@@ -102,12 +102,15 @@ class PersistenceExample extends HookWidget {
           Icon(
             persister != null ? Icons.check_circle : Icons.error_outline,
             size: 16,
-            color: persister != null ? theme.colorScheme.primary : theme.colorScheme.error,
+            color: persister != null
+                ? theme.colorScheme.primary
+                : theme.colorScheme.error,
           ),
           const SizedBox(width: 6),
           Text(
             persister != null
-                ? 'Persister: Active${isHydrated ? ' • Hydrated' : ''}' : 'No persister',
+                ? 'Persister: Active${isHydrated ? ' • Hydrated' : ''}'
+                : 'No persister',
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
             ),
@@ -318,7 +321,8 @@ class _TodoListSerializer implements QueryDataSerializer<List<Todo>> {
 
   @override
   List<Todo> deserialize(dynamic json) {
-    return (json as List).map((item) => Todo.fromJson(item as Map<String, dynamic>)).toList();
+    return (json as List)
+        .map((item) => Todo.fromJson(item as Map<String, dynamic>))
+        .toList();
   }
 }
-

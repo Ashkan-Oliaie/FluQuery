@@ -19,7 +19,8 @@ class JsonSerializer<TData> implements QueryDataSerializer<TData> {
 }
 
 /// Serializer for List<Map> data (common for API responses)
-class ListMapSerializer implements QueryDataSerializer<List<Map<String, dynamic>>> {
+class ListMapSerializer
+    implements QueryDataSerializer<List<Map<String, dynamic>>> {
   const ListMapSerializer();
 
   @override
@@ -30,4 +31,3 @@ class ListMapSerializer implements QueryDataSerializer<List<Map<String, dynamic>
     return (json as List).cast<Map<String, dynamic>>();
   }
 }
-

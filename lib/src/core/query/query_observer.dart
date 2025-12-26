@@ -153,7 +153,7 @@ class QueryResult<TData, TError> {
 }
 
 /// Observer for a query that manages subscriptions and state updates
-/// 
+///
 /// Each observer maintains its own options for observer-specific behavior
 /// (like refetchInterval, refetchOnMount, etc.) while the Query maintains
 /// merged options for shared behavior (staleTime, cacheTime, retry).
@@ -187,7 +187,7 @@ class QueryObserver<TData, TError> {
   /// Update options
   void setOptions(QueryOptions<TData, TError> newOptions) {
     final prevOptions = _options;
-    
+
     // If query key changed, we need to switch queries
     if (_currentQuery != null &&
         _currentQuery!.queryHash != newOptions.queryKey.toString()) {

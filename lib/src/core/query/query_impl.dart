@@ -69,7 +69,8 @@ class Query<TData, TError> {
   QueryOptions<TData, TError>? _mergedOptions;
 
   /// Callback for when data is successfully fetched (used for persistence)
-  void Function(QueryKey key, Object? data, DateTime? dataUpdatedAt)? onDataSuccess;
+  void Function(QueryKey key, Object? data, DateTime? dataUpdatedAt)?
+      onDataSuccess;
 
   Query({
     required this.queryKey,
@@ -142,7 +143,8 @@ class Query<TData, TError> {
   void addObserverOptions(QueryOptions<TData, TError> options) {
     _observerOptions.add(options);
     _recalculateMergedOptions();
-    FluQueryLogger.debug('Query.addObserverOptions: $queryKey - observers=${_observerOptions.length}, '
+    FluQueryLogger.debug(
+        'Query.addObserverOptions: $queryKey - observers=${_observerOptions.length}, '
         'staleTime=${_mergedOptions?.staleTime.duration}, cacheTime=${_mergedOptions?.cacheTime.duration}');
   }
 
@@ -150,7 +152,8 @@ class Query<TData, TError> {
   void removeObserverOptions(QueryOptions<TData, TError> options) {
     _observerOptions.remove(options);
     _recalculateMergedOptions();
-    FluQueryLogger.debug('Query.removeObserverOptions: $queryKey - observers=${_observerOptions.length}, '
+    FluQueryLogger.debug(
+        'Query.removeObserverOptions: $queryKey - observers=${_observerOptions.length}, '
         'staleTime=${_mergedOptions?.staleTime.duration}, cacheTime=${_mergedOptions?.cacheTime.duration}');
   }
 

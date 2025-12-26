@@ -41,4 +41,3 @@ class InMemoryPersister implements Persister {
   @override
   Future<void> close() async {}
 }
-
