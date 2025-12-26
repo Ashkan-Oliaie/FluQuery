@@ -1,4 +1,4 @@
-import 'types.dart';
+import '../common/common.dart';
 
 /// Immutable state of a mutation
 /// Uses Object? internally to avoid web runtime generic cast issues

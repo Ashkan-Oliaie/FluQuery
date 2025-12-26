@@ -1,6 +1,6 @@
 name: fluquery
 description: Async state management & data fetching for Flutter. Caching, mutations, infinite queries, optimistic updates.
-version: 1.0.6
+version: 1.1.0
 homepage: https://github.com/Ashkan-Oliaie/FluQuery
 repository: https://github.com/Ashkan-Oliaie/FluQuery
 issue_tracker: https://github.com/Ashkan-Oliaie/FluQuery/issues
@@ -23,6 +23,9 @@ dependencies:
   flutter_hooks: ^0.21.3+1
   collection: ^1.18.0
   connectivity_plus: ^7.0.0
+  hive_ce: ^2.16.0
+  hive_ce_flutter: ^2.2.0
+  path_provider: ^2.1.5
 
 dev_dependencies:
   flutter_test:

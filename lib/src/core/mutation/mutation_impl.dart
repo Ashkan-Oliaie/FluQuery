@@ -1,7 +1,6 @@
 import 'dart:async';
-import 'types.dart';
+import '../common/common.dart';
 import 'mutation_state.dart';
-import 'logger.dart';
 
 /// Options for configuring a mutation
 class MutationOptions<TData, TError, TVariables, TContext> {

@@ -1,7 +1,7 @@
 import 'dart:async';
-import 'mutation.dart';
+import '../common/common.dart';
+import 'mutation_impl.dart';
 import 'mutation_state.dart';
-import 'logger.dart';
 
 /// Event types for mutation cache
 enum MutationCacheEventType {

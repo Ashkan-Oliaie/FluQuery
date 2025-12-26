@@ -1,4 +1,4 @@
-import 'types.dart';
+import '../common/common.dart';
 
 /// Immutable state of a query
 /// Uses Object? internally to avoid web runtime generic cast issues

@@ -49,6 +49,11 @@ abstract class QueryKeys {
   /// Global app configuration (theme, settings)
   static const appConfig = ['app-config'];
 
+  // ============ Persistence Example ============
+
+  /// Persisted todos (for persistence demo)
+  static const persistedTodos = ['persisted-todos'];
+
   // ============ Advanced Examples ============
 
   /// User posts without keepPreviousData: [...userPostsNoKeep, userId]

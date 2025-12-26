@@ -1,7 +1,6 @@
 import 'package:flutter_hooks/flutter_hooks.dart';
-import '../core/types.dart';
-import '../core/query_key.dart';
-import '../core/infinite_query.dart';
+import '../core/common/common.dart';
+import '../core/query/query.dart';
 import '../widgets/query_client_provider.dart';
 
 /// Result type for useInfiniteQuery hook
@@ -158,6 +157,15 @@ UseInfiniteQueryResult<TData, TError, TPageParam>
   // State - track query state changes
   final stateNotifier = useState(query.state);
 
+  // Track if hook is mounted
+  final isMountedRef = useRef(true);
+  useEffect(() {
+    isMountedRef.value = true;
+    return () {
+      isMountedRef.value = false;
+    };
+  }, const []);
+
   // Use a ref to track the previous query hash
   final prevHashRef = useRef<String?>(null);
 
@@ -171,13 +179,17 @@ UseInfiniteQueryResult<TData, TError, TPageParam>
   // Subscribe to query updates and handle fetching
   useEffect(() {
     void listener(InfiniteQueryState<TData, TError, TPageParam> state) {
-      stateNotifier.value = state;
+      if (isMountedRef.value) {
+        stateNotifier.value = state;
+      }
     }
 
     query.addObserver(listener);
 
     // Always sync state first
-    stateNotifier.value = query.state;
+    if (isMountedRef.value) {
+      stateNotifier.value = query.state;
+    }
 
     // Only fetch if enabled AND (no data OR stale)
     if (enabled && (!query.state.hasData || query.isStale)) {

@@ -1,7 +1,6 @@
 import 'package:flutter_hooks/flutter_hooks.dart';
-import '../core/types.dart';
-import '../core/query_options.dart';
-import '../core/query_observer.dart';
+import '../core/common/common.dart';
+import '../core/query/query.dart';
 import '../widgets/query_client_provider.dart';
 
 /// Configuration for a single query in useQueries
@@ -57,6 +56,15 @@ List<QueryResult<dynamic, dynamic>> useQueries({
         .toList(),
   );
 
+  // Track if hook is mounted
+  final isMountedRef = useRef(true);
+  useEffect(() {
+    isMountedRef.value = true;
+    return () {
+      isMountedRef.value = false;
+    };
+  }, const []);
+
   // Subscribe to all observers
   useEffect(() {
     final subscriptions = <int, dynamic>{};
@@ -66,18 +74,22 @@ List<QueryResult<dynamic, dynamic>> useQueries({
       final index = i;
 
       subscriptions[index] = observer.stream.listen((result) {
-        final newResults =
-            List<QueryResult<dynamic, dynamic>>.from(resultsState.value);
-        newResults[index] = result;
-        resultsState.value = newResults;
+        if (isMountedRef.value) {
+          final newResults =
+              List<QueryResult<dynamic, dynamic>>.from(resultsState.value);
+          newResults[index] = result;
+          resultsState.value = newResults;
+        }
       });
 
       // Start observer
       observer.start().then((result) {
-        final newResults =
-            List<QueryResult<dynamic, dynamic>>.from(resultsState.value);
-        newResults[index] = result;
-        resultsState.value = newResults;
+        if (isMountedRef.value) {
+          final newResults =
+              List<QueryResult<dynamic, dynamic>>.from(resultsState.value);
+          newResults[index] = result;
+          resultsState.value = newResults;
+        }
       });
     }
 

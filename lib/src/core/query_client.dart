@@ -1,13 +1,7 @@
-import 'types.dart';
-import 'query.dart';
-import 'query_cache.dart';
-import 'query_options.dart';
-import 'query_key.dart';
-import 'query_state.dart';
-import 'query_store.dart';
-import 'mutation_cache.dart';
-import 'infinite_query.dart';
-import 'logger.dart';
+import 'common/common.dart';
+import 'query/query.dart';
+import 'mutation/mutation.dart';
+import 'persistence/persistence.dart';
 
 /// Configuration for QueryClient
 class QueryClientConfig {
@@ -57,19 +51,58 @@ class QueryClient {
   final Map<String, InfiniteQuery> _infiniteQueries = {};
   final Map<String, QueryStore> _stores = {};
 
+  /// Persister for saving/restoring query data
+  final Persister? _persister;
+
+  /// Track which queries have persistence enabled and their serializers
+  /// Uses first-wins strategy: first observer to register persistence options
+  /// determines the serializer used for that query key.
+  final Map<String, PersistOptions> _persistOptions = {};
+
+  /// Track how many observers are using persistence for each query
+  /// When count drops to 0, we can optionally clean up (but keep persisted data)
+  final Map<String, int> _persistObserverCounts = {};
+
   bool _isOnline = true;
   bool _isFocused = true;
   bool _isMounted = false;
+  bool _isHydrated = false;
 
   QueryClient({
     QueryCache? queryCache,
     MutationCache? mutationCache,
     QueryClientConfig config = QueryClientConfig.defaultConfig,
+    Persister? persister,
   })  : _queryCache = queryCache ?? QueryCache(),
         _mutationCache = mutationCache ?? MutationCache(),
-        _config = config {
+        _config = config,
+        _persister = persister {
     FluQueryLogger.level = config.logLevel;
+
+    // Wire up persistence callback
+    if (_persister != null) {
+      _queryCache.onDataSuccess = _onQueryDataSuccess;
+    }
   }
+
+  /// Called when a query successfully fetches data
+  void _onQueryDataSuccess(
+      QueryKey queryKey, Object? data, DateTime? dataUpdatedAt) {
+    if (data == null) return;
+
+    final hash = QueryKeyUtils.hashKey(queryKey);
+    final persistOpts = _persistOptions[hash];
+    if (persistOpts == null) return;
+
+    // Fire and forget persistence
+    persistQuery(queryKey, data, dataUpdatedAt);
+  }
+
+  /// Whether the cache has been hydrated from persistence
+  bool get isHydrated => _isHydrated;
+
+  /// The persister instance (if configured)
+  Persister? get persister => _persister;
 
   /// Query cache
   QueryCache get queryCache => _queryCache;
@@ -99,6 +132,288 @@ class QueryClient {
   void unmount() {
     _isMounted = false;
     FluQueryLogger.debug('QueryClient unmounted');
+  }
+
+  // ============================================================
+  // PERSISTENCE
+  // ============================================================
+
+  /// Hydrate the cache from persisted storage.
+  ///
+  /// Call this during app initialization before rendering any queries.
+  /// This restores previously cached query data from disk.
+  ///
+  /// Example:
+  /// ```dart
+  /// void main() async {
+  ///   WidgetsFlutterBinding.ensureInitialized();
+  ///
+  ///   final persister = HivePersister(...);
+  ///   await persister.init();
+  ///
+  ///   final queryClient = QueryClient(persister: persister);
+  ///   await queryClient.hydrate();
+  ///
+  ///   runApp(QueryClientProvider(client: queryClient, child: MyApp()));
+  /// }
+  /// ```
+  Future<void> hydrate() async {
+    if (_persister == null) {
+      FluQueryLogger.warn('hydrate() called but no persister configured');
+      return;
+    }
+
+    if (_isHydrated) {
+      FluQueryLogger.debug('Cache already hydrated, skipping');
+      return;
+    }
+
+    try {
+      final persistedQueries = await _persister.restoreAll();
+      FluQueryLogger.info(
+          'Hydrating ${persistedQueries.length} queries from persistence');
+
+      for (final persisted in persistedQueries) {
+        try {
+          // Store the persisted data in cache
+          // The actual deserialization happens when the query is used
+          // because we need the serializer from PersistOptions
+          _queryCache.hydrateQuery(
+            queryKey: persisted.queryKey,
+            queryHash: persisted.queryHash,
+            serializedData: persisted.serializedData,
+            dataUpdatedAt: persisted.dataUpdatedAt,
+          );
+          FluQueryLogger.debug(
+              'Hydrated query: ${persisted.queryKey} (updated: ${persisted.dataUpdatedAt})');
+        } catch (e) {
+          FluQueryLogger.error(
+              'Failed to hydrate query ${persisted.queryKey}: $e');
+        }
+      }
+
+      _isHydrated = true;
+      FluQueryLogger.info('Cache hydration complete');
+    } catch (e) {
+      FluQueryLogger.error('Failed to hydrate cache: $e');
+      _isHydrated = true; // Mark as hydrated anyway to prevent blocking
+    }
+  }
+
+  /// Register persistence options for a query.
+  /// Called internally by useQuery when persist option is set.
+  ///
+  /// Uses first-wins strategy: the first observer to register persistence
+  /// options determines the serializer and maxAge for that query key.
+  /// Subsequent observers with different options will use the existing config.
+  ///
+  /// Also deserializes any hydrated data using the serializer and validates maxAge.
+  void registerPersistOptions<TData>(
+    QueryKey queryKey,
+    PersistOptions<TData> options,
+  ) {
+    final hash = QueryKeyUtils.hashKey(queryKey);
+
+    // Increment observer count
+    _persistObserverCounts[hash] = (_persistObserverCounts[hash] ?? 0) + 1;
+
+    // First-wins: only use options from first observer
+    if (_persistOptions.containsKey(hash)) {
+      FluQueryLogger.debug(
+          'PersistOptions already registered for $queryKey, using existing (observer count: ${_persistObserverCounts[hash]})');
+      // Still try to deserialize with existing options if needed
+      _tryDeserializeHydratedData<TData>(queryKey, _persistOptions[hash]!);
+      return;
+    }
+
+    _persistOptions[hash] = options;
+    FluQueryLogger.debug('Registered PersistOptions for $queryKey');
+
+    // Try to deserialize any hydrated data
+    _tryDeserializeHydratedData<TData>(queryKey, options);
+  }
+
+  /// Try to deserialize hydrated data for a query.
+  ///
+  /// This method:
+  /// 1. Validates maxAge - discards data older than maxAge
+  /// 2. Attempts deserialization using the provided serializer
+  /// 3. Handles schema changes gracefully - if deserialization fails
+  ///    (e.g., due to a model change between app versions), the corrupted
+  ///    data is removed and a fresh fetch will occur
+  void _tryDeserializeHydratedData<TData>(
+    QueryKey queryKey,
+    PersistOptions options,
+  ) {
+    final existingQuery = _queryCache.getUntyped(queryKey);
+    if (existingQuery == null || existingQuery.state.rawData == null) {
+      return;
+    }
+
+    final rawData = existingQuery.state.rawData;
+    final dataUpdatedAt = existingQuery.state.dataUpdatedAt;
+
+    // Validate maxAge - discard stale persisted data
+    if (options.maxAge != null && dataUpdatedAt != null) {
+      final age = DateTime.now().difference(dataUpdatedAt);
+      if (age > options.maxAge!) {
+        FluQueryLogger.debug(
+            'Hydrated data for $queryKey exceeded maxAge (${age.inMinutes}m > ${options.maxAge!.inMinutes}m), discarding');
+        _queryCache.remove(existingQuery);
+        unpersistQuery(queryKey);
+        return;
+      }
+    }
+
+    // Check if data is already the correct type (not serialized JSON)
+    if (rawData is TData) {
+      return; // Already deserialized
+    }
+
+    // Try to deserialize the hydrated data
+    try {
+      final deserialized = options.serializer.deserialize(rawData);
+      // Update the query state with deserialized data
+      _queryCache.setQueryData<TData>(
+        queryKey,
+        deserialized,
+        updatedAt: dataUpdatedAt,
+      );
+      FluQueryLogger.debug('Deserialized hydrated data for: $queryKey');
+    } catch (e, stackTrace) {
+      // Deserialization failed - likely due to schema change between app versions
+      // This is expected when:
+      // - A field was added/removed from the model
+      // - A field type changed
+      // - The serializer logic changed
+      FluQueryLogger.warn(
+          'Schema mismatch for $queryKey - persisted data incompatible with current model. '
+          'Discarding stale data and fetching fresh.');
+      FluQueryLogger.debug('Deserialization error: $e', e, stackTrace);
+
+      // Remove corrupted data from cache
+      _queryCache.remove(existingQuery);
+
+      // Optionally remove from persistence (default: true)
+      if (options.removeOnDeserializationError) {
+        unpersistQuery(queryKey);
+      }
+      // Query will fetch fresh data on next access - no error thrown
+    }
+  }
+
+  /// Unregister persistence options when an observer unmounts.
+  /// Called internally by useQuery dispose.
+  void unregisterPersistOptions(QueryKey queryKey) {
+    final hash = QueryKeyUtils.hashKey(queryKey);
+    final count = _persistObserverCounts[hash] ?? 0;
+
+    if (count <= 1) {
+      // Last observer - keep the options registered for potential
+      // future observers and to allow background persistence
+      _persistObserverCounts.remove(hash);
+      FluQueryLogger.debug(
+          'Last persistence observer unregistered for $queryKey (keeping options)');
+    } else {
+      _persistObserverCounts[hash] = count - 1;
+      FluQueryLogger.debug(
+          'Persistence observer unregistered for $queryKey (remaining: ${count - 1})');
+    }
+  }
+
+  /// Persist a query to storage.
+  /// Called automatically when query data is updated.
+  ///
+  /// Note: This is typically called internally. For manual persistence,
+  /// prefer using the `persist` option on `useQuery`.
+  Future<void> persistQuery<TData>(
+    QueryKey queryKey,
+    TData data,
+    DateTime? dataUpdatedAt,
+  ) async {
+    if (_persister == null) return;
+    if (data == null) return; // Don't persist null data
+
+    final hash = QueryKeyUtils.hashKey(queryKey);
+    final options = _persistOptions[hash];
+    if (options == null) return;
+
+    try {
+      final serializer = options.serializer as QueryDataSerializer<TData>;
+      final serialized = serializer.serialize(data);
+
+      // Apply keyPrefix if set
+      final effectiveHash = options.getEffectiveHash(hash);
+
+      final persisted = PersistedQuery(
+        queryKey: queryKey,
+        queryHash: effectiveHash,
+        serializedData: serialized,
+        dataUpdatedAt: dataUpdatedAt,
+        persistedAt: DateTime.now(),
+        status: 'success',
+      );
+
+      await _persister.persistQuery(persisted);
+      FluQueryLogger.debug('Persisted query: $queryKey (hash: $effectiveHash)');
+    } catch (e) {
+      FluQueryLogger.error('Failed to persist query $queryKey: $e');
+    }
+  }
+
+  /// Remove a query from persistence.
+  Future<void> unpersistQuery(QueryKey queryKey) async {
+    if (_persister == null) return;
+
+    final hash = QueryKeyUtils.hashKey(queryKey);
+    final options = _persistOptions[hash];
+
+    // Apply keyPrefix if set
+    final effectiveHash = options?.getEffectiveHash(hash) ?? hash;
+
+    await _persister.removeQuery(effectiveHash);
+    _persistOptions.remove(hash);
+    FluQueryLogger.debug('Unpersisted query: $queryKey');
+  }
+
+  /// Clear all persisted queries.
+  Future<void> clearPersistence() async {
+    if (_persister == null) return;
+
+    await _persister.clear();
+    _persistOptions.clear();
+    FluQueryLogger.info('Cleared all persisted queries');
+  }
+
+  /// Dehydrate - get all persistable queries for manual handling.
+  /// Useful for saving state before app termination.
+  Future<List<PersistedQuery>> dehydrate() async {
+    final results = <PersistedQuery>[];
+
+    for (final query in _queryCache.getAll()) {
+      final hash = query.queryHash;
+      final options = _persistOptions[hash];
+      if (options == null) continue;
+
+      final data = query.state.rawData;
+      if (data == null) continue;
+
+      try {
+        final serialized = options.serializer.serialize(data);
+        results.add(PersistedQuery(
+          queryKey: query.queryKey,
+          queryHash: hash,
+          serializedData: serialized,
+          dataUpdatedAt: query.state.dataUpdatedAt,
+          persistedAt: DateTime.now(),
+          status: query.state.status.name,
+        ));
+      } catch (e) {
+        FluQueryLogger.error('Failed to dehydrate query ${query.queryKey}: $e');
+      }
+    }
+
+    return results;
   }
 
   /// Set online status
@@ -431,6 +746,10 @@ class QueryClient {
   ///   queryKey: ['user'],
   ///   queryFn: fetchUser,
   ///   refetchInterval: Duration(minutes: 5),
+  ///   persist: PersistOptions(
+  ///     serializer: UserSerializer(),
+  ///     maxAge: Duration(days: 7),
+  ///   ),
   /// );
   ///
   /// // Access anywhere
@@ -446,6 +765,7 @@ class QueryClient {
     Duration? refetchInterval,
     bool refetchOnWindowFocus = true,
     bool refetchOnReconnect = true,
+    PersistOptions<TData>? persist,
   }) {
     final queryHash = QueryKeyUtils.hashKey(queryKey);
 
@@ -465,6 +785,9 @@ class QueryClient {
       refetchInterval: refetchInterval,
       refetchOnWindowFocus: refetchOnWindowFocus,
       refetchOnReconnect: refetchOnReconnect,
+      persist: persist,
+      persistRegistrar: _persister != null ? registerPersistOptions : null,
+      persistCallback: _persister != null ? persistQuery : null,
     );
 
     _stores[queryHash] = store;

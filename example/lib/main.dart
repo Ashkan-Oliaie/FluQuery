@@ -15,6 +15,7 @@ import 'examples/race_condition/race_condition_example.dart';
 import 'examples/advanced_features/advanced_features_example.dart';
 import 'examples/nested_queries/screens/todo_list_screen.dart';
 import 'examples/global_store/global_store_example.dart';
+import 'examples/persistence/persistence_example.dart';
 
 void main() {
   runApp(const FluQueryExampleApp());
@@ -61,11 +62,22 @@ class FluQueryExampleApp extends StatefulWidget {
 }
 
 class _FluQueryExampleAppState extends State<FluQueryExampleApp> {
-  late final QueryClient _queryClient;
+  QueryClient? _queryClient;
+  HiveCePersister? _persister;
+  bool _isInitialized = false;
 
   @override
   void initState() {
     super.initState();
+    _initializeAsync();
+  }
+
+  Future<void> _initializeAsync() async {
+    // Create and initialize the Hive CE persister
+    // Data is stored in the app's documents directory
+    _persister = HiveCePersister(boxName: 'fluquery_example_cache');
+    await _persister!.init();
+
     _queryClient = QueryClient(
       config: const QueryClientConfig(
         defaultOptions: DefaultQueryOptions(
@@ -74,23 +86,52 @@ class _FluQueryExampleAppState extends State<FluQueryExampleApp> {
         ),
         logLevel: LogLevel.debug,
       ),
+      persister: _persister,
     );
 
     // Initialize global config store
-    GlobalConfigStore.init(_queryClient);
+    GlobalConfigStore.init(_queryClient!);
+
+    // Hydrate cache from persistence - restores cached queries
+    await _queryClient!.hydrate();
+
+    setState(() {
+      _isInitialized = true;
+    });
   }
 
   @override
   void dispose() {
     GlobalConfigStore.dispose();
-    _queryClient.dispose();
+    _queryClient?.dispose();
+    _persister?.close();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    // Show loading while initializing
+    if (!_isInitialized || _queryClient == null) {
+      return MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData.dark(),
+        home: const Scaffold(
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Initializing...'),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return QueryClientProvider(
-      client: _queryClient,
+      client: _queryClient!,
       // Listen to config changes and rebuild theme
       child: ValueListenableBuilder<AppConfig?>(
         valueListenable: GlobalConfigStore.configNotifier,
@@ -780,6 +821,14 @@ class _ExamplesHomePageState extends State<ExamplesHomePage> {
                         'Persistent store with background polling across pages',
                     color: const Color(0xFFEF4444),
                     onTap: () => _navigate(context, const GlobalStoreExample()),
+                  ),
+                  _ExampleCard(
+                    icon: Icons.save,
+                    title: 'Persistence',
+                    description:
+                        'Save query data to disk and restore on app restart',
+                    color: const Color(0xFF0EA5E9),
+                    onTap: () => _navigate(context, const PersistenceExample()),
                   ),
                   const SizedBox(height: 24),
                 ]),
