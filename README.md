@@ -144,7 +144,7 @@ final query = useQuery<List<Post>, Object>(
   staleTime: const StaleTime(Duration(minutes: 5)),
   
   // Garbage collection time (how long inactive data stays in cache)
-  gcTime: const GcTime(Duration(minutes: 10)),
+  cacheTime: const CacheTime(Duration(minutes: 10)),
   
   // Polling interval
   refetchInterval: Duration(seconds: 30),
@@ -523,7 +523,7 @@ final client = QueryClient(
   config: QueryClientConfig(
     defaultOptions: DefaultQueryOptions(
       staleTime: StaleTime(Duration(minutes: 5)),
-      gcTime: GcTime(Duration(minutes: 10)),
+      cacheTime: CacheTime(Duration(minutes: 10)),
       retry: 3,
       refetchOnWindowFocus: true,
       refetchOnReconnect: true,

@@ -1,26 +1,3 @@
-# Folders not needed in the published package
-example/
+# Exclude backend from published package (not auto-excluded like example/ and test/)
 backend/
-test/
-
-# Development files
-.vscode/
-.idea/
-.fvm/
-.fvmrc
-.cursor/
-
-# Build artifacts
-build/
-coverage/
-.dart_tool/
-
-# Git
-.git/
-.gitignore
-
-# Misc
-*.log
-.DS_Store
-
 
