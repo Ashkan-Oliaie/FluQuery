@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 /// A beautifully styled code block with syntax highlighting appearance.
-/// 
+///
 /// Features:
 /// - Dark code editor theme
 /// - Line numbers (optional)
@@ -25,7 +25,7 @@ class CodeBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final lines = code.split('\n');
-    
+
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFF1E1E2E),
@@ -83,12 +83,11 @@ class CodeBlock extends StatelessWidget {
                       ),
                     ),
                   ),
-                if (showCopyButton)
-                  _CopyButton(code: code),
+                if (showCopyButton) _CopyButton(code: code),
               ],
             ),
           ),
-          
+
           // Code content
           Padding(
             padding: const EdgeInsets.all(16),
@@ -117,7 +116,7 @@ class CodeBlock extends StatelessWidget {
                         ),
                       ),
                     ),
-                  
+
                   // Code
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -147,7 +146,7 @@ class CodeBlock extends StatelessWidget {
 
   List<TextSpan> _highlightSyntax(String line) {
     final spans = <TextSpan>[];
-    
+
     // Simple syntax highlighting using regex
     final patterns = [
       // Comments
@@ -155,9 +154,17 @@ class CodeBlock extends StatelessWidget {
       // Strings
       (RegExp(r"'[^']*'"), const Color(0xFFA5D6A7)),
       // Keywords
-      (RegExp(r'\b(final|const|var|void|async|await|class|extends|return|if|else|for|while|new|this|super|try|catch|throw|import|export|from|get|set|static|late|required)\b'), const Color(0xFFFF79C6)),
+      (
+        RegExp(
+            r'\b(final|const|var|void|async|await|class|extends|return|if|else|for|while|new|this|super|try|catch|throw|import|export|from|get|set|static|late|required)\b'),
+        const Color(0xFFFF79C6)
+      ),
       // Types
-      (RegExp(r'\b(String|int|double|bool|List|Map|Set|Future|Stream|dynamic|Object|Function|Type|void)\b'), const Color(0xFF8BE9FD)),
+      (
+        RegExp(
+            r'\b(String|int|double|bool|List|Map|Set|Future|Stream|dynamic|Object|Function|Type|void)\b'),
+        const Color(0xFF8BE9FD)
+      ),
       // Numbers
       (RegExp(r'\b\d+\.?\d*\b'), const Color(0xFFBD93F9)),
       // Function calls
@@ -168,19 +175,19 @@ class CodeBlock extends StatelessWidget {
 
     // Default color
     const defaultColor = Color(0xFFF8F8F2);
-    
+
     // Build a list of colored segments
     final segments = <({int start, int end, Color color})>[];
-    
+
     for (final (pattern, color) in patterns) {
       for (final match in pattern.allMatches(line)) {
         segments.add((start: match.start, end: match.end, color: color));
       }
     }
-    
+
     // Sort by start position
     segments.sort((a, b) => a.start.compareTo(b.start));
-    
+
     // Remove overlapping segments (keep first)
     final cleanSegments = <({int start, int end, Color color})>[];
     for (final seg in segments) {
@@ -191,7 +198,7 @@ class CodeBlock extends StatelessWidget {
         cleanSegments.add(seg);
       }
     }
-    
+
     // Build spans
     int pos = 0;
     for (final seg in cleanSegments) {
@@ -207,27 +214,27 @@ class CodeBlock extends StatelessWidget {
       ));
       pos = seg.end;
     }
-    
+
     if (pos < line.length) {
       spans.add(TextSpan(
         text: line.substring(pos),
         style: TextStyle(color: defaultColor),
       ));
     }
-    
+
     if (spans.isEmpty) {
       spans.add(TextSpan(text: line, style: TextStyle(color: defaultColor)));
     }
-    
+
     return spans;
   }
 }
 
 class _Dot extends StatelessWidget {
   final Color color;
-  
+
   const _Dot({required this.color});
-  
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -243,23 +250,23 @@ class _Dot extends StatelessWidget {
 
 class _CopyButton extends StatefulWidget {
   final String code;
-  
+
   const _CopyButton({required this.code});
-  
+
   @override
   State<_CopyButton> createState() => _CopyButtonState();
 }
 
 class _CopyButtonState extends State<_CopyButton> {
   bool _copied = false;
-  
+
   void _copy() async {
     await Clipboard.setData(ClipboardData(text: widget.code));
     setState(() => _copied = true);
     await Future.delayed(const Duration(seconds: 2));
     if (mounted) setState(() => _copied = false);
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Material(
@@ -297,4 +304,3 @@ class _CopyButtonState extends State<_CopyButton> {
     );
   }
 }
-

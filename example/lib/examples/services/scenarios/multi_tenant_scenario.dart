@@ -62,7 +62,7 @@ class MultiTenantScenario extends HookWidget {
       selectedTenant.value = tenantName;
 
       try {
-        final apiClient = scope.get<TenantApiClient>(name: tenantName);
+        final apiClient = scope.getSync<TenantApiClient>(name: tenantName);
         final result = await apiClient.fetchData();
         fetchResult.value = result;
       } catch (e) {
@@ -295,7 +295,8 @@ class _TenantCard extends StatelessWidget {
                     Text(
                       tenant.description,
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                        color:
+                            theme.colorScheme.onSurface.withValues(alpha: 0.5),
                       ),
                     ),
                   ],
@@ -366,7 +367,7 @@ class _ResultPanel extends StatelessWidget {
 
     TenantApiClient? apiClient;
     try {
-      apiClient = scope.get<TenantApiClient>(name: selectedTenant);
+      apiClient = scope.getSync<TenantApiClient>(name: selectedTenant);
     } catch (_) {}
 
     return ThemedCard(
@@ -380,7 +381,8 @@ class _ResultPanel extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: (apiClient?.theme ?? Colors.grey).withValues(alpha: 0.2),
+                    color: (apiClient?.theme ?? Colors.grey)
+                        .withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
@@ -403,7 +405,8 @@ class _ResultPanel extends StatelessWidget {
                       Text(
                         apiClient?.baseUrl ?? '',
                         style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                          color: theme.colorScheme.onSurface
+                              .withValues(alpha: 0.5),
                           fontFamily: 'monospace',
                         ),
                       ),
@@ -501,4 +504,3 @@ class TenantApiClient extends Service {
 }''';
   }
 }
-

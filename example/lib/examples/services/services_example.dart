@@ -197,9 +197,7 @@ class _NavItem extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       child: Material(
-        color: isSelected
-            ? color.withValues(alpha: 0.15)
-            : Colors.transparent,
+        color: isSelected ? color.withValues(alpha: 0.15) : Colors.transparent,
         borderRadius: BorderRadius.circular(8),
         child: InkWell(
           onTap: onTap,
@@ -276,7 +274,7 @@ class _ServiceStatusBadge extends HookWidget {
     // Safely get client and check if services exist
     final client = QueryClientProvider.of(context);
     final services = client.services;
-    
+
     // If services not ready, show loading state
     if (services == null || !services.isInitialized) {
       return _buildBadge('Initializing...', Colors.grey);
@@ -285,7 +283,7 @@ class _ServiceStatusBadge extends HookWidget {
     // Try to get session service safely
     SessionService? session;
     try {
-      session = services.get<SessionService>();
+      session = services.getSync<SessionService>();
     } catch (_) {
       return _buildBadge('No Session', Colors.grey);
     }
@@ -337,4 +335,3 @@ class _ServiceStatusBadge extends HookWidget {
     );
   }
 }
-

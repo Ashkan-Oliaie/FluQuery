@@ -300,4 +300,3 @@ class PersistenceManager {
     persist(queryKey, data, dataUpdatedAt);
   }
 }
-

@@ -2,4 +2,3 @@
 library;
 
 export 'store_manager.dart';
-

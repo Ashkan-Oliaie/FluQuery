@@ -40,7 +40,8 @@ T useService<T extends Service>() {
 
   // Use useMemoized to cache the service reference
   // The service itself is managed by the container
-  return useMemoized(() => services.get<T>(), [services]);
+  // Use getSync for synchronous access in hooks
+  return useMemoized(() => services.getSync<T>(), [services]);
 }
 
 /// Hook to subscribe to a service and rebuild when a specific value changes.
@@ -72,7 +73,8 @@ R useServiceSelect<T extends Service, R>(
 ) {
   final service = useService<T>();
   final stream = useMemoized(() => streamSelector(service), [service]);
-  final initialValue = useMemoized(() => initialValueSelector(service), [service]);
+  final initialValue =
+      useMemoized(() => initialValueSelector(service), [service]);
 
   final snapshot = useStream(stream, initialData: initialValue);
   return snapshot.data as R;
@@ -118,4 +120,3 @@ QueryState<TData, TError> useServiceStore<T extends Service, TData, TError>(
 
   return state.value;
 }
-

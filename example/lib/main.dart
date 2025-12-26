@@ -97,7 +97,8 @@ class _FluQueryExampleAppState extends State<FluQueryExampleApp> {
     // Initialize services for auth demo
     await _queryClient!.initServices((container) {
       container.register<TokenStorageService>((ref) => TokenStorageService());
-      container.register<ActivityTrackingService>((ref) => ActivityTrackingService());
+      container.register<ActivityTrackingService>(
+          (ref) => ActivityTrackingService());
       container.register<SessionService>((ref) => SessionService(ref));
       container.register<AuthService>((ref) => AuthService(ref));
     });
@@ -843,7 +844,8 @@ class _ExamplesHomePageState extends State<ExamplesHomePage> {
                   _ExampleCard(
                     icon: Icons.category_rounded,
                     title: 'Services',
-                    description: 'DI, factories, multi-tenant, lifecycle management',
+                    description:
+                        'DI, factories, multi-tenant, lifecycle management',
                     color: const Color(0xFF8B5CF6),
                     onTap: () => _navigate(context, const ServicesExample()),
                   ),

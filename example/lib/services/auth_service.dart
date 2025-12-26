@@ -42,9 +42,9 @@ class AuthService extends Service {
   static const String _baseUrl = 'http://localhost:8080';
 
   AuthService(ServiceRef ref)
-      : _tokenStorage = ref.get<TokenStorageService>(),
-        _sessionService = ref.get<SessionService>(),
-        _activityTracking = ref.get<ActivityTrackingService>();
+      : _tokenStorage = ref.getSync<TokenStorageService>(),
+        _sessionService = ref.getSync<SessionService>(),
+        _activityTracking = ref.getSync<ActivityTrackingService>();
 
   /// Current session status (delegated to SessionService)
   SessionStatus get status => _sessionService.status;
@@ -82,7 +82,8 @@ class AuthService extends Service {
 
         return AuthResult.success(data);
       } else {
-        final error = jsonDecode(response.body)['error'] as String? ?? 'Login failed';
+        final error =
+            jsonDecode(response.body)['error'] as String? ?? 'Login failed';
         _activityTracking.trackAuth('login_failed', {'error': error});
         return AuthResult.failure(error);
       }
@@ -131,12 +132,14 @@ class AuthService extends Service {
 
         return AuthResult.success(data);
       } else {
-        final error = jsonDecode(response.body)['error'] as String? ?? 'Verification failed';
+        final error = jsonDecode(response.body)['error'] as String? ??
+            'Verification failed';
         _activityTracking.trackAuth('verification_failed', {'error': error});
         return AuthResult.failure(error);
       }
     } catch (e) {
-      _activityTracking.trackAuth('verification_error', {'error': e.toString()});
+      _activityTracking
+          .trackAuth('verification_error', {'error': e.toString()});
       return AuthResult.failure('Network error: $e');
     }
   }
@@ -202,7 +205,8 @@ class AuthService extends Service {
         return AuthResult.failure('Session expired');
       }
     } catch (e) {
-      _activityTracking.trackAuth('token_refresh_error', {'error': e.toString()});
+      _activityTracking
+          .trackAuth('token_refresh_error', {'error': e.toString()});
       return AuthResult.failure('Network error: $e');
     }
   }
@@ -224,5 +228,3 @@ class AuthService extends Service {
     await logout();
   }
 }
-
-

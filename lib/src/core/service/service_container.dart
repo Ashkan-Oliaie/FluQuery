@@ -4,46 +4,9 @@ import '../common/common.dart';
 import '../query/query.dart';
 import '../persistence/persistence.dart';
 import 'service.dart';
+import 'service_key.dart';
 import 'service_ref.dart';
-
-/// A simple async lock that ensures only one execution at a time.
-/// Subsequent calls wait for the first to complete.
-class _AsyncLock {
-  Completer<void>? _completer;
-  
-  /// Execute [action] with mutual exclusion.
-  /// If already running, waits for completion without re-executing.
-  Future<void> synchronized(Future<void> Function() action) async {
-    // If already running, wait for completion
-    if (_completer != null) {
-      await _completer!.future;
-      return;
-    }
-    
-    // Start execution
-    _completer = Completer<void>();
-    
-    try {
-      await action();
-      _completer!.complete();
-    } catch (e, st) {
-      _completer!.completeError(e, st);
-      rethrow;
-    } finally {
-      _completer = null;
-    }
-  }
-  
-  /// Whether currently executing.
-  bool get isRunning => _completer != null;
-  
-  /// Wait for current execution to complete (if any).
-  Future<void> waitIfRunning() async {
-    if (_completer != null) {
-      await _completer!.future.catchError((_) {});
-    }
-  }
-}
+import 'internal/internal.dart';
 
 /// Container for managing service registration, resolution, and lifecycle.
 ///
@@ -57,63 +20,50 @@ class _AsyncLock {
 ///
 /// Example:
 /// ```dart
-/// final container = ServiceContainer(queryCache: queryCache)
+/// final container = ServiceContainer(queryCache: queryCache);
+///
+/// container
 ///   ..register<LoggingService>((ref) => LoggingService())
 ///   ..register<ApiClient>((ref) => ApiClient(ref))
 ///   ..register<AuthService>((ref) => AuthService(ref));
 ///
-/// await container.initialize(); // Init all eager services
+/// await container.initialize();
 ///
-/// final auth = container.get<AuthService>(); // Lazy init
+/// final auth = await container.get<AuthService>();
 /// ```
 class ServiceContainer implements ServiceRef {
-  final QueryCache _queryCache;
-  final DefaultQueryOptions _defaultOptions;
+  // ============================================================
+  // INTERNAL MODULES
+  // ============================================================
 
-  /// Persistence callbacks (injected from QueryClient)
-  final void Function<TData>(QueryKey, PersistOptions<TData>)? _persistRegistrar;
-  final Future<void> Function<TData>(QueryKey, TData, DateTime?)? _persistCallback;
+  final ServiceRegistry _registry;
+  final LifecycleManager _lifecycle;
+  final StoreOwnership _storeOwnership;
+  final ResolutionContext _resolution;
 
-  /// Registered service factories (singletons)
-  final Map<Type, ServiceRegistration> _registrations = {};
+  // ============================================================
+  // INSTANCE CACHES
+  // ============================================================
 
-  /// Named service registrations: type -> name -> registration
-  final Map<Type, Map<String, ServiceRegistration>> _namedRegistrations = {};
-
-  /// Factory registrations (new instance every call)
-  final Map<Type, ServiceRegistration> _factories = {};
-
-  /// Named factory registrations
-  final Map<Type, Map<String, ServiceRegistration>> _namedFactories = {};
-
-  /// Instantiated services (singletons)
+  /// Instantiated singleton services
   final Map<Type, Service> _instances = {};
 
-  /// Named service instances
+  /// Named singleton instances
   final Map<Type, Map<String, Service>> _namedInstances = {};
 
-  /// Services currently being resolved (for circular dependency detection)
-  final Set<Type> _resolving = {};
+  // ============================================================
+  // CONFIGURATION
+  // ============================================================
 
-  /// The root service type being resolved (for store ownership)
-  /// This is the FIRST service in the resolution chain, not the current one.
-  Type? _resolutionRoot;
-
-  /// Async locks for initialization (one per service key, prevents race conditions)
-  /// Key can be Type (for regular services) or String (for named services: 'Type#name')
-  final Map<Object, _AsyncLock> _initLocks = {};
-
-  /// Currently initializing service type (for store ownership tracking)
-  Type? _currentlyInitializing;
-
-  /// Stores created by services (for cleanup)
-  final Map<Type, List<QueryStore>> _serviceStores = {};
-
-  /// Whether the container has been initialized
-  bool _isInitialized = false;
-
-  /// Parent container for scoping (optional)
+  final QueryCache _queryCache;
+  final DefaultQueryOptions _defaultOptions;
+  final void Function<TData>(QueryKey, PersistOptions<TData>)?
+      _persistRegistrar;
+  final Future<void> Function<TData>(QueryKey, TData, DateTime?)?
+      _persistCallback;
   final ServiceContainer? _parent;
+
+  bool _isInitialized = false;
 
   ServiceContainer({
     required QueryCache queryCache,
@@ -125,20 +75,20 @@ class ServiceContainer implements ServiceRef {
         _defaultOptions = defaultOptions,
         _persistRegistrar = persistRegistrar,
         _persistCallback = persistCallback,
-        _parent = parent;
+        _parent = parent,
+        _registry = ServiceRegistry(parent: parent?._registry),
+        _lifecycle = LifecycleManager(),
+        _storeOwnership = StoreOwnership(),
+        _resolution = ResolutionContext();
 
-  /// Whether the container has been initialized
+  /// Whether the container has been initialized.
   bool get isInitialized => _isInitialized;
 
-  /// Get the query cache
-  @override
-  QueryCache get queryCache => _queryCache;
-
   // ============================================================
-  // REGISTRATION
+  // REGISTRATION (delegates to ServiceRegistry)
   // ============================================================
 
-  /// Register a service with a factory function.
+  /// Register a singleton service with a factory function.
   ///
   /// [factory] receives a [ServiceRef] for accessing dependencies.
   /// [lazy] controls whether the service is created on first access (default)
@@ -153,17 +103,34 @@ class ServiceContainer implements ServiceRef {
     ServiceFactory<T> factory, {
     bool lazy = true,
   }) {
-    if (_registrations.containsKey(T)) {
-      FluQueryLogger.warn('Service $T is already registered. Overwriting.');
-    }
-    _registrations[T] = ServiceRegistration<T>(factory: factory, lazy: lazy);
+    _registry.registerSingleton<T>(factory, lazy: lazy);
+  }
+
+  /// Register a named singleton.
+  ///
+  /// Allows multiple instances of the same type with different names.
+  /// Useful for multi-tenant apps, feature flags, or A/B testing.
+  ///
+  /// Example:
+  /// ```dart
+  /// container.registerNamed<ApiClient>('prod', (ref) => ApiClient(prodUrl));
+  /// container.registerNamed<ApiClient>('staging', (ref) => ApiClient(stagingUrl));
+  ///
+  /// final prodApi = await container.get<ApiClient>(name: 'prod');
+  /// final stagingApi = await container.get<ApiClient>(name: 'staging');
+  /// ```
+  void registerNamed<T extends Service>(
+    String name,
+    ServiceFactory<T> factory, {
+    bool lazy = true,
+  }) {
+    _registry.registerNamedSingleton<T>(name, factory, lazy: lazy);
   }
 
   /// Register a factory that creates a NEW instance on every call.
   ///
-  /// Unlike [register], factory instances are NOT cached and each call
-  /// to [create] returns a fresh instance. Use for stateless services,
-  /// request-scoped objects, or anything that shouldn't be shared.
+  /// Unlike [register], factory instances are NOT cached.
+  /// Use for request-scoped objects, form validators, etc.
   ///
   /// Factory instances are NOT auto-initialized or auto-disposed.
   ///
@@ -179,44 +146,10 @@ class ServiceContainer implements ServiceRef {
     String? name,
   }) {
     if (name != null) {
-      _namedFactories.putIfAbsent(T, () => {})[name] =
-          ServiceRegistration<T>(factory: factory, lazy: true);
-      FluQueryLogger.debug('Registered named factory: $T($name)');
+      _registry.registerNamedFactory<T>(name, factory);
     } else {
-      if (_factories.containsKey(T)) {
-        FluQueryLogger.warn('Factory $T is already registered. Overwriting.');
-      }
-      _factories[T] = ServiceRegistration<T>(factory: factory, lazy: true);
+      _registry.registerFactory<T>(factory);
     }
-  }
-
-  /// Register a named singleton.
-  ///
-  /// Allows multiple instances of the same type with different names.
-  /// Useful for multi-tenant apps, feature flags, or A/B testing.
-  ///
-  /// Example:
-  /// ```dart
-  /// container.register<ApiClient>(
-  ///   (ref) => ApiClient(baseUrl: 'api.tenant-a.com'),
-  ///   name: 'tenantA',
-  /// );
-  /// container.register<ApiClient>(
-  ///   (ref) => ApiClient(baseUrl: 'api.tenant-b.com'),
-  ///   name: 'tenantB',
-  /// );
-  ///
-  /// final a = container.get<ApiClient>(name: 'tenantA');
-  /// final b = container.get<ApiClient>(name: 'tenantB');
-  /// ```
-  void registerNamed<T extends Service>(
-    String name,
-    ServiceFactory<T> factory, {
-    bool lazy = true,
-  }) {
-    _namedRegistrations.putIfAbsent(T, () => {})[name] =
-        ServiceRegistration<T>(factory: factory, lazy: lazy);
-    FluQueryLogger.debug('Registered named service: $T($name)');
   }
 
   /// Unregister a service.
@@ -226,55 +159,35 @@ class ServiceContainer implements ServiceRef {
     if (name != null) {
       final instance = _namedInstances[T]?.remove(name);
       if (instance != null) {
-        await _disposeServiceByType(T, instance);
+        _storeOwnership.disposeStoresFor(T);
+        await _lifecycle.dispose(instance);
       }
-      _namedRegistrations[T]?.remove(name);
+      _registry.unregisterNamedSingleton<T>(name);
     } else {
       final instance = _instances.remove(T);
       if (instance != null) {
-        await _disposeService<T>(instance);
+        _storeOwnership.disposeStoresFor(T);
+        await _lifecycle.dispose(instance);
       }
-      _registrations.remove(T);
+      _registry.unregisterSingleton<T>();
     }
   }
 
   // ============================================================
-  // RESOLUTION
+  // RESOLUTION (ServiceRef implementation)
   // ============================================================
 
-  /// Get a singleton service by type (synchronous).
+  /// Get a singleton service and wait for initialization (async).
   ///
-  /// Creates the service lazily if not already instantiated.
-  /// For services with async initialization, prefer [getAsync] to ensure
-  /// initialization completes before use.
-  ///
-  /// Use [name] to get a named instance registered with [registerNamed].
-  ///
-  /// Throws [ServiceNotFoundException] if not registered.
-  /// Throws [CircularDependencyException] if circular dependency detected.
+  /// This is the primary method for accessing services. It:
+  /// - Creates the service lazily if not already instantiated
+  /// - Waits for [Service.onInit()] to complete
+  /// - Handles concurrent access safely
   @override
-  T get<T extends Service>({String? name}) {
-    return _resolve<T>(name: name);
-  }
+  Future<T> get<T extends Service>({String? name}) async {
+    final service = _resolveSync<T>(name: name);
 
-  /// Get a service by type and wait for initialization (async-safe).
-  ///
-  /// This is the preferred method when:
-  /// - Service has async initialization logic
-  /// - Multiple widgets might request the same service simultaneously
-  /// - You need to ensure the service is fully ready before use
-  ///
-  /// Use [name] to get a named instance.
-  ///
-  /// Example:
-  /// ```dart
-  /// final auth = await container.getAsync<AuthService>();
-  /// // auth.onInit() is guaranteed to have completed
-  /// ```
-  Future<T> getAsync<T extends Service>({String? name}) async {
-    final service = _resolve<T>(name: name);
-
-    // If container not initialized yet, service will be initialized during container.initialize()
+    // If container not initialized, service will be initialized during container.initialize()
     if (!_isInitialized) {
       return service;
     }
@@ -285,60 +198,43 @@ class ServiceContainer implements ServiceRef {
     }
 
     // Initialize with lock (handles concurrent calls)
-    final lockKey = name != null ? '$T#$name' : T;
-    await _initializeServiceWithLock(lockKey, service);
+    final key = ServiceKey(T, name);
+    await _lifecycle.initializeWithLock(key, service);
     return service;
   }
 
-  /// Create a NEW instance from a factory registration.
+  /// Get a singleton service synchronously WITHOUT waiting for initialization.
   ///
-  /// Unlike [get], this always returns a fresh instance.
-  /// Factory instances are NOT cached, NOT auto-initialized, and NOT auto-disposed.
-  ///
-  /// Use [name] to create from a named factory.
-  ///
-  /// Example:
-  /// ```dart
-  /// container.registerFactory<HttpRequest>((ref) => HttpRequest());
-  ///
-  /// final req1 = container.create<HttpRequest>(); // New instance
-  /// final req2 = container.create<HttpRequest>(); // Different instance
-  /// assert(!identical(req1, req2));
-  /// ```
-  T create<T extends Service>({String? name}) {
-    ServiceRegistration? registration;
+  /// ⚠️ Use only when you know the service is already initialized
+  /// or the service has no async initialization.
+  @override
+  T getSync<T extends Service>({String? name}) {
+    final service = _resolveSync<T>(name: name);
 
-    if (name != null) {
-      registration = _namedFactories[T]?[name];
-    } else {
-      registration = _factories[T];
+    // Start initialization in background if container is initialized
+    if (_isInitialized && !service.isInitialized) {
+      final key = ServiceKey(T, name);
+      _lifecycle.initializeWithLock(key, service).catchError((e, st) {
+        FluQueryLogger.error('Async initialization failed for $T: $e', e, st);
+      });
     }
 
-    if (registration == null) {
-      // Try parent container
-      if (_parent != null) {
-        return _parent.create<T>(name: name);
-      }
-      final identifier = name != null ? '$T($name)' : T.toString();
-      throw ServiceNotFoundException(T, message: 'Factory $identifier is not registered.');
-    }
-
-    final factory = registration.factory as ServiceFactory<T>;
-    return factory(this);
+    return service;
   }
 
-  /// Internal resolution logic for singletons.
-  T _resolve<T extends Service>({String? name}) {
-    // Handle named services
+  /// Internal synchronous resolution.
+  T _resolveSync<T extends Service>({String? name}) {
     if (name != null) {
       return _resolveNamed<T>(name);
     }
+    return _resolveUnnamed<T>();
+  }
 
+  T _resolveUnnamed<T extends Service>() {
     // Check if already instantiated
     final existing = _instances[T];
     if (existing != null) {
       if (existing.isDisposed) {
-        // Remove disposed instance and allow recreation
         _instances.remove(T);
         FluQueryLogger.debug('Recreating disposed service: $T');
       } else {
@@ -347,51 +243,32 @@ class ServiceContainer implements ServiceRef {
     }
 
     // Check if registered
-    final registration = _registrations[T];
+    final registration = _registry.getSingletonRegistration<T>();
     if (registration == null) {
-      // Try parent container
       if (_parent != null) {
-        return _parent.get<T>();
+        return _parent._resolveUnnamed<T>();
       }
       throw ServiceNotFoundException(T);
     }
 
-    // Check for circular dependency
-    if (_resolving.contains(T)) {
-      throw CircularDependencyException([..._resolving, T].toList());
-    }
-
-    // Track resolution root (first service in chain) for store ownership
-    final isRoot = _resolving.isEmpty;
+    // Create with circular dependency detection
+    final isRoot = _resolution.enter(T);
     if (isRoot) {
-      _resolutionRoot = T;
+      _storeOwnership.resolutionRoot = T;
     }
 
-    // Create the service
-    _resolving.add(T);
     try {
-      final factory = registration.factory as ServiceFactory<T>;
-      final service = factory(this);
+      final service = registration.factory(this);
       _instances[T] = service;
-
-      // Start initialization if container is already initialized
-      // Use fire-and-forget for sync get(), callers should use getAsync() if they need to wait
-      if (_isInitialized && !service.isInitialized) {
-        _initializeServiceWithLock(T, service).catchError((e, st) {
-          FluQueryLogger.error('Async initialization failed for $T: $e', e, st);
-        });
-      }
-
       return service;
     } finally {
-      _resolving.remove(T);
+      _resolution.exit(T, wasRoot: isRoot);
       if (isRoot) {
-        _resolutionRoot = null;
+        _storeOwnership.resolutionRoot = null;
       }
     }
   }
 
-  /// Resolve a named service.
   T _resolveNamed<T extends Service>(String name) {
     // Check if already instantiated
     final existing = _namedInstances[T]?[name];
@@ -405,64 +282,75 @@ class ServiceContainer implements ServiceRef {
     }
 
     // Check if registered
-    final registration = _namedRegistrations[T]?[name];
+    final registration = _registry.getNamedSingletonRegistration<T>(name);
     if (registration == null) {
-      // Try parent
       if (_parent != null) {
-        return _parent.get<T>(name: name);
+        return _parent._resolveNamed<T>(name);
       }
-      throw ServiceNotFoundException(T, message: 'Named service $T($name) is not registered.');
+      throw ServiceNotFoundException(T, name: name);
     }
 
     // Create the service
-    final factory = registration.factory as ServiceFactory<T>;
-    final service = factory(this);
+    final service = registration.factory(this);
     _namedInstances.putIfAbsent(T, () => {})[name] = service;
 
     // Start initialization if container is initialized
     if (_isInitialized && !service.isInitialized) {
-      final lockKey = '$T#$name';
-      _initializeServiceWithLock(lockKey, service).catchError((e, st) {
-        FluQueryLogger.error('Async initialization failed for $T($name): $e', e, st);
+      final key = ServiceKey(T, name);
+      _lifecycle.initializeWithLock(key, service).catchError((e, st) {
+        FluQueryLogger.error(
+            'Async initialization failed for $T($name): $e', e, st);
       });
     }
 
     return service;
   }
 
-  /// Initialize a service with a lock to prevent double initialization.
-  /// [key] can be a Type or a String (for named services: 'Type#name').
-  Future<void> _initializeServiceWithLock(Object key, Service service) async {
-    if (service.isInitialized) return;
-    
-    // Get or create lock for this service key
-    final lock = _initLocks.putIfAbsent(key, () => _AsyncLock());
-    
-    await lock.synchronized(() => _initializeService(service));
+  /// Create a NEW instance from a factory registration.
+  @override
+  T create<T extends Service>({String? name}) {
+    ServiceRegistration<T>? registration;
+
+    if (name != null) {
+      registration = _registry.getNamedFactoryRegistration<T>(name);
+    } else {
+      registration = _registry.getFactoryRegistration<T>();
+    }
+
+    if (registration == null) {
+      if (_parent != null) {
+        return _parent.create<T>(name: name);
+      }
+      final identifier = name != null ? '$T($name)' : T.toString();
+      throw ServiceNotFoundException(T,
+          message: 'Factory $identifier is not registered.');
+    }
+
+    return registration.factory(this);
   }
 
   /// Check if a service is registered.
   @override
-  bool has<T extends Service>() {
-    return _registrations.containsKey(T) ||
-        (_parent?.has<T>() ?? false);
+  bool has<T extends Service>({String? name}) {
+    if (name != null) {
+      return _registry.hasNamed<T>(name);
+    }
+    return _registry.has<T>();
   }
 
   /// Check if a service is instantiated.
-  bool isInstantiated<T extends Service>() {
+  bool isInstantiated<T extends Service>({String? name}) {
+    if (name != null) {
+      return _namedInstances[T]?.containsKey(name) == true;
+    }
     return _instances.containsKey(T);
   }
 
   // ============================================================
-  // STORE CREATION
+  // STORE CREATION (ServiceRef implementation)
   // ============================================================
 
   /// Create a QueryStore owned by the calling service.
-  /// 
-  /// The store will be automatically disposed when its owning service is disposed.
-  /// Ownership is determined by:
-  /// 1. The service currently being resolved (constructor-time creation)
-  /// 2. The service currently being initialized (onInit-time creation)
   @override
   QueryStore<TData, TError> createStore<TData, TError>({
     required QueryKey queryKey,
@@ -490,21 +378,10 @@ class ServiceContainer implements ServiceRef {
       persistCallback: _persistCallback,
     );
 
-    // Track store for cleanup - determine owner from:
-    // 1. Resolution root (the service that started the resolution chain)
-    // 2. Service being initialized (onInit) - _currentlyInitializing
-    // We use _resolutionRoot instead of _resolving.last to correctly attribute
-    // stores to the service that actually creates them, not nested dependencies.
-    final ownerType = _resolutionRoot ?? _currentlyInitializing;
-    
-    if (ownerType != null) {
-      _serviceStores.putIfAbsent(ownerType, () => []).add(store);
-      FluQueryLogger.debug('Store $queryKey assigned to service $ownerType');
-    } else {
-      FluQueryLogger.warn(
-        'Store $queryKey created outside service context - will not be auto-disposed'
-      );
-    }
+    // Determine owner from resolution context or lifecycle manager
+    final ownerType =
+        _storeOwnership.resolutionRoot ?? _lifecycle.currentlyInitializing;
+    _storeOwnership.registerStore(ownerType, store, queryKey);
 
     return store;
   }
@@ -520,105 +397,64 @@ class ServiceContainer implements ServiceRef {
     if (_isInitialized) return;
 
     // Instantiate and init all eager services
-    for (final entry in _registrations.entries) {
-      if (!entry.value.lazy) {
-        final service = _getByRuntimeType(entry.key);
-        await _initializeServiceWithLock(entry.key, service);
-      }
+    for (final entry in _registry.eagerRegistrations) {
+      final service = _getByType(entry.key);
+      await _lifecycle.initializeWithLock(ServiceKey(entry.key), service);
     }
 
     // Init any already-instantiated lazy services
     for (final entry in _instances.entries) {
       if (!entry.value.isInitialized) {
-        await _initializeServiceWithLock(entry.key, entry.value);
+        await _lifecycle.initializeWithLock(ServiceKey(entry.key), entry.value);
       }
     }
 
     _isInitialized = true;
-    FluQueryLogger.info('ServiceContainer initialized with ${_instances.length} services');
+    FluQueryLogger.info(
+        'ServiceContainer initialized with ${_instances.length} services');
   }
 
-  /// Get a service by runtime type (internal use).
-  /// Used during eager initialization.
-  Service _getByRuntimeType(Type type) {
+  /// Get a service by runtime type (for eager initialization).
+  Service _getByType(Type type) {
     final existing = _instances[type];
     if (existing != null) return existing;
 
-    final registration = _registrations[type];
+    final registration = _registry.getSingletonRegistrationByType(type);
     if (registration == null) {
       if (_parent != null) {
-        return _parent._getByRuntimeType(type);
+        return _parent._getByType(type);
       }
       throw ServiceNotFoundException(type);
     }
 
-    _resolving.add(type);
-    try {
-      final service = registration.factory(this);
-      _instances[type] = service;
-      return service;
-    } finally {
-      _resolving.remove(type);
-    }
-  }
-
-  Future<void> _initializeService(Service service) async {
-    if (service.isInitialized) return;
-    
-    // Track which service is initializing (for store ownership)
-    final previouslyInitializing = _currentlyInitializing;
-    _currentlyInitializing = service.runtimeType;
-    
-    try {
-      await service.initialize();
-      FluQueryLogger.debug('Initialized service: ${service.runtimeType}');
-    } catch (e, stackTrace) {
-      FluQueryLogger.error(
-        'Failed to initialize service ${service.runtimeType}: $e',
-        e,
-        stackTrace,
-      );
-      rethrow;
-    } finally {
-      _currentlyInitializing = previouslyInitializing;
-    }
+    final service = registration.factory(this);
+    _instances[type] = service;
+    return service;
   }
 
   /// Dispose a specific service.
-  Future<void> dispose<T extends Service>() async {
-    final instance = _instances.remove(T);
-    if (instance != null) {
-      await _disposeService<T>(instance);
-    }
-  }
-
-  Future<void> _disposeService<T>(Service service) async {
-    await _disposeServiceByType(T, service);
-  }
-
-  Future<void> _disposeServiceByType(Type type, Service service) async {
-    // Dispose stores owned by this service
-    final stores = _serviceStores.remove(type);
-    if (stores != null) {
-      for (final store in stores) {
-        store.dispose();
+  Future<void> dispose<T extends Service>({String? name}) async {
+    if (name != null) {
+      final instance = _namedInstances[T]?.remove(name);
+      if (instance != null) {
+        _storeOwnership.disposeStoresFor(T);
+        await _lifecycle.dispose(instance);
+      }
+    } else {
+      final instance = _instances.remove(T);
+      if (instance != null) {
+        _storeOwnership.disposeStoresFor(T);
+        await _lifecycle.dispose(instance);
       }
     }
-
-    await service.dispose();
-    FluQueryLogger.debug('Disposed service: $type');
   }
 
   /// Dispose all services and clear the container.
   Future<void> disposeAll() async {
-    // Wait for any pending initializations to complete first
-    final runningLocks = _initLocks.values.where((l) => l.isRunning).toList();
-    if (runningLocks.isNotEmpty) {
-      FluQueryLogger.debug('Waiting for ${runningLocks.length} pending initializations before dispose');
-      await Future.wait(runningLocks.map((l) => l.waitIfRunning()));
-    }
+    // Wait for any pending initializations
+    await _lifecycle.waitForPendingInitializations();
 
-    // Dispose regular services in reverse order of instantiation (LIFO)
+    // Dispose regular services in reverse order (LIFO)
     final services = _instances.values.toList().reversed;
     for (final service in services) {
       try {
@@ -640,34 +476,40 @@ class ServiceContainer implements ServiceRef {
     }
 
     // Dispose all stores
-    for (final stores in _serviceStores.values) {
-      for (final store in stores) {
-        store.dispose();
-      }
-    }
+    _storeOwnership.disposeAll();
 
+    // Clear everything
     _instances.clear();
     _namedInstances.clear();
-    _serviceStores.clear();
-    _initLocks.clear();
+    _lifecycle.clear();
     _isInitialized = false;
+
     FluQueryLogger.info('ServiceContainer disposed');
   }
 
   /// Reset a specific service.
-  ///
-  /// Calls [Service.onReset()] and optionally recreates the service.
-  Future<void> reset<T extends Service>({bool recreate = false}) async {
-    final instance = _instances[T];
+  Future<void> reset<T extends Service>(
+      {String? name, bool recreate = false}) async {
+    final Service? instance;
+    if (name != null) {
+      instance = _namedInstances[T]?[name];
+    } else {
+      instance = _instances[T];
+    }
+
     if (instance == null) return;
 
     if (recreate) {
-      await _disposeService<T>(instance);
-      _instances.remove(T);
+      _storeOwnership.disposeStoresFor(T);
+      await _lifecycle.dispose(instance);
+      if (name != null) {
+        _namedInstances[T]?.remove(name);
+      } else {
+        _instances.remove(T);
+      }
       // Will be lazily recreated on next access
     } else {
-      await instance.reset();
-      FluQueryLogger.debug('Reset service: $T');
+      await _lifecycle.reset(instance);
     }
   }
 
@@ -683,6 +525,15 @@ class ServiceContainer implements ServiceRef {
           FluQueryLogger.error('Error resetting ${service.runtimeType}: $e');
         }
       }
+      for (final typeMap in _namedInstances.values) {
+        for (final service in typeMap.values) {
+          try {
+            await service.reset();
+          } catch (e) {
+            FluQueryLogger.error('Error resetting ${service.runtimeType}: $e');
+          }
+        }
+      }
       FluQueryLogger.info('All services reset');
     }
   }
@@ -694,13 +545,6 @@ class ServiceContainer implements ServiceRef {
   /// Create a scoped child container.
   ///
   /// Scoped containers inherit registrations from parent but can override them.
-  /// Useful for multi-tenant apps or test isolation.
-  ///
-  /// Example:
-  /// ```dart
-  /// final scopedContainer = container.createScope();
-  /// scopedContainer.register<TenantService>((ref) => TenantService(tenantId));
-  /// ```
   ServiceContainer createScope() {
     return ServiceContainer(
       queryCache: _queryCache,
@@ -711,4 +555,3 @@ class ServiceContainer implements ServiceRef {
     );
   }
 }
-

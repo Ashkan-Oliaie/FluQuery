@@ -12,8 +12,10 @@ class StoreManager {
   final Map<String, QueryStore> _stores = {};
 
   /// Callbacks for persistence integration (optional)
-  final void Function<TData>(QueryKey, PersistOptions<TData>)? _persistRegistrar;
-  final Future<void> Function<TData>(QueryKey, TData, DateTime?)? _persistCallback;
+  final void Function<TData>(QueryKey, PersistOptions<TData>)?
+      _persistRegistrar;
+  final Future<void> Function<TData>(QueryKey, TData, DateTime?)?
+      _persistCallback;
 
   StoreManager({
     required QueryCache queryCache,
@@ -100,4 +102,3 @@ class StoreManager {
     clear();
   }
 }
-

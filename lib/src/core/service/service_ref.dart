@@ -6,59 +6,76 @@ import 'service.dart';
 /// Reference passed to services for accessing dependencies and creating stores.
 ///
 /// [ServiceRef] provides:
-/// - Access to other services via [get<T>()] or [getAsync<T>()]
+/// - Access to other services via [get<T>()] (async, waits for initialization)
+/// - Sync access via [getSync<T>()] when you know service is already initialized
+/// - Factory instance creation via [create<T>()]
 /// - Store creation via [createStore<TData, TError>()]
-/// - Read-only access (no circular dependency with container)
 ///
 /// Example:
 /// ```dart
 /// class UserService extends Service {
-///   final AuthService _auth;
+///   late final AuthService _auth;
 ///   late final QueryStore<User?, Object> _userStore;
 ///
-///   UserService(ServiceRef ref)
-///     : _auth = ref.get<AuthService>() {
+///   UserService(ServiceRef ref) {
 ///     _userStore = ref.createStore(
 ///       queryKey: ['user', 'current'],
 ///       queryFn: _fetchUser,
 ///     );
 ///   }
+///
+///   @override
+///   Future<void> onInit() async {
+///     // Use async get to ensure AuthService is fully initialized
+///     _auth = await ref.get<AuthService>();
+///   }
 /// }
 /// ```
 abstract class ServiceRef {
-  /// Get a singleton service by type (synchronous).
+  /// Get a singleton service by type and wait for initialization.
   ///
-  /// The service will be created lazily if not already instantiated.
-  /// Note: If the service has async initialization, it may not be fully
-  /// initialized when returned. Use [getAsync] if you need to wait.
+  /// This is the primary method for accessing services. It:
+  /// - Creates the service lazily if not already instantiated
+  /// - Waits for [Service.onInit()] to complete
+  /// - Handles concurrent access safely (no race conditions)
   ///
   /// Use [name] to get a named instance registered with [registerNamed].
   ///
   /// Throws [ServiceNotFoundException] if the service is not registered.
   /// Throws [CircularDependencyException] if circular dependency detected.
-  T get<T extends Service>({String? name});
-
-  /// Get a service by type and wait for initialization (async-safe).
-  ///
-  /// This is the preferred method when:
-  /// - Service has async initialization logic
-  /// - Multiple callers might request the same service simultaneously
-  /// - You need to ensure the service is fully ready before use
-  ///
-  /// Use [name] to get a named instance.
   ///
   /// Example:
   /// ```dart
   /// @override
   /// Future<void> onInit() async {
-  ///   final auth = await ref.getAsync<AuthService>();
+  ///   final auth = await ref.get<AuthService>();
   ///   // auth is guaranteed to be fully initialized
   /// }
   /// ```
-  Future<T> getAsync<T extends Service>({String? name});
+  Future<T> get<T extends Service>({String? name});
+
+  /// Get a singleton service synchronously WITHOUT waiting for initialization.
+  ///
+  /// Use this only when:
+  /// - You know the service is already initialized
+  /// - You're in a synchronous context (constructor) and will use the service later
+  /// - The service has no async initialization
+  ///
+  /// ⚠️ WARNING: If the service has async [onInit], it may not be complete
+  /// when this returns. Prefer [get] unless you have a specific reason.
+  ///
+  /// Example:
+  /// ```dart
+  /// class MyService extends Service {
+  ///   final LoggingService _logger; // No async init
+  ///
+  ///   MyService(ServiceRef ref) : _logger = ref.getSync<LoggingService>();
+  /// }
+  /// ```
+  T getSync<T extends Service>({String? name});
 
   /// Check if a service is registered.
-  bool has<T extends Service>();
+  bool has<T extends Service>({String? name});
 
   /// Create a NEW instance from a factory registration.
   ///
@@ -66,6 +83,14 @@ abstract class ServiceRef {
   /// Factory instances are NOT cached, NOT auto-initialized, and NOT auto-disposed.
   ///
   /// Use [name] to create from a named factory.
+  ///
+  /// Example:
+  /// ```dart
+  /// container.registerFactory<HttpRequest>((ref) => HttpRequest());
+  ///
+  /// final req1 = ref.create<HttpRequest>(); // New instance
+  /// final req2 = ref.create<HttpRequest>(); // Different instance
+  /// ```
   T create<T extends Service>({String? name});
 
   /// Create a [QueryStore] owned by this service.
@@ -82,22 +107,24 @@ abstract class ServiceRef {
     bool refetchOnReconnect = true,
     PersistOptions<TData>? persist,
   });
-
-  /// Get the query cache for advanced use cases.
-  QueryCache get queryCache;
 }
 
 /// Exception thrown when a requested service is not registered.
 class ServiceNotFoundException implements Exception {
   final Type serviceType;
+  final String? name;
   final String? message;
 
-  const ServiceNotFoundException(this.serviceType, {this.message});
+  const ServiceNotFoundException(this.serviceType, {this.name, this.message});
 
   @override
-  String toString() =>
-      message ?? 'ServiceNotFoundException: Service of type $serviceType is not registered. '
-          'Did you forget to call container.register<$serviceType>()?';
+  String toString() {
+    if (message != null) return 'ServiceNotFoundException: $message';
+    final identifier =
+        name != null ? '$serviceType($name)' : serviceType.toString();
+    return 'ServiceNotFoundException: Service $identifier is not registered. '
+        'Did you forget to call container.register<$serviceType>()?';
+  }
 }
 
 /// Exception thrown when a circular dependency is detected.
@@ -123,4 +150,3 @@ class ServiceDisposedException implements Exception {
   String toString() =>
       'ServiceDisposedException: Service $serviceType has been disposed.';
 }
-

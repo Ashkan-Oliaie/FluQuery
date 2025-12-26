@@ -57,7 +57,8 @@ class QueryClient {
     _storeManager = StoreManager(
       queryCache: _queryCache,
       defaultOptions: _config.defaultOptions,
-      persistRegistrar: _persistenceManager != null ? registerPersistOptions : null,
+      persistRegistrar:
+          _persistenceManager != null ? registerPersistOptions : null,
       persistCallback: _persistenceManager != null ? persistQuery : null,
     );
   }
@@ -135,7 +136,8 @@ class QueryClient {
     _services = ServiceContainer(
       queryCache: _queryCache,
       defaultOptions: _config.defaultOptions,
-      persistRegistrar: _persistenceManager != null ? registerPersistOptions : null,
+      persistRegistrar:
+          _persistenceManager != null ? registerPersistOptions : null,
       persistCallback: _persistenceManager != null ? persistQuery : null,
     );
 
@@ -143,18 +145,39 @@ class QueryClient {
     await _services!.initialize();
   }
 
-  /// Get a service by type.
+  /// Get a service by type (synchronous).
   ///
-  /// Shorthand for `client.services!.get<T>()`.
+  /// Shorthand for `client.services!.getSync<T>()`.
+  ///
+  /// ⚠️ If the service has async initialization, use [getServiceAsync] instead
+  /// to ensure [Service.onInit()] has completed.
+  ///
   /// Throws if services are not initialized.
-  T getService<T extends Service>() {
+  T getService<T extends Service>({String? name}) {
     if (_services == null) {
       throw StateError(
         'getService<$T>() called but services are not initialized. '
         'Call initServices() first.',
       );
     }
-    return _services!.get<T>();
+    return _services!.getSync<T>(name: name);
+  }
+
+  /// Get a service by type and wait for initialization (async).
+  ///
+  /// Shorthand for `await client.services!.get<T>()`.
+  ///
+  /// Preferred method when the service has async initialization.
+  ///
+  /// Throws if services are not initialized.
+  Future<T> getServiceAsync<T extends Service>({String? name}) async {
+    if (_services == null) {
+      throw StateError(
+        'getServiceAsync<$T>() called but services are not initialized. '
+        'Call initServices() first.',
+      );
+    }
+    return _services!.get<T>(name: name);
   }
 
   /// Reset a specific service.
@@ -249,7 +272,8 @@ class QueryClient {
 
     final queries = _queryCache.findAll(
       stale: true,
-      predicate: (q) => q.hasObservers && (q.options?.refetchOnWindowFocus ?? true),
+      predicate: (q) =>
+          q.hasObservers && (q.options?.refetchOnWindowFocus ?? true),
     );
 
     for (final query in queries) {
@@ -263,7 +287,8 @@ class QueryClient {
 
     final queries = _queryCache.findAll(
       stale: true,
-      predicate: (q) => q.hasObservers && (q.options?.refetchOnReconnect ?? true),
+      predicate: (q) =>
+          q.hasObservers && (q.options?.refetchOnReconnect ?? true),
     );
 
     for (final query in queries) {

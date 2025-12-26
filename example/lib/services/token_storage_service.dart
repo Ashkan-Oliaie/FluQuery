@@ -66,5 +66,3 @@ class TokenStorageService extends Service {
     clearTokens();
   }
 }
-
-

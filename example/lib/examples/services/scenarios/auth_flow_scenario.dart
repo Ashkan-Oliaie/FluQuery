@@ -355,7 +355,8 @@ class _AuthenticatedCard extends HookWidget {
               children: [
                 CircleAvatar(
                   radius: 28,
-                  backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.2),
+                  backgroundColor:
+                      theme.colorScheme.primary.withValues(alpha: 0.2),
                   child: Text(
                     user?.name.substring(0, 1).toUpperCase() ?? '?',
                     style: TextStyle(
@@ -379,14 +380,16 @@ class _AuthenticatedCard extends HookWidget {
                       Text(
                         user?.email ?? '',
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                          color: theme.colorScheme.onSurface
+                              .withValues(alpha: 0.6),
                         ),
                       ),
                     ],
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: Colors.green.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(12),
@@ -446,7 +449,8 @@ class _AuthenticatedCard extends HookWidget {
                         color: theme.colorScheme.surface,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: theme.colorScheme.outline.withValues(alpha: 0.2),
+                          color:
+                              theme.colorScheme.outline.withValues(alpha: 0.2),
                         ),
                       ),
                       child: Column(
@@ -461,7 +465,8 @@ class _AuthenticatedCard extends HookWidget {
                           ),
                           _InfoRow(
                             'Notifications',
-                            user?.preferences['notifications']?.toString() ?? 'enabled',
+                            user?.preferences['notifications']?.toString() ??
+                                'enabled',
                           ),
                         ],
                       ),
@@ -575,7 +580,8 @@ class _ActivityLog extends StatelessWidget {
                         'No activities yet',
                         style: theme.textTheme.bodySmall?.copyWith(
                           fontStyle: FontStyle.italic,
-                          color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+                          color: theme.colorScheme.onSurface
+                              .withValues(alpha: 0.4),
                         ),
                       ),
                     )
@@ -646,4 +652,3 @@ class _ActivityItem extends StatelessWidget {
     return '${diff.inHours}h ago';
   }
 }
-

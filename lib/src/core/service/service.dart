@@ -17,8 +17,8 @@ import 'service_ref.dart';
 ///   final LoggingService _logger;
 ///
 ///   AuthService(ServiceRef ref)
-///     : _api = ref.get<ApiClient>(),
-///       _logger = ref.get<LoggingService>();
+///     : _api = ref.getSync<ApiClient>(),
+///       _logger = ref.getSync<LoggingService>();
 ///
 ///   @override
 ///   Future<void> onInit() async {
@@ -92,5 +92,3 @@ class ServiceRegistration<T extends Service> {
     this.lazy = true,
   });
 }
-
-

@@ -83,8 +83,8 @@ class SessionService extends Service {
   String? _pendingSessionId;
 
   SessionService(ServiceRef ref)
-      : _tokenStorage = ref.get<TokenStorageService>(),
-        _activityTracking = ref.get<ActivityTrackingService>() {
+      : _tokenStorage = ref.getSync<TokenStorageService>(),
+        _activityTracking = ref.getSync<ActivityTrackingService>() {
     // Create store for user data - will be fetched from API
     userStore = ref.createStore<User?, Object>(
       queryKey: ['session', 'user'],
@@ -112,7 +112,8 @@ class SessionService extends Service {
   bool get isAuthenticated => _status == SessionStatus.authenticated;
 
   /// Whether verification is pending
-  bool get isPendingVerification => _status == SessionStatus.pendingVerification;
+  bool get isPendingVerification =>
+      _status == SessionStatus.pendingVerification;
 
   /// The pending session ID (for verification)
   String? get pendingSessionId => _pendingSessionId;
@@ -196,4 +197,3 @@ class SessionService extends Service {
     clearSession();
   }
 }
-

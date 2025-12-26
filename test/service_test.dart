@@ -38,7 +38,7 @@ class ApiClient extends Service {
   final LoggingService logger;
   bool initCalled = false;
 
-  ApiClient(ServiceRef ref) : logger = ref.get<LoggingService>();
+  ApiClient(ServiceRef ref) : logger = ref.getSync<LoggingService>();
 
   Future<String> fetchData() async {
     logger.log('ApiClient fetching data');
@@ -59,8 +59,8 @@ class AuthService extends Service {
   bool initCalled = false;
 
   AuthService(ServiceRef ref)
-      : api = ref.get<ApiClient>(),
-        logger = ref.get<LoggingService>() {
+      : api = ref.getSync<ApiClient>(),
+        logger = ref.getSync<LoggingService>() {
     userStore = ref.createStore<String?, Object>(
       queryKey: ['auth', 'user'],
       queryFn: (_) async => 'test-user',
@@ -85,7 +85,7 @@ class CircularServiceA extends Service {
   late final CircularServiceB b;
 
   CircularServiceA(ServiceRef ref) {
-    b = ref.get<CircularServiceB>();
+    b = ref.getSync<CircularServiceB>();
   }
 }
 
@@ -93,7 +93,7 @@ class CircularServiceB extends Service {
   late final CircularServiceA a;
 
   CircularServiceB(ServiceRef ref) {
-    a = ref.get<CircularServiceA>();
+    a = ref.getSync<CircularServiceA>();
   }
 }
 
@@ -143,7 +143,8 @@ void main() {
         expect(logger, isA<LoggingService>());
       });
 
-      test('throws ServiceNotFoundException for unregistered service', () async {
+      test('throws ServiceNotFoundException for unregistered service',
+          () async {
         await client.initServices((container) {
           container.register<LoggingService>((ref) => LoggingService());
         });
@@ -282,13 +283,16 @@ void main() {
         expect(service.initComplete, true);
       });
 
-      test('getAsync prevents race condition - parallel calls share single init', () async {
+      test(
+          'getAsync prevents race condition - parallel calls share single init',
+          () async {
         await client.initServices((container) {
           container.register<AsyncInitService>((ref) => AsyncInitService());
         });
 
         // Simulate multiple widgets requesting the same service simultaneously
-        final futures = List.generate(10, (_) => client.services!.getAsync<AsyncInitService>());
+        final futures =
+            List.generate(10, (_) => client.services!.get<AsyncInitService>());
         final results = await Future.wait(futures);
 
         // All should return the same instance
@@ -395,7 +399,7 @@ void main() {
 
         final childScope = client.services!.createScope();
 
-        final logger = childScope.get<LoggingService>();
+        final logger = childScope.getSync<LoggingService>();
         expect(logger, isA<LoggingService>());
       });
 
@@ -480,7 +484,7 @@ void main() {
         // Fire 100 parallel requests
         final futures = List.generate(
           100,
-          (_) => client.services!.getAsync<AsyncInitService>(),
+          (_) => client.services!.get<AsyncInitService>(),
         );
         final results = await Future.wait(futures);
 
@@ -499,7 +503,7 @@ void main() {
         });
 
         // Start getting service (will trigger init)
-        final getFuture = client.services!.getAsync<AsyncInitService>();
+        final getFuture = client.services!.get<AsyncInitService>();
 
         // Immediately try to dispose
         final disposeFuture = client.services!.disposeAll();
@@ -510,17 +514,18 @@ void main() {
 
       test('init failure propagates to all waiting callers', () async {
         var callCount = 0;
-        
+
         await client.initServices((container) {
-          container.register<FailingInitService>((ref) => FailingInitService(() {
-            callCount++;
-          }));
+          container
+              .register<FailingInitService>((ref) => FailingInitService(() {
+                    callCount++;
+                  }));
         });
 
         // Multiple parallel calls
         final futures = List.generate(
           5,
-          (_) => client.services!.getAsync<FailingInitService>(),
+          (_) => client.services!.get<FailingInitService>(),
         );
 
         // All should fail with same error
@@ -549,9 +554,11 @@ void main() {
         expect(auth.userStore.isDisposed, true);
       });
 
-      test('store created in onInit is owned by initializing service', () async {
+      test('store created in onInit is owned by initializing service',
+          () async {
         await client.initServices((container) {
-          container.register<StoreInOnInitService>((ref) => StoreInOnInitService(ref));
+          container.register<StoreInOnInitService>(
+              (ref) => StoreInOnInitService(ref));
         });
 
         final service = client.getService<StoreInOnInitService>();
@@ -570,8 +577,8 @@ void main() {
         });
 
         // Start getting service with getAsync to ensure init starts
-        final serviceFuture = client.services!.getAsync<AsyncInitService>();
-        
+        final serviceFuture = client.services!.get<AsyncInitService>();
+
         // Reset while init is running (don't await getAsync yet)
         final resetFuture = client.resetService<AsyncInitService>();
 
@@ -589,7 +596,7 @@ void main() {
         });
 
         final container = client.services!;
-        
+
         // Second initialize should be a no-op
         await container.initialize();
         await container.initialize();
@@ -604,9 +611,9 @@ void main() {
 
         final first = client.getService<LoggingService>();
         await client.services!.dispose<LoggingService>();
-        
+
         final second = client.getService<LoggingService>();
-        
+
         expect(second, isNot(same(first)));
         expect(second.isDisposed, false);
       });
@@ -652,7 +659,7 @@ void main() {
         });
 
         final a = client.getService<DiamondA>();
-        
+
         // Both B and C should share the same D
         expect(a.b.d, same(a.c.d));
       });
@@ -686,7 +693,8 @@ void main() {
       FormValidator.resetCounter();
     });
 
-    test('registerFactory creates new instance on every create() call', () async {
+    test('registerFactory creates new instance on every create() call',
+        () async {
       await client.initServices((container) {
         container.registerFactory<RequestService>((ref) => RequestService());
       });
@@ -750,7 +758,8 @@ void main() {
     test('factory can depend on singletons', () async {
       await client.initServices((container) {
         container.register<LoggingService>((ref) => LoggingService());
-        container.registerFactory<ApiRequestService>((ref) => ApiRequestService(ref));
+        container.registerFactory<ApiRequestService>(
+            (ref) => ApiRequestService(ref));
       });
 
       final req1 = client.services!.create<ApiRequestService>();
@@ -809,12 +818,13 @@ void main() {
         );
         container.registerNamed<TenantApiClient>(
           'globex',
-          (ref) => TenantApiClient(tenantId: 'globex', baseUrl: 'api.globex.com'),
+          (ref) =>
+              TenantApiClient(tenantId: 'globex', baseUrl: 'api.globex.com'),
         );
       });
 
-      final acme = client.services!.get<TenantApiClient>(name: 'acme');
-      final globex = client.services!.get<TenantApiClient>(name: 'globex');
+      final acme = client.services!.getSync<TenantApiClient>(name: 'acme');
+      final globex = client.services!.getSync<TenantApiClient>(name: 'globex');
 
       expect(acme.tenantId, 'acme');
       expect(globex.tenantId, 'globex');
@@ -829,8 +839,8 @@ void main() {
         );
       });
 
-      final acme1 = client.services!.get<TenantApiClient>(name: 'acme');
-      final acme2 = client.services!.get<TenantApiClient>(name: 'acme');
+      final acme1 = client.services!.getSync<TenantApiClient>(name: 'acme');
+      final acme2 = client.services!.getSync<TenantApiClient>(name: 'acme');
 
       expect(acme1, same(acme2));
     });
@@ -844,7 +854,7 @@ void main() {
       });
 
       expect(
-        () => client.services!.get<TenantApiClient>(name: 'nonexistent'),
+        () => client.services!.getSync<TenantApiClient>(name: 'nonexistent'),
         throwsA(isA<ServiceNotFoundException>()),
       );
     });
@@ -853,7 +863,8 @@ void main() {
       await client.initServices((container) {
         // Unnamed (default) singleton
         container.register<TenantApiClient>(
-          (ref) => TenantApiClient(tenantId: 'default', baseUrl: 'api.default.com'),
+          (ref) =>
+              TenantApiClient(tenantId: 'default', baseUrl: 'api.default.com'),
         );
         // Named instances
         container.registerNamed<TenantApiClient>(
@@ -862,8 +873,9 @@ void main() {
         );
       });
 
-      final defaultClient = client.services!.get<TenantApiClient>();
-      final acmeClient = client.services!.get<TenantApiClient>(name: 'acme');
+      final defaultClient = client.services!.getSync<TenantApiClient>();
+      final acmeClient =
+          client.services!.getSync<TenantApiClient>(name: 'acme');
 
       expect(defaultClient.tenantId, 'default');
       expect(acmeClient.tenantId, 'acme');
@@ -882,8 +894,8 @@ void main() {
         );
       });
 
-      final audit = client.services!.get<LoggingService>(name: 'audit');
-      final debug = client.services!.get<LoggingService>(name: 'debug');
+      final audit = client.services!.getSync<LoggingService>(name: 'audit');
+      final debug = client.services!.getSync<LoggingService>(name: 'debug');
 
       await client.services!.disposeAll();
 
@@ -899,25 +911,26 @@ void main() {
         );
         container.registerNamed<TenantApiClient>(
           'globex',
-          (ref) => TenantApiClient(tenantId: 'globex', baseUrl: 'api.globex.com'),
+          (ref) =>
+              TenantApiClient(tenantId: 'globex', baseUrl: 'api.globex.com'),
         );
       });
 
       // Get both
-      client.services!.get<TenantApiClient>(name: 'acme');
-      client.services!.get<TenantApiClient>(name: 'globex');
+      client.services!.getSync<TenantApiClient>(name: 'acme');
+      client.services!.getSync<TenantApiClient>(name: 'globex');
 
       // Unregister only acme
       await client.services!.unregister<TenantApiClient>(name: 'acme');
 
       // acme should be gone
       expect(
-        () => client.services!.get<TenantApiClient>(name: 'acme'),
+        () => client.services!.getSync<TenantApiClient>(name: 'acme'),
         throwsA(isA<ServiceNotFoundException>()),
       );
 
       // globex should still work
-      final globex = client.services!.get<TenantApiClient>(name: 'globex');
+      final globex = client.services!.getSync<TenantApiClient>(name: 'globex');
       expect(globex.tenantId, 'globex');
     });
 
@@ -931,7 +944,7 @@ void main() {
 
       final childScope = client.services!.createScope();
 
-      final acme = childScope.get<TenantApiClient>(name: 'acme');
+      final acme = childScope.getSync<TenantApiClient>(name: 'acme');
       expect(acme.tenantId, 'acme');
     });
 
@@ -939,11 +952,13 @@ void main() {
       await client.initServices((container) {
         container.registerNamed<TenantApiClient>(
           'acme',
-          (ref) => TenantApiClient(tenantId: 'acme-parent', baseUrl: 'parent.com'),
+          (ref) =>
+              TenantApiClient(tenantId: 'acme-parent', baseUrl: 'parent.com'),
         );
       });
 
-      final parentAcme = client.services!.get<TenantApiClient>(name: 'acme');
+      final parentAcme =
+          client.services!.getSync<TenantApiClient>(name: 'acme');
 
       final childScope = client.services!.createScope();
       childScope.registerNamed<TenantApiClient>(
@@ -952,7 +967,7 @@ void main() {
       );
       await childScope.initialize();
 
-      final childAcme = childScope.get<TenantApiClient>(name: 'acme');
+      final childAcme = childScope.getSync<TenantApiClient>(name: 'acme');
 
       expect(parentAcme.tenantId, 'acme-parent');
       expect(childAcme.tenantId, 'acme-child');
@@ -1016,9 +1031,9 @@ class ApiRequestService extends Service {
   final LoggingService logger;
   static int requestCounter = 0;
   final int requestId;
-  
-  ApiRequestService(ServiceRef ref) 
-      : logger = ref.get<LoggingService>(),
+
+  ApiRequestService(ServiceRef ref)
+      : logger = ref.getSync<LoggingService>(),
         requestId = ++requestCounter;
 }
 
@@ -1028,9 +1043,9 @@ class ApiRequestService extends Service {
 
 class FailingInitService extends Service {
   final void Function() onInitAttempt;
-  
+
   FailingInitService(this.onInitAttempt);
-  
+
   @override
   Future<void> onInit() async {
     onInitAttempt();
@@ -1042,9 +1057,9 @@ class FailingInitService extends Service {
 class StoreInOnInitService extends Service {
   final ServiceRef _ref;
   QueryStore<String?, Object>? lateStore;
-  
+
   StoreInOnInitService(this._ref);
-  
+
   @override
   Future<void> onInit() async {
     lateStore = _ref.createStore<String?, Object>(
@@ -1059,22 +1074,22 @@ class Level5Service extends Service {}
 
 class Level4Service extends Service {
   final Level5Service level5;
-  Level4Service(ServiceRef ref) : level5 = ref.get<Level5Service>();
+  Level4Service(ServiceRef ref) : level5 = ref.getSync<Level5Service>();
 }
 
 class Level3Service extends Service {
   final Level4Service level4;
-  Level3Service(ServiceRef ref) : level4 = ref.get<Level4Service>();
+  Level3Service(ServiceRef ref) : level4 = ref.getSync<Level4Service>();
 }
 
 class Level2Service extends Service {
   final Level3Service level3;
-  Level2Service(ServiceRef ref) : level3 = ref.get<Level3Service>();
+  Level2Service(ServiceRef ref) : level3 = ref.getSync<Level3Service>();
 }
 
 class Level1Service extends Service {
   final Level2Service level2;
-  Level1Service(ServiceRef ref) : level2 = ref.get<Level2Service>();
+  Level1Service(ServiceRef ref) : level2 = ref.getSync<Level2Service>();
 }
 
 // Diamond dependency services
@@ -1082,20 +1097,20 @@ class DiamondD extends Service {}
 
 class DiamondB extends Service {
   final DiamondD d;
-  DiamondB(ServiceRef ref) : d = ref.get<DiamondD>();
+  DiamondB(ServiceRef ref) : d = ref.getSync<DiamondD>();
 }
 
 class DiamondC extends Service {
   final DiamondD d;
-  DiamondC(ServiceRef ref) : d = ref.get<DiamondD>();
+  DiamondC(ServiceRef ref) : d = ref.getSync<DiamondD>();
 }
 
 class DiamondA extends Service {
   final DiamondB b;
   final DiamondC c;
   DiamondA(ServiceRef ref)
-      : b = ref.get<DiamondB>(),
-        c = ref.get<DiamondC>();
+      : b = ref.getSync<DiamondB>(),
+        c = ref.getSync<DiamondC>();
 }
 
 // Factory test services
@@ -1103,11 +1118,11 @@ class RequestService extends Service {
   static int instanceCounter = 0;
   final int instanceId;
   final DateTime createdAt;
-  
-  RequestService() 
+
+  RequestService()
       : instanceId = ++instanceCounter,
         createdAt = DateTime.now();
-  
+
   static void resetCounter() => instanceCounter = 0;
 }
 
@@ -1115,11 +1130,11 @@ class FormValidator extends Service {
   static int instanceCounter = 0;
   final int instanceId;
   final String formId;
-  
+
   FormValidator(this.formId) : instanceId = ++instanceCounter;
-  
+
   static void resetCounter() => instanceCounter = 0;
-  
+
   bool validate(String input) => input.isNotEmpty;
 }
 
@@ -1127,11 +1142,10 @@ class FormValidator extends Service {
 class TenantApiClient extends Service {
   final String tenantId;
   final String baseUrl;
-  
+
   TenantApiClient({required this.tenantId, required this.baseUrl});
-  
+
   Future<String> fetchData() async {
     return 'Data from $tenantId';
   }
 }
-

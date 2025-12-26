@@ -118,7 +118,8 @@ void main() async {
 
     if (sessionId == null) {
       return Response(400,
-          body: jsonEncode({'error': 'sessionId required'}), headers: {'Content-Type': 'application/json'});
+          body: jsonEncode({'error': 'sessionId required'}),
+          headers: {'Content-Type': 'application/json'});
     }
 
     final session = _db.verifySession(sessionId);
@@ -128,7 +129,8 @@ void main() async {
         'reason': 'invalid_session',
       });
       return Response(401,
-          body: jsonEncode({'error': 'Invalid or expired session'}), headers: {'Content-Type': 'application/json'});
+          body: jsonEncode({'error': 'Invalid or expired session'}),
+          headers: {'Content-Type': 'application/json'});
     }
 
     // Track activity
@@ -156,7 +158,8 @@ void main() async {
 
     if (authHeader == null || !authHeader.startsWith('Bearer ')) {
       return Response(401,
-          body: jsonEncode({'error': 'No token provided'}), headers: {'Content-Type': 'application/json'});
+          body: jsonEncode({'error': 'No token provided'}),
+          headers: {'Content-Type': 'application/json'});
     }
 
     final token = authHeader.substring(7);
@@ -164,7 +167,8 @@ void main() async {
 
     if (session == null) {
       return Response(401,
-          body: jsonEncode({'error': 'Invalid or expired token'}), headers: {'Content-Type': 'application/json'});
+          body: jsonEncode({'error': 'Invalid or expired token'}),
+          headers: {'Content-Type': 'application/json'});
     }
 
     _db.trackActivity('auth', 'session_checked', {
@@ -190,7 +194,8 @@ void main() async {
 
     if (refreshToken == null) {
       return Response(400,
-          body: jsonEncode({'error': 'refreshToken required'}), headers: {'Content-Type': 'application/json'});
+          body: jsonEncode({'error': 'refreshToken required'}),
+          headers: {'Content-Type': 'application/json'});
     }
 
     final newTokens = _db.refreshSession(refreshToken);
@@ -199,7 +204,8 @@ void main() async {
         'reason': 'invalid_refresh_token',
       });
       return Response(401,
-          body: jsonEncode({'error': 'Invalid refresh token'}), headers: {'Content-Type': 'application/json'});
+          body: jsonEncode({'error': 'Invalid refresh token'}),
+          headers: {'Content-Type': 'application/json'});
     }
 
     _db.trackActivity('auth', 'token_refreshed', {
@@ -237,7 +243,8 @@ void main() async {
   // Get activity log (for tracking service demo)
   router.get('/api/auth/activities', (Request request) async {
     await _simulateDelay(minMs: 100, maxMs: 200);
-    final limit = int.tryParse(request.url.queryParameters['limit'] ?? '50') ?? 50;
+    final limit =
+        int.tryParse(request.url.queryParameters['limit'] ?? '50') ?? 50;
 
     return Response.ok(
       jsonEncode({
@@ -256,14 +263,17 @@ void main() async {
 
     if (authHeader == null || !authHeader.startsWith('Bearer ')) {
       return Response(401,
-          body: jsonEncode({'error': 'Authentication required'}), headers: {'Content-Type': 'application/json'});
+          body: jsonEncode({'error': 'Authentication required'}),
+          headers: {'Content-Type': 'application/json'});
     }
 
     final token = authHeader.substring(7);
     final session = _db.getSessionByToken(token);
 
     if (session == null) {
-      return Response(401, body: jsonEncode({'error': 'Invalid token'}), headers: {'Content-Type': 'application/json'});
+      return Response(401,
+          body: jsonEncode({'error': 'Invalid token'}),
+          headers: {'Content-Type': 'application/json'});
     }
 
     _db.trackActivity('user', 'profile_viewed', {
@@ -282,14 +292,17 @@ void main() async {
 
     if (authHeader == null || !authHeader.startsWith('Bearer ')) {
       return Response(401,
-          body: jsonEncode({'error': 'Authentication required'}), headers: {'Content-Type': 'application/json'});
+          body: jsonEncode({'error': 'Authentication required'}),
+          headers: {'Content-Type': 'application/json'});
     }
 
     final token = authHeader.substring(7);
     final session = _db.getSessionByToken(token);
 
     if (session == null) {
-      return Response(401, body: jsonEncode({'error': 'Invalid token'}), headers: {'Content-Type': 'application/json'});
+      return Response(401,
+          body: jsonEncode({'error': 'Invalid token'}),
+          headers: {'Content-Type': 'application/json'});
     }
 
     final body = await request.readAsString();
@@ -783,7 +796,8 @@ class InMemoryDatabase {
 
   // Create a pending session (login initiated)
   String createPendingSession(String email) {
-    final sessionId = 'sess_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(9999)}';
+    final sessionId =
+        'sess_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(9999)}';
     _pendingSessions[sessionId] = {
       'email': email,
       'createdAt': DateTime.now().toIso8601String(),
@@ -802,8 +816,10 @@ class InMemoryDatabase {
     if (DateTime.now().isAfter(expiresAt)) return null;
 
     // Create tokens
-    final accessToken = 'at_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(99999)}';
-    final refreshToken = 'rt_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(99999)}';
+    final accessToken =
+        'at_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(99999)}';
+    final refreshToken =
+        'rt_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(99999)}';
     final tokenExpiry = DateTime.now().add(Duration(hours: 1));
 
     final session = {
@@ -851,8 +867,10 @@ class InMemoryDatabase {
     _activeSessions.remove(sessionEntry.key);
 
     // Create new tokens
-    final newAccessToken = 'at_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(99999)}';
-    final newRefreshToken = 'rt_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(99999)}';
+    final newAccessToken =
+        'at_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(99999)}';
+    final newRefreshToken =
+        'rt_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(99999)}';
     final tokenExpiry = DateTime.now().add(Duration(hours: 1));
 
     final newSession = {
@@ -874,7 +892,8 @@ class InMemoryDatabase {
   }
 
   // Update user profile
-  Map<String, dynamic> updateUserProfile(String token, Map<String, dynamic> updates) {
+  Map<String, dynamic> updateUserProfile(
+      String token, Map<String, dynamic> updates) {
     final session = _activeSessions[token];
     if (session == null) return _demoUser;
 
@@ -892,7 +911,8 @@ class InMemoryDatabase {
   }
 
   // Track activity
-  void trackActivity(String category, String action, Map<String, dynamic> data) {
+  void trackActivity(
+      String category, String action, Map<String, dynamic> data) {
     authActivities.insert(0, {
       'id': nextAuthActivityId++,
       'category': category,

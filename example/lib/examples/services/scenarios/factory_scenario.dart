@@ -70,7 +70,8 @@ class FactoryScenario extends HookWidget {
                     color: const Color(0xFF3B82F6),
                     instances: requests.value,
                     onCreate: createRequest,
-                    renderInstance: (instance) => _RequestCard(request: instance),
+                    renderInstance: (instance) =>
+                        _RequestCard(request: instance),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -83,7 +84,8 @@ class FactoryScenario extends HookWidget {
                     color: const Color(0xFFF59E0B),
                     instances: validators.value,
                     onCreate: createValidator,
-                    renderInstance: (instance) => _ValidatorCard(validator: instance),
+                    renderInstance: (instance) =>
+                        _ValidatorCard(validator: instance),
                   ),
                 ),
               ],
@@ -246,7 +248,8 @@ class _FactoryDemo<T> extends StatelessWidget {
                       Text(
                         subtitle,
                         style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                          color: theme.colorScheme.onSurface
+                              .withValues(alpha: 0.5),
                         ),
                       ),
                     ],
@@ -278,7 +281,8 @@ class _FactoryDemo<T> extends StatelessWidget {
                       child: Text(
                         'No instances created yet',
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+                          color: theme.colorScheme.onSurface
+                              .withValues(alpha: 0.4),
                           fontStyle: FontStyle.italic,
                         ),
                       ),
@@ -431,7 +435,7 @@ class _ValidatorCard extends StatelessWidget {
 
 class _CodeExample extends StatelessWidget {
   const _CodeExample();
-  
+
   @override
   Widget build(BuildContext context) {
     return const CodeBlock(
@@ -486,4 +490,3 @@ class FormValidator extends Service {
     return true;
   }
 }
-

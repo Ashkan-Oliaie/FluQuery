@@ -41,11 +41,11 @@ class ServiceLifecycleScenario extends HookWidget {
       await scope.initialize();
 
       log('Getting service instance...', color: Colors.blue);
-      final service = scope.get<LifecycleExampleService>();
+      final service = scope.getSync<LifecycleExampleService>();
       lifecycleService.value = service;
       isInitialized.value = true;
 
-      log('Service ready! Store has ${service.store.data?.length ?? 0} items', 
+      log('Service ready! Store has ${service.store.data?.length ?? 0} items',
           color: Colors.green);
     }
 
@@ -72,7 +72,7 @@ class ServiceLifecycleScenario extends HookWidget {
 
       log('Refetching store data...', color: Colors.purple);
       await service.store.refetch();
-      log('Store now has ${service.store.data?.length ?? 0} items', 
+      log('Store now has ${service.store.data?.length ?? 0} items',
           color: Colors.purple);
     }
 
@@ -425,7 +425,8 @@ class _LogsPanel extends StatelessWidget {
                           'No events yet.\nClick "Create & Initialize" to start.',
                           textAlign: TextAlign.center,
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+                            color: theme.colorScheme.onSurface
+                                .withValues(alpha: 0.4),
                             fontStyle: FontStyle.italic,
                           ),
                         ),
@@ -647,7 +648,8 @@ class LifecycleExampleService extends Service {
     await Future.delayed(const Duration(milliseconds: 300));
     await store.refetch();
 
-    _log('→ onInit() complete. Store created with ${store.data?.length ?? 0} items',
+    _log(
+        '→ onInit() complete. Store created with ${store.data?.length ?? 0} items',
         color: Colors.green);
   }
 
@@ -667,4 +669,3 @@ class LifecycleExampleService extends Service {
     _log('→ Cleanup complete (store auto-disposed)', color: Colors.red);
   }
 }
-

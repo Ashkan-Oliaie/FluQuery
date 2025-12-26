@@ -99,5 +99,3 @@ class ActivityTrackingService extends Service {
     track('system', 'service_reset');
   }
 }
-
-
