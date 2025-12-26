@@ -1,3 +1,6 @@
-# Exclude backend from published package (not auto-excluded like example/ and test/)
-backend/
+# Exclude from published package
+# (example/ and test/ are auto-excluded by pub.dev)
 
+backend/
+app/
+build/
