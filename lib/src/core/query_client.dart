@@ -2,107 +2,75 @@ import 'common/common.dart';
 import 'query/query.dart';
 import 'mutation/mutation.dart';
 import 'persistence/persistence.dart';
+import 'store/store.dart';
+import 'service/services.dart';
+import 'query_client_config.dart';
 
-/// Configuration for QueryClient
-class QueryClientConfig {
-  final DefaultQueryOptions defaultOptions;
-  final LogLevel logLevel;
+// Re-export config classes for backward compatibility
+export 'query_client_config.dart';
 
-  const QueryClientConfig({
-    DefaultQueryOptions? defaultOptions,
-    this.logLevel = LogLevel.warn,
-  }) : defaultOptions = defaultOptions ?? const DefaultQueryOptions();
-
-  const QueryClientConfig._default()
-      : defaultOptions = const DefaultQueryOptions(),
-        logLevel = LogLevel.warn;
-
-  static const QueryClientConfig defaultConfig = QueryClientConfig._default();
-}
-
-/// Default query options with const constructor
-class DefaultQueryOptions {
-  final StaleTime staleTime;
-  final CacheTime cacheTime;
-  final bool refetchOnWindowFocus;
-  final bool refetchOnReconnect;
-  final bool refetchOnMount;
-  final int retry;
-  final RetryDelayFn retryDelay;
-  final NetworkMode networkMode;
-
-  const DefaultQueryOptions({
-    this.staleTime = StaleTime.zero,
-    this.cacheTime = CacheTime.defaultTime,
-    this.refetchOnWindowFocus = true,
-    this.refetchOnReconnect = true,
-    this.refetchOnMount = true,
-    this.retry = 3,
-    this.retryDelay = defaultRetryDelay,
-    this.networkMode = NetworkMode.online,
-  });
-}
-
-/// The main client for managing queries and mutations
+/// The main client for managing queries and mutations.
+///
+/// This is the central coordinator that orchestrates:
+/// - Query caching and fetching
+/// - Mutation management
+/// - Persistence (via [PersistenceManager])
+/// - QueryStores (via [StoreManager])
+/// - Services (via [ServiceContainer])
+/// - Network state handling
 class QueryClient {
   final QueryCache _queryCache;
   final MutationCache _mutationCache;
   final QueryClientConfig _config;
   final Map<String, InfiniteQuery> _infiniteQueries = {};
-  final Map<String, QueryStore> _stores = {};
 
-  /// Persister for saving/restoring query data
-  final Persister? _persister;
+  // Managers
+  PersistenceManager? _persistenceManager;
+  late final StoreManager _storeManager;
+  ServiceContainer? _services;
 
-  /// Track which queries have persistence enabled and their serializers
-  /// Uses first-wins strategy: first observer to register persistence options
-  /// determines the serializer used for that query key.
-  final Map<String, PersistOptions> _persistOptions = {};
-
-  /// Track how many observers are using persistence for each query
-  /// When count drops to 0, we can optionally clean up (but keep persisted data)
-  final Map<String, int> _persistObserverCounts = {};
-
+  // Network state
   bool _isOnline = true;
   bool _isFocused = true;
   bool _isMounted = false;
-  bool _isHydrated = false;
 
   QueryClient({
     QueryCache? queryCache,
     MutationCache? mutationCache,
-    QueryClientConfig config = QueryClientConfig.defaultConfig,
+    QueryClientConfig? config,
     Persister? persister,
   })  : _queryCache = queryCache ?? QueryCache(),
         _mutationCache = mutationCache ?? MutationCache(),
-        _config = config,
-        _persister = persister {
-    FluQueryLogger.level = config.logLevel;
+        _config = config ?? QueryClientConfig() {
+    FluQueryLogger.level = _config.logLevel;
 
-    // Wire up persistence callback
-    if (_persister != null) {
-      _queryCache.onDataSuccess = _onQueryDataSuccess;
+    // Initialize persistence manager if persister is provided
+    if (persister != null) {
+      _persistenceManager = PersistenceManager(
+        persister: persister,
+        queryCache: _queryCache,
+      );
+      _queryCache.onDataSuccess = _persistenceManager!.onQueryDataSuccess;
     }
+
+    // Initialize store manager
+    _storeManager = StoreManager(
+      queryCache: _queryCache,
+      defaultOptions: _config.defaultOptions,
+      persistRegistrar: _persistenceManager != null ? registerPersistOptions : null,
+      persistCallback: _persistenceManager != null ? persistQuery : null,
+    );
   }
 
-  /// Called when a query successfully fetches data
-  void _onQueryDataSuccess(
-      QueryKey queryKey, Object? data, DateTime? dataUpdatedAt) {
-    if (data == null) return;
-
-    final hash = QueryKeyUtils.hashKey(queryKey);
-    final persistOpts = _persistOptions[hash];
-    if (persistOpts == null) return;
-
-    // Fire and forget persistence
-    persistQuery(queryKey, data, dataUpdatedAt);
-  }
+  // ============================================================
+  // GETTERS
+  // ============================================================
 
   /// Whether the cache has been hydrated from persistence
-  bool get isHydrated => _isHydrated;
+  bool get isHydrated => _persistenceManager?.isHydrated ?? false;
 
   /// The persister instance (if configured)
-  Persister? get persister => _persister;
+  Persister? get persister => _persistenceManager?.persister;
 
   /// Query cache
   QueryCache get queryCache => _queryCache;
@@ -122,6 +90,16 @@ class QueryClient {
   /// Whether the app is focused
   bool get isFocused => _isFocused;
 
+  /// Get all active stores
+  Iterable<QueryStore> get stores => _storeManager.stores;
+
+  /// Get the service container (if configured)
+  ServiceContainer? get services => _services;
+
+  // ============================================================
+  // LIFECYCLE
+  // ============================================================
+
   /// Mount the client
   void mount() {
     _isMounted = true;
@@ -135,286 +113,115 @@ class QueryClient {
   }
 
   // ============================================================
-  // PERSISTENCE
+  // SERVICES
+  // ============================================================
+
+  /// Initialize the service container.
+  ///
+  /// Call this to enable service management in the client.
+  /// Pass a configuration callback to register services.
+  ///
+  /// Example:
+  /// ```dart
+  /// await queryClient.initServices((container) {
+  ///   container.register<LoggingService>((ref) => LoggingService());
+  ///   container.register<ApiClient>((ref) => ApiClient(ref));
+  ///   container.register<AuthService>((ref) => AuthService(ref));
+  /// });
+  /// ```
+  Future<void> initServices(
+    void Function(ServiceContainer container) configure,
+  ) async {
+    _services = ServiceContainer(
+      queryCache: _queryCache,
+      defaultOptions: _config.defaultOptions,
+      persistRegistrar: _persistenceManager != null ? registerPersistOptions : null,
+      persistCallback: _persistenceManager != null ? persistQuery : null,
+    );
+
+    configure(_services!);
+    await _services!.initialize();
+  }
+
+  /// Get a service by type.
+  ///
+  /// Shorthand for `client.services!.get<T>()`.
+  /// Throws if services are not initialized.
+  T getService<T extends Service>() {
+    if (_services == null) {
+      throw StateError(
+        'getService<$T>() called but services are not initialized. '
+        'Call initServices() first.',
+      );
+    }
+    return _services!.get<T>();
+  }
+
+  /// Reset a specific service.
+  Future<void> resetService<T extends Service>({bool recreate = false}) async {
+    await _services?.reset<T>(recreate: recreate);
+  }
+
+  /// Reset all services (e.g., on logout).
+  Future<void> resetAllServices({bool recreate = false}) async {
+    await _services?.resetAll(recreate: recreate);
+  }
+
+  // ============================================================
+  // PERSISTENCE (delegated to PersistenceManager)
   // ============================================================
 
   /// Hydrate the cache from persisted storage.
   ///
   /// Call this during app initialization before rendering any queries.
-  /// This restores previously cached query data from disk.
-  ///
-  /// Example:
-  /// ```dart
-  /// void main() async {
-  ///   WidgetsFlutterBinding.ensureInitialized();
-  ///
-  ///   final persister = HivePersister(...);
-  ///   await persister.init();
-  ///
-  ///   final queryClient = QueryClient(persister: persister);
-  ///   await queryClient.hydrate();
-  ///
-  ///   runApp(QueryClientProvider(client: queryClient, child: MyApp()));
-  /// }
-  /// ```
   Future<void> hydrate() async {
-    if (_persister == null) {
+    if (_persistenceManager == null) {
       FluQueryLogger.warn('hydrate() called but no persister configured');
       return;
     }
-
-    if (_isHydrated) {
-      FluQueryLogger.debug('Cache already hydrated, skipping');
-      return;
-    }
-
-    try {
-      final persistedQueries = await _persister.restoreAll();
-      FluQueryLogger.info(
-          'Hydrating ${persistedQueries.length} queries from persistence');
-
-      for (final persisted in persistedQueries) {
-        try {
-          // Store the persisted data in cache
-          // The actual deserialization happens when the query is used
-          // because we need the serializer from PersistOptions
-          _queryCache.hydrateQuery(
-            queryKey: persisted.queryKey,
-            queryHash: persisted.queryHash,
-            serializedData: persisted.serializedData,
-            dataUpdatedAt: persisted.dataUpdatedAt,
-          );
-          FluQueryLogger.debug(
-              'Hydrated query: ${persisted.queryKey} (updated: ${persisted.dataUpdatedAt})');
-        } catch (e) {
-          FluQueryLogger.error(
-              'Failed to hydrate query ${persisted.queryKey}: $e');
-        }
-      }
-
-      _isHydrated = true;
-      FluQueryLogger.info('Cache hydration complete');
-    } catch (e) {
-      FluQueryLogger.error('Failed to hydrate cache: $e');
-      _isHydrated = true; // Mark as hydrated anyway to prevent blocking
-    }
+    await _persistenceManager!.hydrate();
   }
 
   /// Register persistence options for a query.
-  /// Called internally by useQuery when persist option is set.
-  ///
-  /// Uses first-wins strategy: the first observer to register persistence
-  /// options determines the serializer and maxAge for that query key.
-  /// Subsequent observers with different options will use the existing config.
-  ///
-  /// Also deserializes any hydrated data using the serializer and validates maxAge.
   void registerPersistOptions<TData>(
     QueryKey queryKey,
     PersistOptions<TData> options,
   ) {
-    final hash = QueryKeyUtils.hashKey(queryKey);
-
-    // Increment observer count
-    _persistObserverCounts[hash] = (_persistObserverCounts[hash] ?? 0) + 1;
-
-    // First-wins: only use options from first observer
-    if (_persistOptions.containsKey(hash)) {
-      FluQueryLogger.debug(
-          'PersistOptions already registered for $queryKey, using existing (observer count: ${_persistObserverCounts[hash]})');
-      // Still try to deserialize with existing options if needed
-      _tryDeserializeHydratedData<TData>(queryKey, _persistOptions[hash]!);
-      return;
-    }
-
-    _persistOptions[hash] = options;
-    FluQueryLogger.debug('Registered PersistOptions for $queryKey');
-
-    // Try to deserialize any hydrated data
-    _tryDeserializeHydratedData<TData>(queryKey, options);
-  }
-
-  /// Try to deserialize hydrated data for a query.
-  ///
-  /// This method:
-  /// 1. Validates maxAge - discards data older than maxAge
-  /// 2. Attempts deserialization using the provided serializer
-  /// 3. Handles schema changes gracefully - if deserialization fails
-  ///    (e.g., due to a model change between app versions), the corrupted
-  ///    data is removed and a fresh fetch will occur
-  void _tryDeserializeHydratedData<TData>(
-    QueryKey queryKey,
-    PersistOptions options,
-  ) {
-    final existingQuery = _queryCache.getUntyped(queryKey);
-    if (existingQuery == null || existingQuery.state.rawData == null) {
-      return;
-    }
-
-    final rawData = existingQuery.state.rawData;
-    final dataUpdatedAt = existingQuery.state.dataUpdatedAt;
-
-    // Validate maxAge - discard stale persisted data
-    if (options.maxAge != null && dataUpdatedAt != null) {
-      final age = DateTime.now().difference(dataUpdatedAt);
-      if (age > options.maxAge!) {
-        FluQueryLogger.debug(
-            'Hydrated data for $queryKey exceeded maxAge (${age.inMinutes}m > ${options.maxAge!.inMinutes}m), discarding');
-        _queryCache.remove(existingQuery);
-        unpersistQuery(queryKey);
-        return;
-      }
-    }
-
-    // Check if data is already the correct type (not serialized JSON)
-    if (rawData is TData) {
-      return; // Already deserialized
-    }
-
-    // Try to deserialize the hydrated data
-    try {
-      final deserialized = options.serializer.deserialize(rawData);
-      // Update the query state with deserialized data
-      _queryCache.setQueryData<TData>(
-        queryKey,
-        deserialized,
-        updatedAt: dataUpdatedAt,
-      );
-      FluQueryLogger.debug('Deserialized hydrated data for: $queryKey');
-    } catch (e, stackTrace) {
-      // Deserialization failed - likely due to schema change between app versions
-      // This is expected when:
-      // - A field was added/removed from the model
-      // - A field type changed
-      // - The serializer logic changed
-      FluQueryLogger.warn(
-          'Schema mismatch for $queryKey - persisted data incompatible with current model. '
-          'Discarding stale data and fetching fresh.');
-      FluQueryLogger.debug('Deserialization error: $e', e, stackTrace);
-
-      // Remove corrupted data from cache
-      _queryCache.remove(existingQuery);
-
-      // Optionally remove from persistence (default: true)
-      if (options.removeOnDeserializationError) {
-        unpersistQuery(queryKey);
-      }
-      // Query will fetch fresh data on next access - no error thrown
-    }
+    _persistenceManager?.registerOptions<TData>(queryKey, options);
   }
 
   /// Unregister persistence options when an observer unmounts.
-  /// Called internally by useQuery dispose.
   void unregisterPersistOptions(QueryKey queryKey) {
-    final hash = QueryKeyUtils.hashKey(queryKey);
-    final count = _persistObserverCounts[hash] ?? 0;
-
-    if (count <= 1) {
-      // Last observer - keep the options registered for potential
-      // future observers and to allow background persistence
-      _persistObserverCounts.remove(hash);
-      FluQueryLogger.debug(
-          'Last persistence observer unregistered for $queryKey (keeping options)');
-    } else {
-      _persistObserverCounts[hash] = count - 1;
-      FluQueryLogger.debug(
-          'Persistence observer unregistered for $queryKey (remaining: ${count - 1})');
-    }
+    _persistenceManager?.unregisterOptions(queryKey);
   }
 
   /// Persist a query to storage.
-  /// Called automatically when query data is updated.
-  ///
-  /// Note: This is typically called internally. For manual persistence,
-  /// prefer using the `persist` option on `useQuery`.
   Future<void> persistQuery<TData>(
     QueryKey queryKey,
     TData data,
     DateTime? dataUpdatedAt,
   ) async {
-    if (_persister == null) return;
-    if (data == null) return; // Don't persist null data
-
-    final hash = QueryKeyUtils.hashKey(queryKey);
-    final options = _persistOptions[hash];
-    if (options == null) return;
-
-    try {
-      final serializer = options.serializer as QueryDataSerializer<TData>;
-      final serialized = serializer.serialize(data);
-
-      // Apply keyPrefix if set
-      final effectiveHash = options.getEffectiveHash(hash);
-
-      final persisted = PersistedQuery(
-        queryKey: queryKey,
-        queryHash: effectiveHash,
-        serializedData: serialized,
-        dataUpdatedAt: dataUpdatedAt,
-        persistedAt: DateTime.now(),
-        status: 'success',
-      );
-
-      await _persister.persistQuery(persisted);
-      FluQueryLogger.debug('Persisted query: $queryKey (hash: $effectiveHash)');
-    } catch (e) {
-      FluQueryLogger.error('Failed to persist query $queryKey: $e');
-    }
+    await _persistenceManager?.persist<TData>(queryKey, data, dataUpdatedAt);
   }
 
   /// Remove a query from persistence.
   Future<void> unpersistQuery(QueryKey queryKey) async {
-    if (_persister == null) return;
-
-    final hash = QueryKeyUtils.hashKey(queryKey);
-    final options = _persistOptions[hash];
-
-    // Apply keyPrefix if set
-    final effectiveHash = options?.getEffectiveHash(hash) ?? hash;
-
-    await _persister.removeQuery(effectiveHash);
-    _persistOptions.remove(hash);
-    FluQueryLogger.debug('Unpersisted query: $queryKey');
+    await _persistenceManager?.unpersist(queryKey);
   }
 
   /// Clear all persisted queries.
   Future<void> clearPersistence() async {
-    if (_persister == null) return;
-
-    await _persister.clear();
-    _persistOptions.clear();
-    FluQueryLogger.info('Cleared all persisted queries');
+    await _persistenceManager?.clear();
   }
 
   /// Dehydrate - get all persistable queries for manual handling.
-  /// Useful for saving state before app termination.
   Future<List<PersistedQuery>> dehydrate() async {
-    final results = <PersistedQuery>[];
-
-    for (final query in _queryCache.getAll()) {
-      final hash = query.queryHash;
-      final options = _persistOptions[hash];
-      if (options == null) continue;
-
-      final data = query.state.rawData;
-      if (data == null) continue;
-
-      try {
-        final serialized = options.serializer.serialize(data);
-        results.add(PersistedQuery(
-          queryKey: query.queryKey,
-          queryHash: hash,
-          serializedData: serialized,
-          dataUpdatedAt: query.state.dataUpdatedAt,
-          persistedAt: DateTime.now(),
-          status: query.state.status.name,
-        ));
-      } catch (e) {
-        FluQueryLogger.error('Failed to dehydrate query ${query.queryKey}: $e');
-      }
-    }
-
-    return results;
+    return await _persistenceManager?.dehydrate() ?? [];
   }
+
+  // ============================================================
+  // NETWORK STATE
+  // ============================================================
 
   /// Set online status
   void setOnline(bool isOnline) {
@@ -435,6 +242,38 @@ class QueryClient {
       _onWindowFocus();
     }
   }
+
+  void _onWindowFocus() {
+    if (!_isMounted) return;
+    FluQueryLogger.debug('Window focus - refetching stale queries');
+
+    final queries = _queryCache.findAll(
+      stale: true,
+      predicate: (q) => q.hasObservers && (q.options?.refetchOnWindowFocus ?? true),
+    );
+
+    for (final query in queries) {
+      query.fetch();
+    }
+  }
+
+  void _onReconnect() {
+    if (!_isMounted) return;
+    FluQueryLogger.debug('Reconnect - refetching stale queries');
+
+    final queries = _queryCache.findAll(
+      stale: true,
+      predicate: (q) => q.hasObservers && (q.options?.refetchOnReconnect ?? true),
+    );
+
+    for (final query in queries) {
+      query.fetch();
+    }
+  }
+
+  // ============================================================
+  // QUERY OPERATIONS
+  // ============================================================
 
   /// Fetch a query
   Future<TData> fetchQuery<TData, TError>({
@@ -491,7 +330,6 @@ class QueryClient {
       return data;
     }
 
-    // Create a new query with the data
     final options = QueryOptions<TData, Object>(
       queryKey: queryKey,
       initialData: data,
@@ -502,55 +340,31 @@ class QueryClient {
   }
 
   /// Invalidate queries matching a filter
-  ///
-  /// [refetch] controls whether to refetch after invalidation:
-  /// - [RefetchType.active]: Refetch only queries with active observers (default)
-  /// - [RefetchType.all]: Refetch all matching queries
-  /// - [RefetchType.none]: Just mark as stale, don't refetch
-  ///
-  /// @deprecated [refetchType] is deprecated. Use [refetch] instead.
   Future<void> invalidateQueries({
     QueryKey? queryKey,
-    @Deprecated('Use refetch parameter instead') bool? refetchType,
     RefetchType refetch = RefetchType.active,
     bool Function(Query query)? predicate,
   }) async {
-    // Handle backward compatibility: convert bool? to RefetchType
-    final effectiveRefetch = refetchType != null
-        ? (refetchType == true
-            ? RefetchType.active
-            : refetchType == false
-                ? RefetchType.all
-                : RefetchType.none)
-        : refetch;
-
     final queries = _queryCache.findAll(
       queryKey: queryKey,
       predicate: predicate,
     );
 
     FluQueryLogger.debug(
-        'invalidateQueries: found ${queries.length} queries for key=$queryKey, refetch=$effectiveRefetch');
+        'invalidateQueries: found ${queries.length} queries for key=$queryKey, refetch=$refetch');
 
     for (final query in queries) {
       query.invalidate();
-      FluQueryLogger.debug(
-          'invalidateQueries: invalidated ${query.queryKey}, hasObservers=${query.hasObservers}');
     }
 
-    // Refetch based on strategy
-    switch (effectiveRefetch) {
+    switch (refetch) {
       case RefetchType.active:
         final activeQueries = queries.where((q) => q.hasObservers).toList();
-        FluQueryLogger.debug(
-            'invalidateQueries: refetching ${activeQueries.length} active queries');
         await Future.wait(activeQueries.map((q) => q.fetch()));
       case RefetchType.all:
-        FluQueryLogger.debug(
-            'invalidateQueries: refetching all ${queries.length} queries');
         await Future.wait(queries.map((q) => q.fetch()));
       case RefetchType.none:
-        FluQueryLogger.debug('invalidateQueries: skipping refetch');
+        break;
     }
   }
 
@@ -650,6 +464,10 @@ class QueryClient {
     return _mutationCache.mutations.where((m) => m.state.isPending).length;
   }
 
+  // ============================================================
+  // INFINITE QUERIES
+  // ============================================================
+
   /// Get or create an infinite query
   InfiniteQuery<TData, TError, TPageParam>
       getInfiniteQuery<TData, TError, TPageParam>(
@@ -673,7 +491,6 @@ class QueryClient {
   }
 
   /// Get or create an infinite query without updating options
-  /// Used by hooks to get cached query with preserved state
   InfiniteQuery<TData, TError, TPageParam>
       getOrCreateInfiniteQuery<TData, TError, TPageParam>({
     required QueryKey queryKey,
@@ -684,7 +501,6 @@ class QueryClient {
         as InfiniteQuery<TData, TError, TPageParam>?;
 
     if (query == null) {
-      // Create with minimal options - they will be set by the hook
       query = InfiniteQuery<TData, TError, TPageParam>(
         queryKey: queryKey,
         options: InfiniteQueryOptions<TData, TError, TPageParam>(
@@ -699,63 +515,11 @@ class QueryClient {
     return query;
   }
 
-  /// Called when window gains focus
-  void _onWindowFocus() {
-    if (!_isMounted) return;
-    FluQueryLogger.debug('Window focus - refetching stale queries');
-
-    final queries = _queryCache.findAll(
-      stale: true,
-      predicate: (q) =>
-          q.hasObservers && (q.options?.refetchOnWindowFocus ?? true),
-    );
-
-    for (final query in queries) {
-      query.fetch();
-    }
-  }
-
-  /// Called when device reconnects
-  void _onReconnect() {
-    if (!_isMounted) return;
-    FluQueryLogger.debug('Reconnect - refetching stale queries');
-
-    final queries = _queryCache.findAll(
-      stale: true,
-      predicate: (q) =>
-          q.hasObservers && (q.options?.refetchOnReconnect ?? true),
-    );
-
-    for (final query in queries) {
-      query.fetch();
-    }
-  }
-
-  // ===== Store Management =====
+  // ============================================================
+  // STORES (delegated to StoreManager)
+  // ============================================================
 
   /// Create a persistent query store that survives widget lifecycle.
-  ///
-  /// Stores are ideal for:
-  /// - Global data that should always be fresh (user session, settings)
-  /// - Background polling without widgets
-  /// - Data accessed from multiple places
-  ///
-  /// Example:
-  /// ```dart
-  /// final userStore = client.createStore<User, Object>(
-  ///   queryKey: ['user'],
-  ///   queryFn: fetchUser,
-  ///   refetchInterval: Duration(minutes: 5),
-  ///   persist: PersistOptions(
-  ///     serializer: UserSerializer(),
-  ///     maxAge: Duration(days: 7),
-  ///   ),
-  /// );
-  ///
-  /// // Access anywhere
-  /// final user = userStore.data;
-  /// userStore.subscribe((state) => print(state.data));
-  /// ```
   QueryStore<TData, TError> createStore<TData, TError>({
     required QueryKey queryKey,
     required QueryFn<TData> queryFn,
@@ -767,68 +531,30 @@ class QueryClient {
     bool refetchOnReconnect = true,
     PersistOptions<TData>? persist,
   }) {
-    final queryHash = QueryKeyUtils.hashKey(queryKey);
-
-    // Check if store already exists
-    final existing = _stores[queryHash];
-    if (existing != null && !existing.isDisposed) {
-      return existing as QueryStore<TData, TError>;
-    }
-
-    final store = QueryStore<TData, TError>(
+    return _storeManager.createStore<TData, TError>(
       queryKey: queryKey,
       queryFn: queryFn,
-      cache: _queryCache,
-      staleTime: staleTime ?? _config.defaultOptions.staleTime,
-      retry: retry ?? _config.defaultOptions.retry,
-      retryDelay: retryDelay ?? _config.defaultOptions.retryDelay,
+      staleTime: staleTime,
+      retry: retry,
+      retryDelay: retryDelay,
       refetchInterval: refetchInterval,
       refetchOnWindowFocus: refetchOnWindowFocus,
       refetchOnReconnect: refetchOnReconnect,
       persist: persist,
-      persistRegistrar: _persister != null ? registerPersistOptions : null,
-      persistCallback: _persister != null ? persistQuery : null,
     );
-
-    _stores[queryHash] = store;
-    return store;
   }
 
   /// Get an existing store by query key
   QueryStore<TData, TError>? getStore<TData, TError>(QueryKey queryKey) {
-    final queryHash = QueryKeyUtils.hashKey(queryKey);
-    final store = _stores[queryHash];
-    if (store == null || store.isDisposed) return null;
-    return store as QueryStore<TData, TError>;
+    return _storeManager.getStore<TData, TError>(queryKey);
   }
 
   /// Remove and dispose a store
   void removeStore(QueryKey queryKey) {
-    final queryHash = QueryKeyUtils.hashKey(queryKey);
-    final store = _stores.remove(queryHash);
-    store?.dispose();
+    _storeManager.removeStore(queryKey);
   }
 
-  /// Get all active stores
-  Iterable<QueryStore> get stores => _stores.values.where((s) => !s.isDisposed);
-
   /// Subscribe to a query's state changes without creating a store.
-  /// Returns an unsubscribe function.
-  ///
-  /// This is lighter than createStore - it just subscribes to an existing
-  /// or new query without the persistent polling features.
-  ///
-  /// Example:
-  /// ```dart
-  /// final unsubscribe = client.subscribe<User, Object>(
-  ///   queryKey: ['user'],
-  ///   queryFn: fetchUser,
-  ///   listener: (state) => print('User: ${state.data}'),
-  /// );
-  ///
-  /// // Later
-  /// unsubscribe();
-  /// ```
   VoidCallback subscribeToQuery<TData, TError>({
     required QueryKey queryKey,
     required QueryFn<TData> queryFn,
@@ -846,7 +572,6 @@ class QueryClient {
     final query = _queryCache.build<TData, TError>(options: options);
     final unsubscribe = query.subscribe(listener);
 
-    // Optionally fetch on subscribe
     if (fetchOnSubscribe) {
       query.fetch(queryFn: queryFn).catchError((_) => null);
     }
@@ -854,29 +579,31 @@ class QueryClient {
     return unsubscribe;
   }
 
+  // ============================================================
+  // CLEANUP
+  // ============================================================
+
   /// Clear all caches
   void clear() {
     _queryCache.clear();
     _mutationCache.clear();
     _infiniteQueries.clear();
-    for (final store in _stores.values) {
-      store.dispose();
-    }
-    _stores.clear();
+    _storeManager.clear();
   }
 
   /// Dispose the client
-  void dispose() {
+  Future<void> dispose() async {
     unmount();
+
+    // Dispose services first (they may depend on caches)
+    await _services?.disposeAll();
+
     _queryCache.dispose();
     _mutationCache.dispose();
     for (final q in _infiniteQueries.values) {
       q.cancel();
     }
     _infiniteQueries.clear();
-    for (final store in _stores.values) {
-      store.dispose();
-    }
-    _stores.clear();
+    _storeManager.dispose();
   }
 }

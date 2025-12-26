@@ -16,6 +16,8 @@ import 'examples/advanced_features/advanced_features_example.dart';
 import 'examples/nested_queries/screens/todo_list_screen.dart';
 import 'examples/global_store/global_store_example.dart';
 import 'examples/persistence/persistence_example.dart';
+import 'examples/services/services_example.dart';
+import 'services/services.dart';
 
 void main() {
   runApp(const FluQueryExampleApp());
@@ -79,9 +81,9 @@ class _FluQueryExampleAppState extends State<FluQueryExampleApp> {
     await _persister!.init();
 
     _queryClient = QueryClient(
-      config: const QueryClientConfig(
+      config: QueryClientConfig(
         defaultOptions: DefaultQueryOptions(
-          staleTime: StaleTime(Duration(minutes: 5)),
+          staleTime: StaleTime(const Duration(minutes: 5)),
           retry: 3,
         ),
         logLevel: LogLevel.debug,
@@ -91,6 +93,14 @@ class _FluQueryExampleAppState extends State<FluQueryExampleApp> {
 
     // Initialize global config store
     GlobalConfigStore.init(_queryClient!);
+
+    // Initialize services for auth demo
+    await _queryClient!.initServices((container) {
+      container.register<TokenStorageService>((ref) => TokenStorageService());
+      container.register<ActivityTrackingService>((ref) => ActivityTrackingService());
+      container.register<SessionService>((ref) => SessionService(ref));
+      container.register<AuthService>((ref) => AuthService(ref));
+    });
 
     // Hydrate cache from persistence - restores cached queries
     await _queryClient!.hydrate();
@@ -829,6 +839,13 @@ class _ExamplesHomePageState extends State<ExamplesHomePage> {
                         'Save query data to disk and restore on app restart',
                     color: const Color(0xFF0EA5E9),
                     onTap: () => _navigate(context, const PersistenceExample()),
+                  ),
+                  _ExampleCard(
+                    icon: Icons.category_rounded,
+                    title: 'Services',
+                    description: 'DI, factories, multi-tenant, lifecycle management',
+                    color: const Color(0xFF8B5CF6),
+                    onTap: () => _navigate(context, const ServicesExample()),
                   ),
                   const SizedBox(height: 24),
                 ]),
