@@ -15,11 +15,7 @@ class StoreOwnership {
   final Map<ServiceKey, List<QueryStore>> _serviceStores = {};
 
   /// Resolution context - tracks the root service initiating resolution
-  ServiceKey? _resolutionRoot;
-
-  /// Get/set the resolution root for store ownership attribution.
-  ServiceKey? get resolutionRoot => _resolutionRoot;
-  set resolutionRoot(ServiceKey? value) => _resolutionRoot = value;
+  ServiceKey? resolutionRoot;
 
   /// Register a store as owned by a service.
   ///
@@ -72,7 +68,7 @@ class StoreOwnership {
   /// Clear all tracking.
   void clear() {
     _serviceStores.clear();
-    _resolutionRoot = null;
+    resolutionRoot = null;
   }
 
   /// Get stores owned by a service (for testing).
