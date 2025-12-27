@@ -98,7 +98,8 @@ class _QueryClientProviderState extends State<QueryClientProvider> {
     // The kDebugMode check is a compile-time constant, so in release builds,
     // this entire block will be removed by the compiler.
     if (kDebugMode) {
-      final showDevtools = widget.showDevtools ?? widget.client.config.enableDevtools;
+      final showDevtools =
+          widget.showDevtools ?? widget.client.config.enableDevtools;
       if (showDevtools) {
         child = FluQueryDevtools(
           client: widget.client,
