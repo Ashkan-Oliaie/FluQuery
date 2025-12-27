@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import '../core/query_client.dart';
 import '../utils/focus_manager.dart' show QueryFocusManager;
@@ -88,21 +89,22 @@ class _QueryClientProviderState extends State<QueryClientProvider> {
 
   @override
   Widget build(BuildContext context) {
-    final showDevtools =
-        widget.showDevtools ?? widget.client.config.enableDevtools;
-
     Widget child = _QueryClientInherited(
       client: widget.client,
       child: widget.child,
     );
 
-    // Wrap with devtools if enabled
-    // Pass client directly since devtools is outside the inherited widget
-    if (showDevtools) {
-      child = FluQueryDevtools(
-        client: widget.client,
-        child: child,
-      );
+    // Only include devtools in debug mode - this allows tree-shaking in release
+    // The kDebugMode check is a compile-time constant, so in release builds,
+    // this entire block will be removed by the compiler.
+    if (kDebugMode) {
+      final showDevtools = widget.showDevtools ?? widget.client.config.enableDevtools;
+      if (showDevtools) {
+        child = FluQueryDevtools(
+          client: widget.client,
+          child: child,
+        );
+      }
     }
 
     return child;
