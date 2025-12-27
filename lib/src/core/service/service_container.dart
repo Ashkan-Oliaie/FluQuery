@@ -78,11 +78,32 @@ class ServiceContainer implements ServiceRef {
         _parent = parent,
         _registry = ServiceRegistry(parent: parent?._registry),
         _lifecycle = LifecycleManager(),
-        _storeOwnership = StoreOwnership(),
+        _storeOwnership = StoreOwnership(queryCache),
         _resolution = ResolutionContext();
 
   /// Whether the container has been initialized.
   bool get isInitialized => _isInitialized;
+
+  // ============================================================
+  // DEVTOOLS INSPECTION (read-only access for debugging)
+  // ============================================================
+
+  /// All instantiated singleton services (for devtools inspection)
+  Iterable<Service> get instances => _instances.values;
+
+  /// All named service instances by type (for devtools inspection)
+  Map<Type, Map<String, Service>> get namedInstances =>
+      Map.unmodifiable(_namedInstances);
+
+  /// Get all stores owned by services (for devtools inspection)
+  Map<ServiceKey, List<QueryStore>> get storesByOwner =>
+      _storeOwnership.storesByOwner;
+
+  /// Count of registered singletons
+  int get registeredCount => _registry.singletonCount;
+
+  /// Count of registered factories
+  int get factoryCount => _registry.factoryCount;
 
   // ============================================================
   // REGISTRATION (delegates to ServiceRegistry)
@@ -156,17 +177,18 @@ class ServiceContainer implements ServiceRef {
   ///
   /// If the service is instantiated, it will be disposed first.
   Future<void> unregister<T extends Service>({String? name}) async {
+    final serviceKey = ServiceKey(T, name);
     if (name != null) {
       final instance = _namedInstances[T]?.remove(name);
       if (instance != null) {
-        _storeOwnership.disposeStoresFor(T);
+        _storeOwnership.disposeStoresFor(serviceKey);
         await _lifecycle.dispose(instance);
       }
       _registry.unregisterNamedSingleton<T>(name);
     } else {
       final instance = _instances.remove(T);
       if (instance != null) {
-        _storeOwnership.disposeStoresFor(T);
+        _storeOwnership.disposeStoresFor(serviceKey);
         await _lifecycle.dispose(instance);
       }
       _registry.unregisterSingleton<T>();
@@ -252,9 +274,10 @@ class ServiceContainer implements ServiceRef {
     }
 
     // Create with circular dependency detection
+    final serviceKey = ServiceKey(T);
     final isRoot = _resolution.enter(T);
     if (isRoot) {
-      _storeOwnership.resolutionRoot = T;
+      _storeOwnership.resolutionRoot = serviceKey;
     }
 
     try {
@@ -290,20 +313,32 @@ class ServiceContainer implements ServiceRef {
       throw ServiceNotFoundException(T, name: name);
     }
 
-    // Create the service
-    final service = registration.factory(this);
-    _namedInstances.putIfAbsent(T, () => {})[name] = service;
-
-    // Start initialization if container is initialized
-    if (_isInitialized && !service.isInitialized) {
-      final key = ServiceKey(T, name);
-      _lifecycle.initializeWithLock(key, service).catchError((e, st) {
-        FluQueryLogger.error(
-            'Async initialization failed for $T($name): $e', e, st);
-      });
+    // Create with resolution tracking for store ownership
+    final serviceKey = ServiceKey(T, name);
+    final isRoot = _resolution.enter(T);
+    if (isRoot) {
+      _storeOwnership.resolutionRoot = serviceKey;
     }
 
-    return service;
+    try {
+      final service = registration.factory(this);
+      _namedInstances.putIfAbsent(T, () => {})[name] = service;
+
+      // Start initialization if container is initialized
+      if (_isInitialized && !service.isInitialized) {
+        _lifecycle.initializeWithLock(serviceKey, service).catchError((e, st) {
+          FluQueryLogger.error(
+              'Async initialization failed for $T($name): $e', e, st);
+        });
+      }
+
+      return service;
+    } finally {
+      _resolution.exit(T, wasRoot: isRoot);
+      if (isRoot) {
+        _storeOwnership.resolutionRoot = null;
+      }
+    }
   }
 
   /// Create a NEW instance from a factory registration.
@@ -434,16 +469,17 @@ class ServiceContainer implements ServiceRef {
 
   /// Dispose a specific service.
   Future<void> dispose<T extends Service>({String? name}) async {
+    final serviceKey = ServiceKey(T, name);
     if (name != null) {
       final instance = _namedInstances[T]?.remove(name);
       if (instance != null) {
-        _storeOwnership.disposeStoresFor(T);
+        _storeOwnership.disposeStoresFor(serviceKey);
         await _lifecycle.dispose(instance);
       }
     } else {
       final instance = _instances.remove(T);
       if (instance != null) {
-        _storeOwnership.disposeStoresFor(T);
+        _storeOwnership.disposeStoresFor(serviceKey);
         await _lifecycle.dispose(instance);
       }
     }
@@ -500,7 +536,8 @@ class ServiceContainer implements ServiceRef {
     if (instance == null) return;
 
     if (recreate) {
-      _storeOwnership.disposeStoresFor(T);
+      final serviceKey = ServiceKey(T, name);
+      _storeOwnership.disposeStoresFor(serviceKey);
       await _lifecycle.dispose(instance);
       if (name != null) {
         _namedInstances[T]?.remove(name);

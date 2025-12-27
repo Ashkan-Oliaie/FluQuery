@@ -296,6 +296,9 @@ class _TypedQueryWrapper<TData, TError> implements Query<TData, TError> {
   bool get isDisabled => _inner.isDisabled;
 
   @override
+  bool get hasPersistence => _inner.hasPersistence;
+
+  @override
   void setOptions(QueryOptions<TData, TError> options) {
     // ignore: deprecated_member_use_from_same_package
     _inner.setOptions(options as dynamic);

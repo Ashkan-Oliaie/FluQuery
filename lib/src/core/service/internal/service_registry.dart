@@ -138,6 +138,12 @@ class ServiceRegistry {
   Iterable<MapEntry<Type, ServiceRegistration>> get eagerRegistrations =>
       _singletons.entries.where((e) => !e.value.lazy);
 
+  /// Count of registered singletons (for devtools)
+  int get singletonCount => _singletons.length + (_parent?.singletonCount ?? 0);
+
+  /// Count of registered factories (for devtools)
+  int get factoryCount => _factories.length + (_parent?.factoryCount ?? 0);
+
   /// Create a child registry for scoping.
   ServiceRegistry createChild() => ServiceRegistry(parent: this);
 }

@@ -48,32 +48,32 @@ class LifecycleManager {
   /// Locks for initialization (one per service key)
   final Map<ServiceKey, AsyncLock> _initLocks = {};
 
-  /// Currently initializing service (for store ownership tracking)
-  Type? _currentlyInitializing;
+  /// Currently initializing service key (for store ownership tracking)
+  ServiceKey? _currentlyInitializing;
 
-  /// Get the currently initializing service type.
-  Type? get currentlyInitializing => _currentlyInitializing;
+  /// Get the currently initializing service key.
+  ServiceKey? get currentlyInitializing => _currentlyInitializing;
 
   /// Initialize a service with a lock to prevent double initialization.
   Future<void> initializeWithLock(ServiceKey key, Service service) async {
     if (service.isInitialized) return;
 
     final lock = _initLocks.putIfAbsent(key, () => AsyncLock());
-    await lock.synchronized(() => _doInitialize(service));
+    await lock.synchronized(() => _doInitialize(key, service));
   }
 
-  Future<void> _doInitialize(Service service) async {
+  Future<void> _doInitialize(ServiceKey key, Service service) async {
     if (service.isInitialized) return;
 
     final previouslyInitializing = _currentlyInitializing;
-    _currentlyInitializing = service.runtimeType;
+    _currentlyInitializing = key;
 
     try {
       await service.initialize();
-      FluQueryLogger.debug('Initialized service: ${service.runtimeType}');
+      FluQueryLogger.debug('Initialized service: $key');
     } catch (e, stackTrace) {
       FluQueryLogger.error(
-        'Failed to initialize service ${service.runtimeType}: $e',
+        'Failed to initialize service $key: $e',
         e,
         stackTrace,
       );

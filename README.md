@@ -18,6 +18,7 @@
 - 💾 **Persistence** - Save query data to disk
 - 🧩 **Services** - Built-in dependency injection with lifecycle management
 - 🪝 **Hooks API** - Beautiful Flutter Hooks integration
+- 🔍 **Devtools** - Visual debugging tool for inspecting queries and cache
 
 ## 📦 Installation
 
@@ -77,6 +78,16 @@ final mutation = useMutation<Todo, Object, String, void>(
 
 // Trigger
 mutation.mutate('New Todo');
+```
+
+### 4. Devtools
+
+```dart
+QueryClient(
+  config: QueryClientConfig(
+    enableDevtools: true,
+  ),
+);
 ```
 
 ## 📖 Core Concepts

@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import '../core/query_client.dart';
 import '../utils/focus_manager.dart' show QueryFocusManager;
 import '../utils/connectivity_manager.dart';
+import '../devtools/devtools.dart';
 
 /// Provides a QueryClient to the widget tree
 class QueryClientProvider extends StatefulWidget {
@@ -17,12 +18,19 @@ class QueryClientProvider extends StatefulWidget {
   /// Whether to automatically manage connectivity refetching
   final bool manageConnectivity;
 
+  /// Whether to show devtools overlay.
+  ///
+  /// Defaults to [QueryClientConfig.enableDevtools] if not specified.
+  /// Set to `false` to explicitly disable even in debug mode.
+  final bool? showDevtools;
+
   const QueryClientProvider({
     super.key,
     required this.client,
     required this.child,
     this.manageFocus = true,
     this.manageConnectivity = true,
+    this.showDevtools,
   });
 
   /// Get the QueryClient from the context
@@ -80,10 +88,24 @@ class _QueryClientProviderState extends State<QueryClientProvider> {
 
   @override
   Widget build(BuildContext context) {
-    return _QueryClientInherited(
+    final showDevtools =
+        widget.showDevtools ?? widget.client.config.enableDevtools;
+
+    Widget child = _QueryClientInherited(
       client: widget.client,
       child: widget.child,
     );
+
+    // Wrap with devtools if enabled
+    // Pass client directly since devtools is outside the inherited widget
+    if (showDevtools) {
+      child = FluQueryDevtools(
+        client: widget.client,
+        child: child,
+      );
+    }
+
+    return child;
   }
 }
 
