@@ -17,6 +17,7 @@ import 'examples/nested_queries/screens/todo_list_screen.dart';
 import 'examples/global_store/global_store_example.dart';
 import 'examples/persistence/persistence_example.dart';
 import 'examples/services/services_example.dart';
+import 'examples/service_lifecycle/service_lifecycle_example.dart';
 import 'services/services.dart';
 
 void main() {
@@ -143,7 +144,8 @@ class _FluQueryExampleAppState extends State<FluQueryExampleApp> {
 
     return QueryClientProvider(
       client: _queryClient!,
-      // Listen to config changes and rebuild theme
+      // Devtools are automatically enabled via QueryClientConfig.enableDevtools
+      // which defaults to kDebugMode. You can also set showDevtools: false to disable.
       child: ValueListenableBuilder<AppConfig?>(
         valueListenable: GlobalConfigStore.configNotifier,
         builder: (context, config, child) {
@@ -848,6 +850,15 @@ class _ExamplesHomePageState extends State<ExamplesHomePage> {
                         'DI, factories, multi-tenant, lifecycle management',
                     color: const Color(0xFF8B5CF6),
                     onTap: () => _navigate(context, const ServicesExample()),
+                  ),
+                  _ExampleCard(
+                    icon: Icons.timeline,
+                    title: 'Service Lifecycle',
+                    description:
+                        'Watch services & stores create/dispose in devtools',
+                    color: const Color(0xFFF59E0B),
+                    onTap: () =>
+                        _navigate(context, const ServiceLifecycleExample()),
                   ),
                   const SizedBox(height: 24),
                 ]),

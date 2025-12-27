@@ -99,6 +99,9 @@ class Query<TData, TError> {
   /// Whether there are any observers
   bool get hasObservers => _observers.isNotEmpty;
 
+  /// Whether any observer has persistence configured
+  bool get hasPersistence => _observerOptions.any((opt) => opt.persist != null);
+
   /// Whether the data is stale
   bool get isStale {
     if (_state.isInvalidated) {

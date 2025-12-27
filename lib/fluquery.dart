@@ -37,3 +37,6 @@ export 'src/hooks/use_service.dart';
 // Utilities
 export 'src/utils/focus_manager.dart';
 export 'src/utils/connectivity_manager.dart';
+
+// Devtools
+export 'src/devtools/devtools.dart';

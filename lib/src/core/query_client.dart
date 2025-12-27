@@ -79,6 +79,9 @@ class QueryClient {
   /// Mutation cache
   MutationCache get mutationCache => _mutationCache;
 
+  /// Client configuration
+  QueryClientConfig get config => _config;
+
   /// Default options
   DefaultQueryOptions get defaultOptions => _config.defaultOptions;
 
