@@ -24,8 +24,8 @@
 
 ```yaml
 dependencies:
-  fluquery: ^1.0.0
-  flutter_hooks: ^0.20.5
+  fluquery: ^1.3.0
+  flutter_hooks: ^0.21.3+1
 ```
 
 ## 🚀 Quick Start
