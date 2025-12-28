@@ -394,6 +394,30 @@ class Query<TData, TError> {
     _notifyObservers();
   }
 
+  /// Set error directly - takes Object? to avoid web type issues
+  void setError(Object? error) {
+    _state = _state.withError(error);
+    _notifyObservers();
+  }
+
+  /// Set loading state
+  void setLoading() {
+    _state = QueryState<TData, TError>(
+      data: _state.rawData,
+      dataUpdateCount: _state.dataUpdateCount,
+      dataUpdatedAt: _state.dataUpdatedAt,
+      error: null,
+      errorUpdateCount: _state.errorUpdateCount,
+      errorUpdatedAt: _state.errorUpdatedAt,
+      fetchFailureCount: _state.fetchFailureCount,
+      fetchFailureReason: _state.fetchFailureReason,
+      status: _state.hasData ? _state.status : QueryStatus.pending,
+      fetchStatus: FetchStatus.fetching,
+      isInvalidated: _state.isInvalidated,
+    );
+    _notifyObservers();
+  }
+
   /// Schedule garbage collection
   void _scheduleGc() {
     _cacheTimer?.cancel();

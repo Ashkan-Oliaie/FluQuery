@@ -2,7 +2,6 @@ import 'dart:async';
 
 import '../common/common.dart';
 import '../query/query.dart';
-import '../persistence/persistence.dart';
 import 'service.dart';
 import 'service_key.dart';
 import 'service_ref.dart';
@@ -16,7 +15,6 @@ import 'internal/internal.dart';
 /// - Automatic dependency resolution
 /// - Circular dependency detection
 /// - Lifecycle management (init, dispose, reset)
-/// - QueryStore integration for stateful services
 ///
 /// Example:
 /// ```dart
@@ -38,7 +36,6 @@ class ServiceContainer implements ServiceRef {
 
   final ServiceRegistry _registry;
   final LifecycleManager _lifecycle;
-  final StoreOwnership _storeOwnership;
   final ResolutionContext _resolution;
 
   // ============================================================
@@ -57,10 +54,6 @@ class ServiceContainer implements ServiceRef {
 
   final QueryCache _queryCache;
   final DefaultQueryOptions _defaultOptions;
-  final void Function<TData>(QueryKey, PersistOptions<TData>)?
-      _persistRegistrar;
-  final Future<void> Function<TData>(QueryKey, TData, DateTime?)?
-      _persistCallback;
   final ServiceContainer? _parent;
 
   bool _isInitialized = false;
@@ -68,21 +61,22 @@ class ServiceContainer implements ServiceRef {
   ServiceContainer({
     required QueryCache queryCache,
     required DefaultQueryOptions defaultOptions,
-    void Function<TData>(QueryKey, PersistOptions<TData>)? persistRegistrar,
-    Future<void> Function<TData>(QueryKey, TData, DateTime?)? persistCallback,
     ServiceContainer? parent,
   })  : _queryCache = queryCache,
         _defaultOptions = defaultOptions,
-        _persistRegistrar = persistRegistrar,
-        _persistCallback = persistCallback,
         _parent = parent,
         _registry = ServiceRegistry(parent: parent?._registry),
         _lifecycle = LifecycleManager(),
-        _storeOwnership = StoreOwnership(queryCache),
         _resolution = ResolutionContext();
 
   /// Whether the container has been initialized.
   bool get isInitialized => _isInitialized;
+
+  /// Query cache for services that need it
+  QueryCache get queryCache => _queryCache;
+
+  /// Default query options
+  DefaultQueryOptions get defaultOptions => _defaultOptions;
 
   // ============================================================
   // DEVTOOLS INSPECTION (read-only access for debugging)
@@ -94,10 +88,6 @@ class ServiceContainer implements ServiceRef {
   /// All named service instances by type (for devtools inspection)
   Map<Type, Map<String, Service>> get namedInstances =>
       Map.unmodifiable(_namedInstances);
-
-  /// Get all stores owned by services (for devtools inspection)
-  Map<ServiceKey, List<QueryStore>> get storesByOwner =>
-      _storeOwnership.storesByOwner;
 
   /// Count of registered singletons
   int get registeredCount => _registry.singletonCount;
@@ -177,18 +167,15 @@ class ServiceContainer implements ServiceRef {
   ///
   /// If the service is instantiated, it will be disposed first.
   Future<void> unregister<T extends Service>({String? name}) async {
-    final serviceKey = ServiceKey(T, name);
     if (name != null) {
       final instance = _namedInstances[T]?.remove(name);
       if (instance != null) {
-        _storeOwnership.disposeStoresFor(serviceKey);
         await _lifecycle.dispose(instance);
       }
       _registry.unregisterNamedSingleton<T>(name);
     } else {
       final instance = _instances.remove(T);
       if (instance != null) {
-        _storeOwnership.disposeStoresFor(serviceKey);
         await _lifecycle.dispose(instance);
       }
       _registry.unregisterSingleton<T>();
@@ -274,21 +261,14 @@ class ServiceContainer implements ServiceRef {
     }
 
     // Create with circular dependency detection
-    final serviceKey = ServiceKey(T);
-    final isRoot = _resolution.enter(T);
-    if (isRoot) {
-      _storeOwnership.resolutionRoot = serviceKey;
-    }
+    _resolution.enter(T);
 
     try {
       final service = registration.factory(this);
       _instances[T] = service;
       return service;
     } finally {
-      _resolution.exit(T, wasRoot: isRoot);
-      if (isRoot) {
-        _storeOwnership.resolutionRoot = null;
-      }
+      _resolution.exit(T);
     }
   }
 
@@ -313,12 +293,8 @@ class ServiceContainer implements ServiceRef {
       throw ServiceNotFoundException(T, name: name);
     }
 
-    // Create with resolution tracking for store ownership
-    final serviceKey = ServiceKey(T, name);
-    final isRoot = _resolution.enter(T);
-    if (isRoot) {
-      _storeOwnership.resolutionRoot = serviceKey;
-    }
+    // Create with resolution tracking
+    _resolution.enter(T);
 
     try {
       final service = registration.factory(this);
@@ -326,6 +302,7 @@ class ServiceContainer implements ServiceRef {
 
       // Start initialization if container is initialized
       if (_isInitialized && !service.isInitialized) {
+        final serviceKey = ServiceKey(T, name);
         _lifecycle.initializeWithLock(serviceKey, service).catchError((e, st) {
           FluQueryLogger.error(
               'Async initialization failed for $T($name): $e', e, st);
@@ -334,10 +311,7 @@ class ServiceContainer implements ServiceRef {
 
       return service;
     } finally {
-      _resolution.exit(T, wasRoot: isRoot);
-      if (isRoot) {
-        _storeOwnership.resolutionRoot = null;
-      }
+      _resolution.exit(T);
     }
   }
 
@@ -379,46 +353,6 @@ class ServiceContainer implements ServiceRef {
       return _namedInstances[T]?.containsKey(name) == true;
     }
     return _instances.containsKey(T);
-  }
-
-  // ============================================================
-  // STORE CREATION (ServiceRef implementation)
-  // ============================================================
-
-  /// Create a QueryStore owned by the calling service.
-  @override
-  QueryStore<TData, TError> createStore<TData, TError>({
-    required QueryKey queryKey,
-    required QueryFn<TData> queryFn,
-    StaleTime? staleTime,
-    int? retry,
-    RetryDelayFn? retryDelay,
-    Duration? refetchInterval,
-    bool refetchOnWindowFocus = true,
-    bool refetchOnReconnect = true,
-    PersistOptions<TData>? persist,
-  }) {
-    final store = QueryStore<TData, TError>(
-      queryKey: queryKey,
-      queryFn: queryFn,
-      cache: _queryCache,
-      staleTime: staleTime ?? _defaultOptions.staleTime,
-      retry: retry ?? _defaultOptions.retry,
-      retryDelay: retryDelay ?? _defaultOptions.retryDelay,
-      refetchInterval: refetchInterval,
-      refetchOnWindowFocus: refetchOnWindowFocus,
-      refetchOnReconnect: refetchOnReconnect,
-      persist: persist,
-      persistRegistrar: _persistRegistrar,
-      persistCallback: _persistCallback,
-    );
-
-    // Determine owner from resolution context or lifecycle manager
-    final ownerType =
-        _storeOwnership.resolutionRoot ?? _lifecycle.currentlyInitializing;
-    _storeOwnership.registerStore(ownerType, store, queryKey);
-
-    return store;
   }
 
   // ============================================================
@@ -469,17 +403,14 @@ class ServiceContainer implements ServiceRef {
 
   /// Dispose a specific service.
   Future<void> dispose<T extends Service>({String? name}) async {
-    final serviceKey = ServiceKey(T, name);
     if (name != null) {
       final instance = _namedInstances[T]?.remove(name);
       if (instance != null) {
-        _storeOwnership.disposeStoresFor(serviceKey);
         await _lifecycle.dispose(instance);
       }
     } else {
       final instance = _instances.remove(T);
       if (instance != null) {
-        _storeOwnership.disposeStoresFor(serviceKey);
         await _lifecycle.dispose(instance);
       }
     }
@@ -511,9 +442,6 @@ class ServiceContainer implements ServiceRef {
       }
     }
 
-    // Dispose all stores
-    _storeOwnership.disposeAll();
-
     // Clear everything
     _instances.clear();
     _namedInstances.clear();
@@ -536,8 +464,6 @@ class ServiceContainer implements ServiceRef {
     if (instance == null) return;
 
     if (recreate) {
-      final serviceKey = ServiceKey(T, name);
-      _storeOwnership.disposeStoresFor(serviceKey);
       await _lifecycle.dispose(instance);
       if (name != null) {
         _namedInstances[T]?.remove(name);
@@ -586,8 +512,6 @@ class ServiceContainer implements ServiceRef {
     return ServiceContainer(
       queryCache: _queryCache,
       defaultOptions: _defaultOptions,
-      persistRegistrar: _persistRegistrar,
-      persistCallback: _persistCallback,
       parent: this,
     );
   }

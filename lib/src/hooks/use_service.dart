@@ -1,122 +1,114 @@
+import 'package:flutter/widgets.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 
 import '../core/service/services.dart';
-import '../core/query/query.dart';
+import '../widgets/viewmodel_provider.dart';
 import 'use_query_client.dart';
 
-/// Hook to access a service from the [ServiceContainer].
-///
-/// Returns the service instance, creating it lazily if needed.
-/// The service is obtained from the [QueryClient]'s service container.
+// ============================================================
+// CORE SERVICE HOOKS
+// ============================================================
+
+/// Hook to access a singleton service from the [ServiceContainer].
 ///
 /// Example:
 /// ```dart
-/// class LoginPage extends HookWidget {
-///   @override
-///   Widget build(BuildContext context) {
-///     final auth = useService<AuthService>();
-///
-///     return ElevatedButton(
-///       onPressed: () => auth.login(email, password),
-///       child: Text('Login'),
-///     );
-///   }
-/// }
+/// final auth = useService<AuthService>();
+/// auth.login(email, password);
 /// ```
-///
-/// See also:
-/// - [useServiceStream] for subscribing to a service's store stream
-/// - [Service] for creating custom services
 T useService<T extends Service>() {
   final client = useQueryClient();
   final services = client.services;
 
   if (services == null) {
     throw StateError(
-      'useService<$T>() called but QueryClient has no ServiceContainer. '
-      'Did you forget to pass a ServiceContainer when creating QueryClient?',
+      'useService<$T>() called but QueryClient has no ServiceContainer.',
     );
   }
 
-  // Use useMemoized to cache the service reference
-  // The service itself is managed by the container
-  // Use getSync for synchronous access in hooks
   return useMemoized(() => services.getSync<T>(), [services]);
 }
 
-/// Hook to subscribe to a service and rebuild when a specific value changes.
+/// Hook to select state from a singleton [StatefulService].
 ///
-/// [selector] extracts a value from the service that triggers rebuilds.
-/// Uses [useStream] internally to subscribe to changes.
-///
-/// Example:
-/// ```dart
-/// class UserAvatar extends HookWidget {
-///   @override
-///   Widget build(BuildContext context) {
-///     final user = useServiceSelect<AuthService, User?>(
-///       (auth) => auth.userStream,
-///       (auth) => auth.currentUser,
-///     );
-///
-///     return CircleAvatar(
-///       backgroundImage: user?.avatarUrl != null
-///         ? NetworkImage(user!.avatarUrl)
-///         : null,
-///     );
-///   }
-/// }
-/// ```
-R useServiceSelect<T extends Service, R>(
-  Stream<R> Function(T service) streamSelector,
-  R Function(T service) initialValueSelector,
-) {
-  final service = useService<T>();
-  final stream = useMemoized(() => streamSelector(service), [service]);
-  final initialValue =
-      useMemoized(() => initialValueSelector(service), [service]);
-
-  final snapshot = useStream(stream, initialData: initialValue);
-  return snapshot.data as R;
-}
-
-/// Hook to listen to a service's store and rebuild on changes.
-///
-/// This is a convenience wrapper around [useServiceSelect] for
-/// services that expose a [QueryStore].
+/// Only rebuilds when the selected value changes.
 ///
 /// Example:
 /// ```dart
-/// class UserProfile extends HookWidget {
-///   @override
-///   Widget build(BuildContext context) {
-///     final userState = useServiceStore<AuthService, User?, Object>(
-///       (auth) => auth.userStore,
-///     );
-///
-///     if (userState.isLoading) {
-///       return CircularProgressIndicator();
-///     }
-///
-///     return Text(userState.data?.name ?? 'Guest');
-///   }
-/// }
+/// // Select from global CartService
+/// final itemCount = useSelect<CartService, CartState, int>((s) => s.items.length);
+/// final isLoading = useSelect<CartService, CartState, bool>((s) => s.isLoading);
 /// ```
-QueryState<TData, TError> useServiceStore<T extends Service, TData, TError>(
-  QueryStore<TData, TError> Function(T service) storeSelector,
+R useSelect<TService extends StatefulService<TState>, TState, R>(
+  R Function(TState state) selector,
 ) {
-  final service = useService<T>();
-  final store = useMemoized(() => storeSelector(service), [service]);
+  final service = useService<TService>();
 
-  // Subscribe to store state changes
-  final state = useState(store.state);
+  final selectorListenable = useMemoized(
+    () => service.select(selector),
+    [service],
+  );
 
   useEffect(() {
-    final unsubscribe = store.subscribe((newState) {
-      state.value = newState;
-    });
-    return unsubscribe;
-  }, [store]);
+    return () {
+      if (selectorListenable is ChangeNotifier) {
+        (selectorListenable as ChangeNotifier).dispose();
+      }
+    };
+  }, [selectorListenable]);
 
-  return state.value;
+  return useValueListenable(selectorListenable);
+}
+
+// ============================================================
+// VIEWMODEL HOOKS - For ViewModelProvider scoped services
+// ============================================================
+
+/// Hook to get a ViewModel from [ViewModelProvider].
+///
+/// Example:
+/// ```dart
+/// final vm = useViewModel<TaskViewModel>(context);
+/// vm.addTask('New task');
+/// ```
+T useViewModel<T extends Service>(BuildContext context) {
+  return useMemoized(
+    () => ViewModelProvider.of<T>(context),
+    [context],
+  );
+}
+
+/// Hook to select state from a ViewModel [StatefulService].
+///
+/// Only rebuilds when the selected value changes.
+///
+/// Example:
+/// ```dart
+/// final isLoading = useViewModelSelect<TaskViewModel, TaskState, bool>(
+///   context, (s) => s.isLoading,
+/// );
+/// final tasks = useViewModelSelect<TaskViewModel, TaskState, List<Task>>(
+///   context, (s) => s.filteredTasks,
+/// );
+/// ```
+R useViewModelSelect<TService extends StatefulService<TState>, TState, R>(
+  BuildContext context,
+  R Function(TState state) selector,
+) {
+  final service = useViewModel<TService>(context);
+
+  final selectorListenable = useMemoized(
+    () => service.select(selector),
+    [service],
+  );
+
+  useEffect(() {
+    return () {
+      if (selectorListenable is ChangeNotifier) {
+        (selectorListenable as ChangeNotifier).dispose();
+      }
+    };
+  }, [selectorListenable]);
+
+  return useValueListenable(selectorListenable);
 }

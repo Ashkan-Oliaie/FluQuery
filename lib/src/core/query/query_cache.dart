@@ -369,6 +369,16 @@ class _TypedQueryWrapper<TData, TError> implements Query<TData, TError> {
   }
 
   @override
+  void setError(Object? error) {
+    _inner.setError(error);
+  }
+
+  @override
+  void setLoading() {
+    _inner.setLoading();
+  }
+
+  @override
   void destroy() => _inner.destroy();
 
   @override

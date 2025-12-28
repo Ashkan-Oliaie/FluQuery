@@ -68,7 +68,6 @@ class FluQueryDevtools extends StatefulWidget {
 
 class _FluQueryDevtoolsState extends State<FluQueryDevtools> {
   bool _isOpen = false;
-  late final FocusNode _focusNode;
 
   // Panel position and size
   double _panelX = 0;
@@ -83,29 +82,8 @@ class _FluQueryDevtoolsState extends State<FluQueryDevtools> {
   static const double _maxHeight = 900;
   static const double _mobileBreakpoint = 600;
 
-  @override
-  void initState() {
-    super.initState();
-    _focusNode = FocusNode();
-  }
-
-  @override
-  void dispose() {
-    _focusNode.dispose();
-    super.dispose();
-  }
-
   void _toggle() {
     setState(() => _isOpen = !_isOpen);
-  }
-
-  void _handleKeyEvent(KeyEvent event) {
-    // Shift+D to toggle
-    if (event is KeyDownEvent &&
-        event.logicalKey == LogicalKeyboardKey.keyD &&
-        HardwareKeyboard.instance.isShiftPressed) {
-      _toggle();
-    }
   }
 
   void _initializePanelPosition(Size screenSize) {
@@ -147,88 +125,138 @@ class _FluQueryDevtoolsState extends State<FluQueryDevtools> {
       return widget.child;
     }
 
-    return KeyboardListener(
-      focusNode: _focusNode,
-      autofocus: true,
-      onKeyEvent: _handleKeyEvent,
-      child: Directionality(
-        textDirection: TextDirection.ltr,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            widget.child,
+    // Use Shortcuts + Actions instead of KeyboardListener to avoid focus issues
+    return Shortcuts(
+      shortcuts: <ShortcutActivator, Intent>{
+        const SingleActivator(LogicalKeyboardKey.keyD, shift: true):
+            const _ToggleDevtoolsIntent(),
+      },
+      child: Actions(
+        actions: <Type, Action<Intent>>{
+          _ToggleDevtoolsIntent: CallbackAction<_ToggleDevtoolsIntent>(
+            onInvoke: (_) {
+              _toggle();
+              return null;
+            },
+          ),
+        },
+        child: Directionality(
+          textDirection: TextDirection.ltr,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Main app content
+              widget.child,
 
-            // Use LayoutBuilder only for the panel to get screen size
-            if (_isOpen)
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final screenSize =
-                      Size(constraints.maxWidth, constraints.maxHeight);
-                  _initializePanelPosition(screenSize);
-                  final isMobile = screenSize.width < _mobileBreakpoint;
+              // Devtools panel (when open)
+              if (_isOpen)
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final screenSize =
+                        Size(constraints.maxWidth, constraints.maxHeight);
+                    _initializePanelPosition(screenSize);
+                    final isMobile = screenSize.width < _mobileBreakpoint;
 
-                  return Stack(
-                    children: [
-                      // Devtools panel (draggable/resizable)
-                      Positioned(
-                        left: _panelX,
-                        top: _panelY,
-                        child: _DevtoolsPanel(
-                          client: client,
-                          width: _panelWidth,
-                          height: _panelHeight,
-                          minWidth: isMobile ? screenSize.width : _minWidth,
-                          minHeight: _minHeight,
-                          maxWidth: isMobile
-                              ? screenSize.width
-                              : _maxWidth.clamp(0, screenSize.width - 32),
-                          maxHeight:
-                              _maxHeight.clamp(0, screenSize.height - 32),
-                          isMobile: isMobile,
-                          onMove: (delta) {
-                            setState(() {
-                              _panelX = (_panelX + delta.dx)
-                                  .clamp(0, screenSize.width - _panelWidth);
-                              _panelY = (_panelY + delta.dy)
-                                  .clamp(0, screenSize.height - _panelHeight);
-                            });
-                          },
-                          onResize: (newWidth, newHeight) {
-                            setState(() {
-                              _panelWidth = newWidth;
-                              _panelHeight = newHeight;
-                              // Keep panel in bounds
-                              _panelX = _panelX.clamp(
-                                  0, screenSize.width - _panelWidth);
-                              _panelY = _panelY.clamp(
-                                  0, screenSize.height - _panelHeight);
-                            });
-                          },
-                          onClose: _toggle,
+                    return Stack(
+                      children: [
+                        Positioned(
+                          left: _panelX,
+                          top: _panelY,
+                          child: FocusTraversalGroup(
+                            descendantsAreFocusable: true,
+                            descendantsAreTraversable: true,
+                            child: _DevtoolsPanel(
+                              client: client,
+                              width: _panelWidth,
+                              height: _panelHeight,
+                              minWidth: isMobile ? screenSize.width : _minWidth,
+                              minHeight: _minHeight,
+                              maxWidth: isMobile
+                                  ? screenSize.width
+                                  : _maxWidth.clamp(0, screenSize.width - 32),
+                              maxHeight:
+                                  _maxHeight.clamp(0, screenSize.height - 32),
+                              isMobile: isMobile,
+                              onMove: (delta) {
+                                setState(() {
+                                  _panelX = (_panelX + delta.dx)
+                                      .clamp(0, screenSize.width - _panelWidth);
+                                  _panelY = (_panelY + delta.dy).clamp(
+                                      0, screenSize.height - _panelHeight);
+                                });
+                              },
+                              onResize: (newWidth, newHeight) {
+                                setState(() {
+                                  _panelWidth = newWidth;
+                                  _panelHeight = newHeight;
+                                  _panelX = _panelX.clamp(
+                                      0, screenSize.width - _panelWidth);
+                                  _panelY = _panelY.clamp(
+                                      0, screenSize.height - _panelHeight);
+                                });
+                              },
+                              onClose: _toggle,
+                            ),
+                          ),
                         ),
-                      ),
-                    ],
-                  );
-                },
-              ),
+                      ],
+                    );
+                  },
+                ),
 
-            // Toggle button
-            Positioned(
-              right: widget.buttonPosition == DevtoolsPosition.bottomRight
-                  ? 16
-                  : null,
-              left: widget.buttonPosition == DevtoolsPosition.bottomLeft
-                  ? 16
-                  : null,
-              bottom: 16,
-              child: widget.buttonBuilder?.call(context, _isOpen, _toggle) ??
-                  _DefaultDevtoolsButton(
-                    isOpen: _isOpen,
-                    onPressed: _toggle,
-                  ),
-            ),
-          ],
+              // Toggle button
+              Positioned(
+                right: widget.buttonPosition == DevtoolsPosition.bottomRight
+                    ? 16
+                    : null,
+                left: widget.buttonPosition == DevtoolsPosition.bottomLeft
+                    ? 16
+                    : null,
+                bottom: 16,
+                child: widget.buttonBuilder?.call(context, _isOpen, _toggle) ??
+                    _DefaultDevtoolsButton(
+                      isOpen: _isOpen,
+                      onPressed: _toggle,
+                    ),
+              ),
+            ],
+          ),
         ),
+      ),
+    );
+  }
+}
+
+/// Intent for toggling devtools via keyboard shortcut
+class _ToggleDevtoolsIntent extends Intent {
+  const _ToggleDevtoolsIntent();
+}
+
+/// Provides Material ancestors (Overlay, MaterialLocalizations) for devtools widgets.
+/// This is needed because devtools may be mounted outside of MaterialApp.
+class _DevtoolsMaterialScope extends StatelessWidget {
+  final Widget child;
+
+  const _DevtoolsMaterialScope({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    // Create a minimal scope with Overlay for tooltips
+    return Localizations(
+      locale: const Locale('en', 'US'),
+      delegates: const [
+        DefaultMaterialLocalizations.delegate,
+        DefaultWidgetsLocalizations.delegate,
+      ],
+      child: Overlay(
+        initialEntries: [
+          OverlayEntry(
+            builder: (_) => Material(
+              type: MaterialType.transparency,
+              child: child,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -288,26 +316,15 @@ class _DevtoolsPanelState extends State<_DevtoolsPanel> {
       height: widget.height,
       child: Stack(
         children: [
-          // Main panel with Overlay for tooltips
+          // Main panel wrapped with necessary Material ancestors
           ClipRRect(
             borderRadius: BorderRadius.circular(widget.isMobile ? 0 : 12),
-            child: Localizations(
-              locale: const Locale('en', 'US'),
-              delegates: const [
-                DefaultMaterialLocalizations.delegate,
-                DefaultWidgetsLocalizations.delegate,
-              ],
-              child: Overlay(
-                initialEntries: [
-                  OverlayEntry(
-                    builder: (_) => DevtoolsPanel(
-                      controller: _controller,
-                      onClose: widget.onClose,
-                      onDragHeader: widget.isMobile ? null : widget.onMove,
-                      isMobile: widget.isMobile,
-                    ),
-                  ),
-                ],
+            child: _DevtoolsMaterialScope(
+              child: DevtoolsPanel(
+                controller: _controller,
+                onClose: widget.onClose,
+                onDragHeader: widget.isMobile ? null : widget.onMove,
+                isMobile: widget.isMobile,
               ),
             ),
           ),

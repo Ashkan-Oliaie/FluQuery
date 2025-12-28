@@ -1,32 +1,19 @@
-import '../common/common.dart';
-import '../query/query.dart';
-import '../persistence/persistence.dart';
 import 'service.dart';
 
-/// Reference passed to services for accessing dependencies and creating stores.
+/// Reference passed to services for accessing dependencies.
 ///
 /// [ServiceRef] provides:
 /// - Access to other services via [get<T>()] (async, waits for initialization)
 /// - Sync access via [getSync<T>()] when you know service is already initialized
 /// - Factory instance creation via [create<T>()]
-/// - Store creation via [createStore<TData, TError>()]
 ///
 /// Example:
 /// ```dart
 /// class UserService extends Service {
 ///   late final AuthService _auth;
-///   late final QueryStore<User?, Object> _userStore;
-///
-///   UserService(ServiceRef ref) {
-///     _userStore = ref.createStore(
-///       queryKey: ['user', 'current'],
-///       queryFn: _fetchUser,
-///     );
-///   }
 ///
 ///   @override
 ///   Future<void> onInit() async {
-///     // Use async get to ensure AuthService is fully initialized
 ///     _auth = await ref.get<AuthService>();
 ///   }
 /// }
@@ -92,21 +79,6 @@ abstract class ServiceRef {
   /// final req2 = ref.create<HttpRequest>(); // Different instance
   /// ```
   T create<T extends Service>({String? name});
-
-  /// Create a [QueryStore] owned by this service.
-  ///
-  /// The store will be automatically disposed when the service is disposed.
-  QueryStore<TData, TError> createStore<TData, TError>({
-    required QueryKey queryKey,
-    required QueryFn<TData> queryFn,
-    StaleTime? staleTime,
-    int? retry,
-    RetryDelayFn? retryDelay,
-    Duration? refetchInterval,
-    bool refetchOnWindowFocus = true,
-    bool refetchOnReconnect = true,
-    PersistOptions<TData>? persist,
-  });
 }
 
 /// Exception thrown when a requested service is not registered.

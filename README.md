@@ -16,15 +16,15 @@
 - ⚡ **Optimistic Updates** - Instant UI with automatic rollback
 - 🏎️ **Race Condition Handling** - Automatic cancellation of stale requests
 - 💾 **Persistence** - Save query data to disk
-- 🧩 **Services** - Built-in dependency injection with lifecycle management
 - 🪝 **Hooks API** - Beautiful Flutter Hooks integration
 - 🔍 **Devtools** - Visual debugging tool for inspecting queries and cache
+- 🧩 **Services** (**Experimental**) - Built-in dependency injection with lifecycle management (**Work in progress**)
 
 ## 📦 Installation
 
 ```yaml
 dependencies:
-  fluquery: ^1.3.0
+  fluquery: ^1.3.2
   flutter_hooks: ^0.21.3+1
 ```
 

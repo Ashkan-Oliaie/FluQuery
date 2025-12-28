@@ -7,15 +7,13 @@ import '../shared/shared.dart';
 import 'scenarios/auth_flow_scenario.dart';
 import 'scenarios/multi_tenant_scenario.dart';
 import 'scenarios/factory_scenario.dart';
-import 'scenarios/service_lifecycle_scenario.dart';
 
 /// Comprehensive example demonstrating FluQuery's Service Layer.
 ///
 /// This example uses a side navigation to showcase different real-world scenarios:
 /// 1. Authentication Flow - Login, verification, session management
 /// 2. Multi-Tenant - Named services for different API environments
-/// 3. Factory Pattern - Request-scoped instances, form validators
-/// 4. Service Lifecycle - Init, reset, dispose behaviors
+/// 3. ViewModel Pattern - Factory services as screen ViewModels
 class ServicesExample extends HookWidget {
   const ServicesExample({super.key});
 
@@ -39,16 +37,10 @@ class ServicesExample extends HookWidget {
         color: const Color(0xFF3B82F6),
       ),
       _ScenarioItem(
-        icon: Icons.factory_rounded,
-        title: 'Factory Pattern',
-        subtitle: 'New instance every call',
+        icon: Icons.view_module_rounded,
+        title: 'ViewModel',
+        subtitle: 'Factory as screen ViewModel',
         color: const Color(0xFFF59E0B),
-      ),
-      _ScenarioItem(
-        icon: Icons.recycling_rounded,
-        title: 'Lifecycle',
-        subtitle: 'Init, reset, dispose',
-        color: const Color(0xFFEC4899),
       ),
     ];
 
@@ -57,7 +49,6 @@ class ServicesExample extends HookWidget {
         0 => const AuthFlowScenario(),
         1 => const MultiTenantScenario(),
         2 => const FactoryScenario(),
-        3 => const ServiceLifecycleScenario(),
         _ => const SizedBox.shrink(),
       };
     }
@@ -280,15 +271,16 @@ class _ServiceStatusBadge extends HookWidget {
       return _buildBadge('Initializing...', Colors.grey);
     }
 
-    // Try to get session service safely
-    SessionService? session;
+    // Check if session service is available
     try {
-      session = services.getSync<SessionService>();
+      services.getSync<SessionService>();
     } catch (_) {
       return _buildBadge('No Session', Colors.grey);
     }
 
-    final status = useValueListenable(session.statusNotifier);
+    // Use type-based selector - no need to pass service around
+    final status =
+        useSelect<SessionService, SessionState, SessionStatus>((s) => s.status);
 
     final (statusText, statusColor) = switch (status) {
       SessionStatus.unknown => ('Loading...', Colors.grey),

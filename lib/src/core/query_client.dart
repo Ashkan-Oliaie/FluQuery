@@ -2,7 +2,6 @@ import 'common/common.dart';
 import 'query/query.dart';
 import 'mutation/mutation.dart';
 import 'persistence/persistence.dart';
-import 'store/store.dart';
 import 'service/services.dart';
 import 'query_client_config.dart';
 
@@ -15,7 +14,6 @@ export 'query_client_config.dart';
 /// - Query caching and fetching
 /// - Mutation management
 /// - Persistence (via [PersistenceManager])
-/// - QueryStores (via [StoreManager])
 /// - Services (via [ServiceContainer])
 /// - Network state handling
 class QueryClient {
@@ -26,7 +24,6 @@ class QueryClient {
 
   // Managers
   PersistenceManager? _persistenceManager;
-  late final StoreManager _storeManager;
   ServiceContainer? _services;
 
   // Network state
@@ -52,15 +49,6 @@ class QueryClient {
       );
       _queryCache.onDataSuccess = _persistenceManager!.onQueryDataSuccess;
     }
-
-    // Initialize store manager
-    _storeManager = StoreManager(
-      queryCache: _queryCache,
-      defaultOptions: _config.defaultOptions,
-      persistRegistrar:
-          _persistenceManager != null ? registerPersistOptions : null,
-      persistCallback: _persistenceManager != null ? persistQuery : null,
-    );
   }
 
   // ============================================================
@@ -93,9 +81,6 @@ class QueryClient {
 
   /// Whether the app is focused
   bool get isFocused => _isFocused;
-
-  /// Get all active stores
-  Iterable<QueryStore> get stores => _storeManager.stores;
 
   /// Get the service container (if configured)
   ServiceContainer? get services => _services;
@@ -139,9 +124,6 @@ class QueryClient {
     _services = ServiceContainer(
       queryCache: _queryCache,
       defaultOptions: _config.defaultOptions,
-      persistRegistrar:
-          _persistenceManager != null ? registerPersistOptions : null,
-      persistCallback: _persistenceManager != null ? persistQuery : null,
     );
 
     configure(_services!);
@@ -543,46 +525,7 @@ class QueryClient {
     return query;
   }
 
-  // ============================================================
-  // STORES (delegated to StoreManager)
-  // ============================================================
-
-  /// Create a persistent query store that survives widget lifecycle.
-  QueryStore<TData, TError> createStore<TData, TError>({
-    required QueryKey queryKey,
-    required QueryFn<TData> queryFn,
-    StaleTime? staleTime,
-    int? retry,
-    RetryDelayFn? retryDelay,
-    Duration? refetchInterval,
-    bool refetchOnWindowFocus = true,
-    bool refetchOnReconnect = true,
-    PersistOptions<TData>? persist,
-  }) {
-    return _storeManager.createStore<TData, TError>(
-      queryKey: queryKey,
-      queryFn: queryFn,
-      staleTime: staleTime,
-      retry: retry,
-      retryDelay: retryDelay,
-      refetchInterval: refetchInterval,
-      refetchOnWindowFocus: refetchOnWindowFocus,
-      refetchOnReconnect: refetchOnReconnect,
-      persist: persist,
-    );
-  }
-
-  /// Get an existing store by query key
-  QueryStore<TData, TError>? getStore<TData, TError>(QueryKey queryKey) {
-    return _storeManager.getStore<TData, TError>(queryKey);
-  }
-
-  /// Remove and dispose a store
-  void removeStore(QueryKey queryKey) {
-    _storeManager.removeStore(queryKey);
-  }
-
-  /// Subscribe to a query's state changes without creating a store.
+  /// Subscribe to a query's state changes.
   VoidCallback subscribeToQuery<TData, TError>({
     required QueryKey queryKey,
     required QueryFn<TData> queryFn,
@@ -616,7 +559,6 @@ class QueryClient {
     _queryCache.clear();
     _mutationCache.clear();
     _infiniteQueries.clear();
-    _storeManager.clear();
   }
 
   /// Dispose the client
@@ -632,6 +574,5 @@ class QueryClient {
       q.cancel();
     }
     _infiniteQueries.clear();
-    _storeManager.dispose();
   }
 }

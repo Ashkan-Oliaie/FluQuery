@@ -3,7 +3,7 @@ import '../devtools_controller.dart';
 import 'query_item.dart';
 import 'stats_header.dart';
 
-/// Main devtools panel showing queries, services, stores, and controls
+/// Main devtools panel showing queries, services, and controls
 class DevtoolsPanel extends StatelessWidget {
   final DevtoolsController controller;
   final VoidCallback onClose;
@@ -85,8 +85,6 @@ class DevtoolsPanel extends StatelessWidget {
         );
       case DevtoolsTab.services:
         return _ServiceList(controller: controller);
-      case DevtoolsTab.stores:
-        return _StoreList(controller: controller);
     }
   }
 }
@@ -212,12 +210,6 @@ class _TabBar extends StatelessWidget {
             isSelected: controller.currentTab == DevtoolsTab.services,
             onTap: () => controller.currentTab = DevtoolsTab.services,
           ),
-          _TabButton(
-            label: 'Stores',
-            count: controller.stats.totalStores,
-            isSelected: controller.currentTab == DevtoolsTab.stores,
-            onTap: () => controller.currentTab = DevtoolsTab.stores,
-          ),
         ],
       ),
     );
@@ -305,7 +297,6 @@ class _SearchBar extends StatelessWidget {
     final hint = switch (controller.currentTab) {
       DevtoolsTab.queries => 'Search queries...',
       DevtoolsTab.services => 'Search services...',
-      DevtoolsTab.stores => 'Search stores...',
     };
 
     return Padding(
@@ -559,170 +550,6 @@ class _ServiceItem extends StatelessWidget {
                         fontSize: 11,
                       ),
                     ),
-                    if (service.storeCount > 0) ...[
-                      const SizedBox(width: 12),
-                      const Icon(Icons.storage,
-                          size: 12, color: Color(0xFF6e7681)),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${service.storeCount} stores',
-                        style: const TextStyle(
-                          color: Color(0xFF6e7681),
-                          fontSize: 11,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StoreList extends StatelessWidget {
-  final DevtoolsController controller;
-
-  const _StoreList({required this.controller});
-
-  @override
-  Widget build(BuildContext context) {
-    final stores = controller.stores;
-
-    if (stores.isEmpty) {
-      return _EmptyState(
-        icon: Icons.storage_outlined,
-        message: controller.searchFilter.isNotEmpty
-            ? 'No matching stores'
-            : 'No QueryStores created',
-      );
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      itemCount: stores.length,
-      itemBuilder: (context, index) {
-        final store = stores[index];
-        return _StoreItem(store: store);
-      },
-    );
-  }
-}
-
-class _StoreItem extends StatelessWidget {
-  final StoreSnapshot store;
-
-  const _StoreItem({required this.store});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF161b22),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFF30363d)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: store.hasData
-                  ? const Color(0xFF3fb950).withValues(alpha: 0.2)
-                  : const Color(0xFF6e7681).withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Icon(
-              Icons.storage,
-              size: 16,
-              color: store.hasData
-                  ? const Color(0xFF3fb950)
-                  : const Color(0xFF6e7681),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  store.queryKey,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    fontFamily: 'SF Mono, Menlo, Monaco, monospace',
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    const Icon(Icons.account_tree,
-                        size: 12, color: Color(0xFF6e7681)),
-                    const SizedBox(width: 4),
-                    Text(
-                      store.ownerService,
-                      style: const TextStyle(
-                        color: Color(0xFF6e7681),
-                        fontSize: 11,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: store.isStale
-                            ? const Color(0xFFd29922).withValues(alpha: 0.2)
-                            : const Color(0xFF3fb950).withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        store.isStale ? 'Stale' : 'Fresh',
-                        style: TextStyle(
-                          color: store.isStale
-                              ? const Color(0xFFd29922)
-                              : const Color(0xFF3fb950),
-                          fontSize: 10,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                    if (store.isPersisted) ...[
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFa371f7).withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.save,
-                                size: 10, color: Color(0xFFa371f7)),
-                            SizedBox(width: 3),
-                            Text(
-                              'Persisted',
-                              style: TextStyle(
-                                color: Color(0xFFa371f7),
-                                fontSize: 10,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
                   ],
                 ),
               ],

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:fluquery/fluquery.dart';
@@ -17,43 +19,80 @@ import 'examples/nested_queries/screens/todo_list_screen.dart';
 import 'examples/global_store/global_store_example.dart';
 import 'examples/persistence/persistence_example.dart';
 import 'examples/services/services_example.dart';
-import 'examples/service_lifecycle/service_lifecycle_example.dart';
+import 'examples/viewmodel/viewmodel_example.dart';
 import 'services/services.dart';
 
 void main() {
   runApp(const FluQueryExampleApp());
 }
 
-/// Global config store manager - accessible from anywhere
+/// Global config manager - accessible from anywhere
+///
+/// This demonstrates the service-driven pattern:
+/// - Uses simple ValueNotifier for reactive state
+/// - Timer handles background refresh
+/// - No QueryStore needed!
 class GlobalConfigStore {
-  static QueryStore<AppConfig, Object>? _store;
   static final ValueNotifier<AppConfig?> configNotifier = ValueNotifier(null);
+  static final ValueNotifier<bool> isLoadingNotifier = ValueNotifier(false);
+  static Timer? _refreshTimer;
+  static bool _isPaused = false;
+  static bool _isInitialized = false;
 
   static void init(QueryClient client) {
-    if (_store != null && !_store!.isDisposed) return;
+    if (_isInitialized) return;
+    _isInitialized = true;
 
-    _store = client.createStore<AppConfig, Object>(
-      queryKey: QueryKeys.appConfig,
-      queryFn: (_) => ApiClient.getConfig(),
-      staleTime: const StaleTime(Duration(seconds: 30)),
-      refetchInterval: const Duration(seconds: 10),
-    );
+    // Initial fetch
+    _fetchConfig();
 
-    // Sync to ValueNotifier for Theme rebuilds
-    _store!.subscribe((state) {
-      final data = state.rawData;
-      if (data != null) {
-        configNotifier.value = data as AppConfig;
-      }
-    });
+    // Start background refresh timer
+    _startRefreshTimer();
   }
 
-  static QueryStore<AppConfig, Object>? get store => _store;
+  static void _startRefreshTimer() {
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer.periodic(
+      const Duration(seconds: 10),
+      (_) {
+        if (!_isPaused) _fetchConfig();
+      },
+    );
+  }
+
+  /// Fetch config from API
+  static Future<void> _fetchConfig() async {
+    isLoadingNotifier.value = true;
+    try {
+      final config = await ApiClient.getConfig();
+      configNotifier.value = config;
+    } catch (e) {
+      // Could add error handling if needed
+    } finally {
+      isLoadingNotifier.value = false;
+    }
+  }
+
+  /// Manually refresh config
+  static Future<void> refresh() => _fetchConfig();
+
+  /// Pause background refreshing
+  static void pause() => _isPaused = true;
+
+  /// Resume background refreshing
+  static void resume() => _isPaused = false;
+
+  /// Whether refreshing is paused
+  static bool get isPaused => _isPaused;
+
   static AppConfig? get config => configNotifier.value;
+  static bool get isLoading => isLoadingNotifier.value;
 
   static void dispose() {
-    _store?.dispose();
-    _store = null;
+    _refreshTimer?.cancel();
+    _refreshTimer = null;
+    _isPaused = false;
+    _isInitialized = false;
   }
 }
 
@@ -267,18 +306,8 @@ class GlobalConfigBar extends HookWidget {
 
   @override
   Widget build(BuildContext context) {
-    final store = GlobalConfigStore.store;
-    final isFetching = useState(store?.isFetching ?? false);
-    final isPaused = useState(false);
-
-    // Subscribe to store state for fetching indicator
-    useEffect(() {
-      if (store == null) return null;
-      final unsub = store.subscribe((state) {
-        isFetching.value = state.isFetching;
-      });
-      return unsub;
-    }, [store]);
+    final isLoading = useValueListenable(GlobalConfigStore.isLoadingNotifier);
+    final isPaused = useState(GlobalConfigStore.isPaused);
 
     final isDark = config?.theme != 'light';
     final accentColor = _getAccentColor(config?.accentColor ?? 'indigo');
@@ -392,8 +421,8 @@ class GlobalConfigBar extends HookWidget {
                 ),
               ),
             const Spacer(),
-            // Fetching indicator
-            if (isFetching.value)
+            // Loading indicator
+            if (isLoading)
               Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: SizedBox(
@@ -409,9 +438,9 @@ class GlobalConfigBar extends HookWidget {
             GestureDetector(
               onTap: () {
                 if (isPaused.value) {
-                  store?.resumeRefetching();
+                  GlobalConfigStore.resume();
                 } else {
-                  store?.stopRefetching();
+                  GlobalConfigStore.pause();
                 }
                 isPaused.value = !isPaused.value;
               },
@@ -438,7 +467,7 @@ class GlobalConfigBar extends HookWidget {
               onTap: () async {
                 try {
                   final newConfig = await ApiClient.randomizeConfig();
-                  store?.setData(newConfig);
+                  GlobalConfigStore.configNotifier.value = newConfig;
                 } catch (_) {}
               },
               child: Container(
@@ -846,19 +875,17 @@ class _ExamplesHomePageState extends State<ExamplesHomePage> {
                   _ExampleCard(
                     icon: Icons.category_rounded,
                     title: 'Services',
-                    description:
-                        'DI, factories, multi-tenant, lifecycle management',
+                    description: 'DI, auth flow, multi-tenant configurations',
                     color: const Color(0xFF8B5CF6),
                     onTap: () => _navigate(context, const ServicesExample()),
                   ),
                   _ExampleCard(
-                    icon: Icons.timeline,
-                    title: 'Service Lifecycle',
+                    icon: Icons.view_module_rounded,
+                    title: 'ViewModel Pattern',
                     description:
-                        'Watch services & stores create/dispose in devtools',
+                        'Task manager with filtering, CRUD, and real-time sync',
                     color: const Color(0xFFF59E0B),
-                    onTap: () =>
-                        _navigate(context, const ServiceLifecycleExample()),
+                    onTap: () => _navigate(context, const ViewModelExample()),
                   ),
                   const SizedBox(height: 24),
                 ]),

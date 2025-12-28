@@ -5,7 +5,6 @@ import '../core/query_client.dart';
 import '../core/query/query.dart';
 import '../core/mutation/mutation.dart';
 import '../core/service/service.dart';
-import '../core/service/service_key.dart';
 
 /// Snapshot of a query's state for devtools display
 class QuerySnapshot {
@@ -105,47 +104,26 @@ class ServiceSnapshot {
   final String name;
   final Type type;
   final bool isInitialized;
-  final int storeCount;
   final String? namedAs;
 
   ServiceSnapshot({
     required this.name,
     required this.type,
     required this.isInitialized,
-    required this.storeCount,
     this.namedAs,
   });
 
   factory ServiceSnapshot.fromService(
     Service service, {
-    int storeCount = 0,
     String? namedAs,
   }) {
     return ServiceSnapshot(
       name: service.runtimeType.toString(),
       type: service.runtimeType,
       isInitialized: service.isInitialized,
-      storeCount: storeCount,
       namedAs: namedAs,
     );
   }
-}
-
-/// Snapshot of a QueryStore for devtools display
-class StoreSnapshot {
-  final String queryKey;
-  final String ownerService;
-  final bool hasData;
-  final bool isStale;
-  final bool isPersisted;
-
-  StoreSnapshot({
-    required this.queryKey,
-    required this.ownerService,
-    required this.hasData,
-    required this.isStale,
-    required this.isPersisted,
-  });
 }
 
 /// Aggregate statistics for devtools header
@@ -158,7 +136,6 @@ class DevtoolsStats {
   final int pendingMutations;
   final int persistedQueries;
   final int totalServices;
-  final int totalStores;
 
   const DevtoolsStats({
     this.totalQueries = 0,
@@ -169,7 +146,6 @@ class DevtoolsStats {
     this.pendingMutations = 0,
     this.persistedQueries = 0,
     this.totalServices = 0,
-    this.totalStores = 0,
   });
 }
 
@@ -185,14 +161,13 @@ class DevtoolsController extends ChangeNotifier {
   List<QuerySnapshot> _queries = [];
   List<MutationSnapshot> _mutations = [];
   List<ServiceSnapshot> _services = [];
-  List<StoreSnapshot> _stores = [];
   DevtoolsStats _stats = const DevtoolsStats();
 
   /// Filter for query list
   String _searchFilter = '';
   QueryStatusFilter _statusFilter = QueryStatusFilter.all;
 
-  /// Current tab (queries, services, stores)
+  /// Current tab (queries, services)
   DevtoolsTab _currentTab = DevtoolsTab.queries;
 
   DevtoolsController(this.client) {
@@ -264,17 +239,6 @@ class DevtoolsController extends ChangeNotifier {
         .toList();
   }
 
-  /// All store snapshots (filtered by search)
-  List<StoreSnapshot> get stores {
-    if (_searchFilter.isEmpty) return _stores;
-    final lower = _searchFilter.toLowerCase();
-    return _stores
-        .where((s) =>
-            s.queryKey.toLowerCase().contains(lower) ||
-            s.ownerService.toLowerCase().contains(lower))
-        .toList();
-  }
-
   /// Aggregate stats
   DevtoolsStats get stats => _stats;
 
@@ -298,14 +262,13 @@ class DevtoolsController extends ChangeNotifier {
     final allMutations = client.mutationCache.mutations.toList();
 
     // Check which queries have persistence configured
-    // Use hasPersistence which checks all observer options
     _queries = allQueries.map((q) {
       return QuerySnapshot.fromQuery(q, isPersisted: q.hasPersistence);
     }).toList();
     _mutations = allMutations.map(MutationSnapshot.fromMutation).toList();
 
-    // Collect services and stores
-    _refreshServicesAndStores();
+    // Collect services
+    _refreshServices();
 
     // Calculate stats
     final persistedCount = _queries.where((q) => q.isPersisted).length;
@@ -318,56 +281,30 @@ class DevtoolsController extends ChangeNotifier {
       pendingMutations: allMutations.where((m) => m.state.isPending).length,
       persistedQueries: persistedCount,
       totalServices: _services.length,
-      totalStores: _stores.length,
     );
 
     notifyListeners();
   }
 
-  void _refreshServicesAndStores() {
+  void _refreshServices() {
     final container = client.services;
     if (container == null) {
       _services = [];
-      _stores = [];
       return;
     }
-
-    final storesByOwner = container.storesByOwner;
 
     // Build service snapshots
     _services = [];
     for (final service in container.instances) {
-      final serviceKey = ServiceKey(service.runtimeType);
-      final ownerStores = storesByOwner[serviceKey] ?? [];
-      _services.add(ServiceSnapshot.fromService(
-        service,
-        storeCount: ownerStores.length,
-      ));
+      _services.add(ServiceSnapshot.fromService(service));
     }
 
     // Add named services
     for (final typeEntry in container.namedInstances.entries) {
       for (final nameEntry in typeEntry.value.entries) {
-        final serviceKey = ServiceKey(typeEntry.key, nameEntry.key);
-        final ownerStores = storesByOwner[serviceKey] ?? [];
         _services.add(ServiceSnapshot.fromService(
           nameEntry.value,
-          storeCount: ownerStores.length,
           namedAs: nameEntry.key,
-        ));
-      }
-    }
-
-    // Build store snapshots
-    _stores = [];
-    for (final entry in storesByOwner.entries) {
-      for (final store in entry.value) {
-        _stores.add(StoreSnapshot(
-          queryKey: store.queryKey.join(' / '),
-          ownerService: entry.key.toString(),
-          hasData: store.hasData,
-          isStale: store.isStale,
-          isPersisted: store.persist != null,
         ));
       }
     }
@@ -386,16 +323,10 @@ class DevtoolsController extends ChangeNotifier {
   }
 
   /// Invalidate a specific query (mark stale, refetch if has observers)
-  ///
-  /// This is the TanStack Query behavior:
-  /// - Mark as stale immediately
-  /// - If query has active observers, refetch automatically
-  /// - If no observers, will refetch on next access
   Future<void> invalidateQuery(QuerySnapshot snapshot) async {
     final query = client.queryCache.getByHash(snapshot.queryHash);
     if (query != null) {
       query.invalidate();
-      // Refetch if has observers (active query)
       if (query.hasObservers) {
         await query.fetch(forceRefetch: true);
       }
@@ -403,20 +334,12 @@ class DevtoolsController extends ChangeNotifier {
   }
 
   /// Reset a specific query to initial pending state
-  ///
-  /// ⚠️ This clears all data and returns query to loading state.
-  /// Components subscribed to this query will show loading UI.
-  /// Use this to force a "fresh start" for a query.
   void resetQuery(QuerySnapshot snapshot) {
     final query = client.queryCache.getByHash(snapshot.queryHash);
     query?.reset();
   }
 
   /// Remove a query from cache completely
-  ///
-  /// ⚠️ This removes the query entry entirely.
-  /// Components using useQuery will trigger a new fetch.
-  /// Components with local state may show stale data until remounted.
   void removeQuery(QuerySnapshot snapshot) {
     final query = client.queryCache.getByHash(snapshot.queryHash);
     if (query != null) {
@@ -428,9 +351,6 @@ class DevtoolsController extends ChangeNotifier {
   Future<void> resetService(ServiceSnapshot snapshot) async {
     final container = client.services;
     if (container == null) return;
-
-    // Need to call reset dynamically based on type
-    // This is a simplified approach - in practice you might need runtime type dispatch
     FluQueryLogger.info('Devtools: Reset service ${snapshot.name}');
   }
 
@@ -445,8 +365,6 @@ class DevtoolsController extends ChangeNotifier {
   }
 
   /// Clear entire cache (removes all queries and mutations)
-  ///
-  /// ⚠️ Destructive action - all cached data is lost.
   void clearCache() {
     client.clear();
   }
@@ -473,5 +391,4 @@ enum QueryStatusFilter {
 enum DevtoolsTab {
   queries,
   services,
-  stores,
 }

@@ -6,5 +6,4 @@ export 'query_options.dart';
 export 'query_impl.dart';
 export 'query_cache.dart';
 export 'query_observer.dart';
-export 'query_store.dart';
 export 'infinite_query.dart';

@@ -8,9 +8,17 @@ import 'service_ref.dart';
 /// - Can depend on other services via [ServiceRef]
 /// - Support async initialization via [onInit]
 /// - Support cleanup via [onDispose]
-/// - Can own [QueryStore] instances for stateful data
 ///
-/// Example:
+/// For services that need reactive state, extend [StatefulService<TState>] instead.
+///
+/// ## Basic Service (no state)
+/// ```dart
+/// class LoggingService extends Service {
+///   void log(String message) => print('[LOG] $message');
+/// }
+/// ```
+///
+/// ## Service with Dependencies
 /// ```dart
 /// class AuthService extends Service {
 ///   final ApiClient _api;
@@ -31,6 +39,9 @@ import 'service_ref.dart';
 ///   }
 /// }
 /// ```
+///
+/// ## Stateful Service
+/// For services with reactive state, see [StatefulService].
 abstract class Service {
   bool _isInitialized = false;
   bool _isDisposed = false;

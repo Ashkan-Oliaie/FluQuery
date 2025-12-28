@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
-import 'package:fluquery/fluquery.dart';
 import '../../../api/api_client.dart';
+import '../../../main.dart' show GlobalConfigStore;
 
 class StoreControls extends HookWidget {
-  final QueryStore<AppConfig, Object> store;
   final bool isPaused;
   final VoidCallback onPauseToggle;
+  final Future<void> Function() onRefresh;
 
   const StoreControls({
     super.key,
-    required this.store,
     required this.isPaused,
     required this.onPauseToggle,
+    required this.onRefresh,
   });
 
   @override
@@ -36,7 +36,7 @@ class StoreControls extends HookWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Store Controls',
+            'Controls',
             style: TextStyle(
               color: isDark ? Colors.white : Colors.black87,
               fontSize: 16,
@@ -56,9 +56,9 @@ class StoreControls extends HookWidget {
               ),
               _ControlButton(
                 icon: Icons.refresh,
-                label: 'Refetch',
+                label: 'Refresh',
                 color: const Color(0xFF3B82F6),
-                onTap: () => store.refetch(),
+                onTap: () => onRefresh(),
               ),
               _ControlButton(
                 icon: Icons.shuffle,
@@ -69,17 +69,11 @@ class StoreControls extends HookWidget {
                   isRandomizing.value = true;
                   try {
                     final newConfig = await ApiClient.randomizeConfig();
-                    store.setData(newConfig);
+                    GlobalConfigStore.configNotifier.value = newConfig;
                   } finally {
                     isRandomizing.value = false;
                   }
                 },
-              ),
-              _ControlButton(
-                icon: Icons.warning_amber,
-                label: 'Invalidate',
-                color: const Color(0xFFF59E0B),
-                onTap: () => store.invalidate(),
               ),
             ],
           ),

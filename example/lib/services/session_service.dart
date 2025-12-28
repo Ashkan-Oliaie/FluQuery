@@ -55,9 +55,23 @@ class User {
       preferences: preferences ?? this.preferences,
     );
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is User &&
+          id == other.id &&
+          email == other.email &&
+          name == other.name &&
+          avatar == other.avatar &&
+          role == other.role &&
+          mapEquals(preferences, other.preferences);
+
+  @override
+  int get hashCode => Object.hash(id, email, name, avatar, role, preferences);
 }
 
-/// Session state
+/// Session status
 enum SessionStatus {
   unknown, // Initial state, checking if we have a session
   unauthenticated, // Not logged in
@@ -65,63 +79,93 @@ enum SessionStatus {
   authenticated, // Fully logged in
 }
 
+/// Immutable session state
+@immutable
+class SessionState {
+  final User? user;
+  final SessionStatus status;
+  final String? pendingSessionId;
+
+  const SessionState({
+    this.user,
+    this.status = SessionStatus.unknown,
+    this.pendingSessionId,
+  });
+
+  SessionState copyWith({
+    User? user,
+    SessionStatus? status,
+    String? pendingSessionId,
+    bool clearUser = false,
+    bool clearPendingSessionId = false,
+  }) =>
+      SessionState(
+        user: clearUser ? null : (user ?? this.user),
+        status: status ?? this.status,
+        pendingSessionId: clearPendingSessionId
+            ? null
+            : (pendingSessionId ?? this.pendingSessionId),
+      );
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SessionState &&
+          user == other.user &&
+          status == other.status &&
+          pendingSessionId == other.pendingSessionId;
+
+  @override
+  int get hashCode => Object.hash(user, status, pendingSessionId);
+}
+
 /// Service for managing user session state.
 ///
-/// This service:
-/// - Maintains the current user and session status
-/// - Uses QueryStore for reactive state
-/// - Coordinates with TokenStorageService
-/// - Tracks activities via ActivityTrackingService
-class SessionService extends Service {
+/// Uses StatefulService pattern with single immutable state.
+///
+/// ## Usage in widgets:
+/// ```dart
+/// class ProfileWidget extends HookWidget {
+///   @override
+///   Widget build(BuildContext context) {
+///     final session = useService<SessionService>();
+///
+///     // Only rebuilds when user changes
+///     final user = useSelector(session, (s) => s.user);
+///
+///     // Only rebuilds when status changes
+///     final status = useSelector(session, (s) => s.status);
+///
+///     if (status != SessionStatus.authenticated) {
+///       return LoginPrompt();
+///     }
+///     return ProfileCard(user: user!);
+///   }
+/// }
+/// ```
+class SessionService extends StatefulService<SessionState> {
   final TokenStorageService _tokenStorage;
   final ActivityTrackingService _activityTracking;
 
-  late final QueryStore<User?, Object> userStore;
-  SessionStatus _status = SessionStatus.unknown;
-  final ValueNotifier<SessionStatus> statusNotifier =
-      ValueNotifier(SessionStatus.unknown);
-  String? _pendingSessionId;
-
   SessionService(ServiceRef ref)
       : _tokenStorage = ref.getSync<TokenStorageService>(),
-        _activityTracking = ref.getSync<ActivityTrackingService>() {
-    // Create store for user data - will be fetched from API
-    userStore = ref.createStore<User?, Object>(
-      queryKey: ['session', 'user'],
-      queryFn: (_) async => null, // Populated by setUser
-    );
-  }
+        _activityTracking = ref.getSync<ActivityTrackingService>(),
+        super(const SessionState());
 
-  /// Current session status
-  SessionStatus get status => _status;
-
-  void _setStatus(SessionStatus status) {
-    _status = status;
-    if (statusNotifier.value != status) {
-      statusNotifier.value = status;
-    }
-  }
-
-  /// Current user (if authenticated)
-  User? get currentUser => userStore.data;
-
-  /// Stream of user state changes
-  Stream<QueryState<User?, Object>> get userStream => userStore.stream;
-
-  /// Whether user is authenticated
-  bool get isAuthenticated => _status == SessionStatus.authenticated;
-
-  /// Whether verification is pending
+  // Convenience getters
+  SessionStatus get status => state.status;
+  User? get currentUser => state.user;
+  String? get pendingSessionId => state.pendingSessionId;
+  bool get isAuthenticated => state.status == SessionStatus.authenticated;
   bool get isPendingVerification =>
-      _status == SessionStatus.pendingVerification;
-
-  /// The pending session ID (for verification)
-  String? get pendingSessionId => _pendingSessionId;
+      state.status == SessionStatus.pendingVerification;
 
   /// Set pending verification state (after login initiated)
   void setPendingVerification(String sessionId) {
-    _setStatus(SessionStatus.pendingVerification);
-    _pendingSessionId = sessionId;
+    state = state.copyWith(
+      status: SessionStatus.pendingVerification,
+      pendingSessionId: sessionId,
+    );
     _activityTracking.trackAuth('verification_pending', {
       'sessionId': sessionId,
     });
@@ -129,7 +173,7 @@ class SessionService extends Service {
 
   /// Set authenticated state with user data and tokens
   void setAuthenticated({
-    required User user,
+    required User userData,
     required String accessToken,
     required String refreshToken,
     required DateTime expiresAt,
@@ -140,12 +184,14 @@ class SessionService extends Service {
       expiresAt: expiresAt,
     );
 
-    userStore.setData(user);
-    _setStatus(SessionStatus.authenticated);
-    _pendingSessionId = null;
+    state = state.copyWith(
+      user: userData,
+      status: SessionStatus.authenticated,
+      clearPendingSessionId: true,
+    );
 
     _activityTracking.trackAuth('authenticated', {
-      'userId': user.id,
+      'userId': userData.id,
     });
   }
 
@@ -153,9 +199,12 @@ class SessionService extends Service {
   void clearSession() {
     final userId = currentUser?.id;
     _tokenStorage.clearTokens();
-    userStore.setData(null);
-    _setStatus(SessionStatus.unauthenticated);
-    _pendingSessionId = null;
+
+    state = state.copyWith(
+      clearUser: true,
+      status: SessionStatus.unauthenticated,
+      clearPendingSessionId: true,
+    );
 
     _activityTracking.trackAuth('session_cleared', {
       'userId': userId,
@@ -163,21 +212,20 @@ class SessionService extends Service {
   }
 
   /// Update current user data
-  void updateUser(User user) {
-    userStore.setData(user);
+  void updateUser(User userData) {
+    state = state.copyWith(user: userData);
     _activityTracking.trackUser('profile_updated', {
-      'userId': user.id,
+      'userId': userData.id,
     });
   }
 
   /// Check if we have a valid session (on app startup)
   Future<void> checkSession() async {
     if (_tokenStorage.hasValidToken) {
-      // We have a token, wait for session validation from API
-      _setStatus(SessionStatus.authenticated);
+      state = state.copyWith(status: SessionStatus.authenticated);
       _activityTracking.trackAuth('session_restored');
     } else {
-      _setStatus(SessionStatus.unauthenticated);
+      state = state.copyWith(status: SessionStatus.unauthenticated);
     }
   }
 
@@ -185,11 +233,6 @@ class SessionService extends Service {
   Future<void> onInit() async {
     await checkSession();
     _activityTracking.track('session', 'service_initialized');
-  }
-
-  @override
-  Future<void> onDispose() async {
-    statusNotifier.dispose();
   }
 
   @override

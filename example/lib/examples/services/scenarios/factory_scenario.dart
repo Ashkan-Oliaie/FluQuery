@@ -1,54 +1,24 @@
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:fluquery/fluquery.dart';
 
 import '../../shared/shared.dart';
-import '../widgets/code_block.dart';
 
-/// Demonstrates factory registrations - new instance on every call.
+/// Demonstrates Factory Services as ViewModels - one instance per screen.
 ///
-/// Real-world use cases:
-/// - HTTP request objects (each request is unique)
-/// - Form validators (per-form instance)
-/// - Logger instances with different contexts
-/// - Transaction handlers
-/// - File upload handlers
+/// **Factory = ViewModel Pattern:**
+/// - Each screen gets its own ViewModel instance
+/// - Isolated state: form data, selections, loading states
+/// - Disposed automatically when screen closes
+/// - Perfect for: Product pages, forms, wizards, modals
 class FactoryScenario extends HookWidget {
   const FactoryScenario({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final client = QueryClientProvider.of(context);
-    final scope = useMemoized(() {
-      final s = client.services!.createScope();
-      // Register factories - new instance every time
-      s.registerFactory<RequestService>((ref) => RequestService());
-      s.registerFactory<FormValidator>((ref) => FormValidator());
-      return s;
-    }, [client]);
-
-    useEffect(() {
-      scope.initialize();
-      return () => scope.disposeAll();
-    }, [scope]);
-
-    final requests = useState<List<RequestService>>([]);
-    final validators = useState<List<FormValidator>>([]);
-
-    void createRequest() {
-      final request = scope.create<RequestService>();
-      requests.value = [...requests.value, request];
-    }
-
-    void createValidator() {
-      final validator = scope.create<FormValidator>();
-      validators.value = [...validators.value, validator];
-    }
-
-    void clearAll() {
-      requests.value = [];
-      validators.value = [];
-    }
+    final selectedProduct = useState<_ProductInfo?>(null);
 
     return Padding(
       padding: const EdgeInsets.all(20),
@@ -58,53 +28,15 @@ class FactoryScenario extends HookWidget {
           _buildHeader(context),
           const SizedBox(height: 24),
           Expanded(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Request factory demo
-                Expanded(
-                  child: _FactoryDemo<RequestService>(
-                    title: 'Request Factory',
-                    subtitle: 'Each API call gets its own request object',
-                    icon: Icons.http_rounded,
-                    color: const Color(0xFF3B82F6),
-                    instances: requests.value,
-                    onCreate: createRequest,
-                    renderInstance: (instance) =>
-                        _RequestCard(request: instance),
+            child: selectedProduct.value == null
+                ? _ProductGrid(
+                    onSelectProduct: (p) => selectedProduct.value = p,
+                  )
+                : _ProductDetailScreen(
+                    product: selectedProduct.value!,
+                    onBack: () => selectedProduct.value = null,
                   ),
-                ),
-                const SizedBox(width: 16),
-                // Validator factory demo
-                Expanded(
-                  child: _FactoryDemo<FormValidator>(
-                    title: 'Validator Factory',
-                    subtitle: 'Each form gets its own validator',
-                    icon: Icons.verified_user_rounded,
-                    color: const Color(0xFFF59E0B),
-                    instances: validators.value,
-                    onCreate: createValidator,
-                    renderInstance: (instance) =>
-                        _ValidatorCard(validator: instance),
-                  ),
-                ),
-              ],
-            ),
           ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              OutlinedButton.icon(
-                onPressed: clearAll,
-                icon: const Icon(Icons.clear_all_rounded),
-                label: const Text('Clear All'),
-              ),
-              const Spacer(),
-              _buildComparisonInfo(context, requests.value, validators.value),
-            ],
-          ),
-          const SizedBox(height: 16),
-          const _CodeExample(),
         ],
       ),
     );
@@ -117,14 +49,15 @@ class FactoryScenario extends HookWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Factory Pattern',
+          'ViewModel Pattern - Factory Services',
           style: theme.textTheme.headlineSmall?.copyWith(
             fontWeight: FontWeight.bold,
           ),
         ),
         const SizedBox(height: 4),
         Text(
-          'Unlike singletons, factories create a NEW instance on every call to create().',
+          'Each product detail screen gets its own ViewModel with isolated state. '
+          'Select a product to see a ViewModel managing quantity, variants, and cart actions.',
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
           ),
@@ -132,107 +65,324 @@ class FactoryScenario extends HookWidget {
       ],
     );
   }
+}
 
-  Widget _buildComparisonInfo(
-    BuildContext context,
-    List<RequestService> requests,
-    List<FormValidator> validators,
-  ) {
+// ============================================================
+// VIEWMODEL - Factory service for product detail screen
+// ============================================================
+
+/// ViewModel for product detail screen - created per product via factory.
+class ProductDetailViewModel extends Service {
+  final _ProductInfo product;
+
+  // Reactive state
+  final quantity = ReactiveState<int>(1);
+  final selectedSize = ReactiveState<String?>(null);
+  final selectedColor = ReactiveState<String?>(null);
+  final isAddingToCart = ReactiveState<bool>(false);
+  final cartMessage = ReactiveState<String?>(null);
+  final isFavorite = ReactiveState<bool>(false);
+
+  // Computed values exposed
+  int get totalPrice => product.price * quantity.value;
+  bool get canAddToCart =>
+      selectedSize.value != null && selectedColor.value != null;
+
+  ProductDetailViewModel(this.product);
+
+  void incrementQuantity() {
+    if (quantity.value < 10) quantity.value++;
+  }
+
+  void decrementQuantity() {
+    if (quantity.value > 1) quantity.value--;
+  }
+
+  void selectSize(String size) {
+    selectedSize.value = size;
+    cartMessage.value = null;
+  }
+
+  void selectColor(String color) {
+    selectedColor.value = color;
+    cartMessage.value = null;
+  }
+
+  void toggleFavorite() {
+    isFavorite.value = !isFavorite.value;
+  }
+
+  Future<void> addToCart() async {
+    if (!canAddToCart) {
+      cartMessage.value = 'Please select size and color';
+      return;
+    }
+
+    isAddingToCart.value = true;
+    cartMessage.value = null;
+
+    // Simulate API call
+    await Future.delayed(const Duration(milliseconds: 800));
+
+    cartMessage.value =
+        'Added ${quantity.value}x ${product.name} (${selectedSize.value}, ${selectedColor.value}) to cart!';
+    isAddingToCart.value = false;
+
+    // Reset after success
+    await Future.delayed(const Duration(seconds: 2));
+    cartMessage.value = null;
+  }
+
+  @override
+  Future<void> onDispose() async {
+    quantity.dispose();
+    selectedSize.dispose();
+    selectedColor.dispose();
+    isAddingToCart.dispose();
+    cartMessage.dispose();
+    isFavorite.dispose();
+  }
+}
+
+// ============================================================
+// MOCK DATA
+// ============================================================
+
+class _ProductInfo {
+  final String id;
+  final String name;
+  final String image;
+  final int price;
+  final String description;
+  final List<String> sizes;
+  final List<String> colors;
+  final double rating;
+  final int reviews;
+
+  const _ProductInfo({
+    required this.id,
+    required this.name,
+    required this.image,
+    required this.price,
+    required this.description,
+    required this.sizes,
+    required this.colors,
+    required this.rating,
+    required this.reviews,
+  });
+}
+
+const _products = [
+  _ProductInfo(
+    id: '1',
+    name: 'Classic Sneakers',
+    image: '👟',
+    price: 129,
+    description:
+        'Timeless design meets modern comfort. Perfect for everyday wear.',
+    sizes: ['US 7', 'US 8', 'US 9', 'US 10', 'US 11'],
+    colors: ['White', 'Black', 'Navy'],
+    rating: 4.8,
+    reviews: 2341,
+  ),
+  _ProductInfo(
+    id: '2',
+    name: 'Running Pro',
+    image: '🏃',
+    price: 179,
+    description: 'Engineered for performance. Lightweight and responsive.',
+    sizes: ['US 7', 'US 8', 'US 9', 'US 10'],
+    colors: ['Red', 'Blue', 'Lime'],
+    rating: 4.9,
+    reviews: 1823,
+  ),
+  _ProductInfo(
+    id: '3',
+    name: 'Hiking Boots',
+    image: '🥾',
+    price: 219,
+    description: 'Waterproof and durable. Conquer any trail.',
+    sizes: ['US 8', 'US 9', 'US 10', 'US 11', 'US 12'],
+    colors: ['Brown', 'Olive', 'Black'],
+    rating: 4.7,
+    reviews: 987,
+  ),
+  _ProductInfo(
+    id: '4',
+    name: 'Sandals Comfort',
+    image: '🩴',
+    price: 59,
+    description: 'Ultimate comfort for beach and casual outings.',
+    sizes: ['US 7', 'US 8', 'US 9', 'US 10'],
+    colors: ['Tan', 'Black', 'White'],
+    rating: 4.5,
+    reviews: 1456,
+  ),
+];
+
+// ============================================================
+// UI COMPONENTS
+// ============================================================
+
+class _ProductGrid extends StatelessWidget {
+  final void Function(_ProductInfo) onSelectProduct;
+
+  const _ProductGrid({required this.onSelectProduct});
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    // Check if any two instances are identical
-    bool allUnique = true;
-    for (int i = 0; i < requests.length && allUnique; i++) {
-      for (int j = i + 1; j < requests.length && allUnique; j++) {
-        if (identical(requests[i], requests[j])) {
-          allUnique = false;
-        }
-      }
-    }
-    for (int i = 0; i < validators.length && allUnique; i++) {
-      for (int j = i + 1; j < validators.length && allUnique; j++) {
-        if (identical(validators[i], validators[j])) {
-          allUnique = false;
-        }
-      }
-    }
-
-    final total = requests.length + validators.length;
-    if (total == 0) return const SizedBox.shrink();
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: allUnique
-            ? Colors.green.withValues(alpha: 0.1)
-            : Colors.red.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: allUnique
-              ? Colors.green.withValues(alpha: 0.3)
-              : Colors.red.withValues(alpha: 0.3),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Select a product to open its ViewModel:',
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
         ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            allUnique ? Icons.check_circle_rounded : Icons.error_rounded,
-            size: 16,
-            color: allUnique ? Colors.green : Colors.red,
-          ),
-          const SizedBox(width: 8),
-          Text(
-            '$total instances • All unique: $allUnique',
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: allUnique ? Colors.green : Colors.red,
-              fontWeight: FontWeight.w500,
+        const SizedBox(height: 16),
+        Expanded(
+          child: GridView.builder(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              mainAxisSpacing: 16,
+              crossAxisSpacing: 16,
+              childAspectRatio: 1.4,
             ),
+            itemCount: _products.length,
+            itemBuilder: (context, index) {
+              final product = _products[index];
+              return _ProductCard(
+                product: product,
+                onTap: () => onSelectProduct(product),
+              );
+            },
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
 
-class _FactoryDemo<T> extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final Color color;
-  final List<T> instances;
-  final VoidCallback onCreate;
-  final Widget Function(T) renderInstance;
+class _ProductCard extends StatelessWidget {
+  final _ProductInfo product;
+  final VoidCallback onTap;
 
-  const _FactoryDemo({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.color,
-    required this.instances,
-    required this.onCreate,
-    required this.renderInstance,
-  });
+  const _ProductCard({required this.product, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     return ThemedCard(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(product.image, style: const TextStyle(fontSize: 32)),
+                  const Spacer(),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.star, size: 14, color: Colors.amber),
+                        const SizedBox(width: 4),
+                        Text(
+                          product.rating.toString(),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  child: Icon(icon, color: color, size: 20),
+                ],
+              ),
+              const Spacer(),
+              Text(
+                product.name,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '\$${product.price}',
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.primary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Product detail screen with its own ViewModel
+class _ProductDetailScreen extends HookWidget {
+  final _ProductInfo product;
+  final VoidCallback onBack;
+
+  const _ProductDetailScreen({
+    required this.product,
+    required this.onBack,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    // Create ViewModel for this screen instance
+    final viewModel =
+        useMemoized(() => ProductDetailViewModel(product), [product.id]);
+
+    // Dispose ViewModel when screen closes
+    useEffect(() => viewModel.dispose, [viewModel]);
+
+    // Subscribe to reactive state
+    final quantity = useValueListenable(viewModel.quantity);
+    final selectedSize = useValueListenable(viewModel.selectedSize);
+    final selectedColor = useValueListenable(viewModel.selectedColor);
+    final isAddingToCart = useValueListenable(viewModel.isAddingToCart);
+    final cartMessage = useValueListenable(viewModel.cartMessage);
+    final isFavorite = useValueListenable(viewModel.isFavorite);
+
+    return ThemedCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header with back button
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                IconButton(
+                  onPressed: onBack,
+                  icon: const Icon(Icons.arrow_back),
+                  style: IconButton.styleFrom(
+                    backgroundColor: isDark
+                        ? Colors.white.withValues(alpha: 0.1)
+                        : Colors.black.withValues(alpha: 0.05),
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -240,253 +390,238 @@ class _FactoryDemo<T> extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        title,
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w600,
+                        product.name,
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                       Text(
-                        subtitle,
+                        'ViewModel Hash: ${viewModel.hashCode.toRadixString(16)}',
                         style: theme.textTheme.labelSmall?.copyWith(
+                          fontFamily: 'monospace',
                           color: theme.colorScheme.onSurface
-                              .withValues(alpha: 0.5),
+                              .withValues(alpha: 0.4),
                         ),
                       ),
                     ],
                   ),
                 ),
+                IconButton(
+                  onPressed: viewModel.toggleFavorite,
+                  icon: Icon(
+                    isFavorite ? Icons.favorite : Icons.favorite_border,
+                    color: isFavorite ? Colors.red : null,
+                  ),
+                ),
               ],
             ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: onCreate,
-                icon: const Icon(Icons.add_rounded, size: 18),
-                label: const Text('Create Instance'),
-                style: FilledButton.styleFrom(backgroundColor: color),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Instances (${instances.length})',
-              style: theme.textTheme.labelMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Expanded(
-              child: instances.isEmpty
-                  ? Center(
-                      child: Text(
-                        'No instances created yet',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface
-                              .withValues(alpha: 0.4),
-                          fontStyle: FontStyle.italic,
+          ),
+          Divider(
+              height: 1,
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.1)
+                  : Colors.black.withValues(alpha: 0.05)),
+
+          // Content
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Product info
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? Colors.white.withValues(alpha: 0.05)
+                              : Colors.grey.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Center(
+                          child: Text(product.image,
+                              style: const TextStyle(fontSize: 48)),
                         ),
                       ),
-                    )
-                  : ListView.separated(
-                      itemCount: instances.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 8),
-                      itemBuilder: (context, index) =>
-                          renderInstance(instances[index]),
-                    ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '\$${product.price}',
+                              style: theme.textTheme.headlineMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: theme.colorScheme.primary,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Icon(Icons.star,
+                                    size: 16, color: Colors.amber.shade600),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${product.rating} (${product.reviews} reviews)',
+                                  style: theme.textTheme.bodySmall,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              product.description,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: theme.colorScheme.onSurface
+                                    .withValues(alpha: 0.7),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
 
-class _RequestCard extends StatelessWidget {
-  final RequestService request;
+                  // Size selector
+                  Text(
+                    'Size',
+                    style: theme.textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: product.sizes.map((size) {
+                      final isSelected = selectedSize == size;
+                      return ChoiceChip(
+                        label: Text(size),
+                        selected: isSelected,
+                        onSelected: (_) => viewModel.selectSize(size),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 16),
 
-  const _RequestCard({required this.request});
+                  // Color selector
+                  Text(
+                    'Color',
+                    style: theme.textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: product.colors.map((color) {
+                      final isSelected = selectedColor == color;
+                      return ChoiceChip(
+                        label: Text(color),
+                        selected: isSelected,
+                        onSelected: (_) => viewModel.selectColor(color),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 16),
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: isDark
-            ? Colors.white.withValues(alpha: 0.05)
-            : Colors.grey.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: isDark
-              ? Colors.white.withValues(alpha: 0.1)
-              : Colors.grey.withValues(alpha: 0.1),
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(
-              color: Colors.green,
-              shape: BoxShape.circle,
+                  // Quantity selector
+                  Text(
+                    'Quantity',
+                    style: theme.textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      IconButton.filled(
+                        onPressed: viewModel.decrementQuantity,
+                        icon: const Icon(Icons.remove),
+                        style: IconButton.styleFrom(
+                          backgroundColor:
+                              theme.colorScheme.primary.withValues(alpha: 0.1),
+                          foregroundColor: theme.colorScheme.primary,
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(
+                          quantity.toString(),
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      IconButton.filled(
+                        onPressed: viewModel.incrementQuantity,
+                        icon: const Icon(Icons.add),
+                        style: IconButton.styleFrom(
+                          backgroundColor:
+                              theme.colorScheme.primary.withValues(alpha: 0.1),
+                          foregroundColor: theme.colorScheme.primary,
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        'Total: \$${viewModel.totalPrice}',
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Request #${request.id}',
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+
+          // Cart message
+          if (cartMessage != null)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              color: cartMessage.contains('Added')
+                  ? Colors.green.withValues(alpha: 0.1)
+                  : Colors.orange.withValues(alpha: 0.1),
+              child: Text(
+                cartMessage,
+                style: TextStyle(
+                  color: cartMessage.contains('Added')
+                      ? Colors.green
+                      : Colors.orange,
+                  fontWeight: FontWeight.w500,
                 ),
-                Text(
-                  'Hash: ${request.hashCode}',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    fontFamily: 'monospace',
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                  ),
-                ),
-              ],
+                textAlign: TextAlign.center,
+              ),
             ),
-          ),
-          Text(
-            request.createdAt,
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+
+          // Add to cart button
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: isAddingToCart ? null : () => viewModel.addToCart(),
+                icon: isAddingToCart
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.shopping_cart),
+                label: Text(isAddingToCart ? 'Adding...' : 'Add to Cart'),
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+              ),
             ),
           ),
         ],
       ),
     );
-  }
-}
-
-class _ValidatorCard extends StatelessWidget {
-  final FormValidator validator;
-
-  const _ValidatorCard({required this.validator});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: isDark
-            ? Colors.white.withValues(alpha: 0.05)
-            : Colors.grey.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: isDark
-              ? Colors.white.withValues(alpha: 0.1)
-              : Colors.grey.withValues(alpha: 0.1),
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(
-              color: Colors.amber,
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Validator #${validator.id}',
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                Text(
-                  'Rules: ${validator.rulesCount}',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Text(
-            'Hash: ${validator.hashCode.toRadixString(16).toUpperCase()}',
-            style: theme.textTheme.labelSmall?.copyWith(
-              fontFamily: 'monospace',
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CodeExample extends StatelessWidget {
-  const _CodeExample();
-
-  @override
-  Widget build(BuildContext context) {
-    return const CodeBlock(
-      title: 'Singleton vs Factory Pattern',
-      code: '''// SINGLETON - same instance every time
-container.register<AuthService>((ref) => AuthService(ref));
-
-final auth1 = container.get<AuthService>();
-final auth2 = container.get<AuthService>();
-assert(identical(auth1, auth2)); // Same instance
-
-
-// FACTORY - NEW instance every time  
-container.registerFactory<HttpRequest>((ref) => HttpRequest());
-
-final req1 = container.create<HttpRequest>();
-final req2 = container.create<HttpRequest>();
-assert(!identical(req1, req2)); // Different instances''',
-    );
-  }
-}
-
-/// Example request service - each instance has unique ID
-class RequestService extends Service {
-  static int _counter = 0;
-  final int id;
-  final String createdAt;
-
-  RequestService()
-      : id = ++_counter,
-        createdAt = _formatTime(DateTime.now());
-
-  static String _formatTime(DateTime time) {
-    return '${time.hour.toString().padLeft(2, '0')}:'
-        '${time.minute.toString().padLeft(2, '0')}:'
-        '${time.second.toString().padLeft(2, '0')}';
-  }
-}
-
-/// Example form validator - each form gets its own instance
-class FormValidator extends Service {
-  static int _counter = 0;
-  final int id;
-  final int rulesCount;
-
-  FormValidator()
-      : id = ++_counter,
-        rulesCount = 5 + (_counter % 5);
-
-  bool validate(Map<String, dynamic> data) {
-    // Validation logic
-    return true;
   }
 }

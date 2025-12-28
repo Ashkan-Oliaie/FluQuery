@@ -5,3 +5,5 @@ export 'service.dart';
 export 'service_key.dart';
 export 'service_ref.dart';
 export 'service_container.dart';
+export 'reactive_state.dart';
+export 'stateful_service.dart';

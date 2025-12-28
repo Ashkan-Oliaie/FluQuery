@@ -120,7 +120,7 @@ class AuthService extends Service {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
 
         _sessionService.setAuthenticated(
-          user: User.fromJson(data['user'] as Map<String, dynamic>),
+          userData: User.fromJson(data['user'] as Map<String, dynamic>),
           accessToken: data['accessToken'] as String,
           refreshToken: data['refreshToken'] as String,
           expiresAt: DateTime.parse(data['expiresAt'] as String),
