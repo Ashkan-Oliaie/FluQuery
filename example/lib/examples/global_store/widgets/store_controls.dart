@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
+import 'package:fluquery/fluquery.dart';
+
 import '../../../api/api_client.dart';
-import '../../../main.dart' show GlobalConfigStore;
+import '../../../services/services.dart';
 
 class StoreControls extends HookWidget {
   final bool isPaused;
@@ -20,6 +22,9 @@ class StoreControls extends HookWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final accentColor = Theme.of(context).colorScheme.primary;
     final isRandomizing = useState(false);
+    
+    // Get service for setConfig action
+    final configService = useService<ConfigService>();
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -69,7 +74,7 @@ class StoreControls extends HookWidget {
                   isRandomizing.value = true;
                   try {
                     final newConfig = await ApiClient.randomizeConfig();
-                    GlobalConfigStore.configNotifier.value = newConfig;
+                    configService.setConfig(newConfig);
                   } finally {
                     isRandomizing.value = false;
                   }

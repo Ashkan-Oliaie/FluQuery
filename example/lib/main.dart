@@ -1,12 +1,9 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:fluquery/fluquery.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'api/api_client.dart';
-import 'constants/query_keys.dart';
 import 'examples/basic_query/basic_query_example.dart';
 import 'examples/mutation/mutation_example.dart';
 import 'examples/infinite_query/infinite_query_example.dart';
@@ -24,76 +21,6 @@ import 'services/services.dart';
 
 void main() {
   runApp(const FluQueryExampleApp());
-}
-
-/// Global config manager - accessible from anywhere
-///
-/// This demonstrates the service-driven pattern:
-/// - Uses simple ValueNotifier for reactive state
-/// - Timer handles background refresh
-/// - No QueryStore needed!
-class GlobalConfigStore {
-  static final ValueNotifier<AppConfig?> configNotifier = ValueNotifier(null);
-  static final ValueNotifier<bool> isLoadingNotifier = ValueNotifier(false);
-  static Timer? _refreshTimer;
-  static bool _isPaused = false;
-  static bool _isInitialized = false;
-
-  static void init(QueryClient client) {
-    if (_isInitialized) return;
-    _isInitialized = true;
-
-    // Initial fetch
-    _fetchConfig();
-
-    // Start background refresh timer
-    _startRefreshTimer();
-  }
-
-  static void _startRefreshTimer() {
-    _refreshTimer?.cancel();
-    _refreshTimer = Timer.periodic(
-      const Duration(seconds: 10),
-      (_) {
-        if (!_isPaused) _fetchConfig();
-      },
-    );
-  }
-
-  /// Fetch config from API
-  static Future<void> _fetchConfig() async {
-    isLoadingNotifier.value = true;
-    try {
-      final config = await ApiClient.getConfig();
-      configNotifier.value = config;
-    } catch (e) {
-      // Could add error handling if needed
-    } finally {
-      isLoadingNotifier.value = false;
-    }
-  }
-
-  /// Manually refresh config
-  static Future<void> refresh() => _fetchConfig();
-
-  /// Pause background refreshing
-  static void pause() => _isPaused = true;
-
-  /// Resume background refreshing
-  static void resume() => _isPaused = false;
-
-  /// Whether refreshing is paused
-  static bool get isPaused => _isPaused;
-
-  static AppConfig? get config => configNotifier.value;
-  static bool get isLoading => isLoadingNotifier.value;
-
-  static void dispose() {
-    _refreshTimer?.cancel();
-    _refreshTimer = null;
-    _isPaused = false;
-    _isInitialized = false;
-  }
 }
 
 class FluQueryExampleApp extends StatefulWidget {
@@ -131,11 +58,11 @@ class _FluQueryExampleAppState extends State<FluQueryExampleApp> {
       persister: _persister,
     );
 
-    // Initialize global config store
-    GlobalConfigStore.init(_queryClient!);
-
-    // Initialize services for auth demo
+    // Initialize services
     await _queryClient!.initServices((container) {
+      // Config service - global app configuration with polling
+      container.register<ConfigService>((ref) => ConfigService());
+      // Auth services
       container.register<TokenStorageService>((ref) => TokenStorageService());
       container.register<ActivityTrackingService>(
           (ref) => ActivityTrackingService());
@@ -153,7 +80,6 @@ class _FluQueryExampleAppState extends State<FluQueryExampleApp> {
 
   @override
   void dispose() {
-    GlobalConfigStore.dispose();
     _queryClient?.dispose();
     _persister?.close();
     super.dispose();
@@ -183,131 +109,138 @@ class _FluQueryExampleAppState extends State<FluQueryExampleApp> {
 
     return QueryClientProvider(
       client: _queryClient!,
-      // Devtools are automatically enabled via QueryClientConfig.enableDevtools
-      // which defaults to kDebugMode. You can also set showDevtools: false to disable.
-      child: ValueListenableBuilder<AppConfig?>(
-        valueListenable: GlobalConfigStore.configNotifier,
-        builder: (context, config, child) {
-          final isDark = config?.theme != 'light';
-          return MaterialApp(
-            title: 'FluQuery Examples',
-            debugShowCheckedModeBanner: false,
-            themeMode: isDark ? ThemeMode.dark : ThemeMode.light,
-            theme: _buildTheme(config, false),
-            darkTheme: _buildTheme(config, true),
-            // Wrap all routes with the global header
-            builder: (context, child) {
-              return Material(
-                color: Theme.of(context).scaffoldBackgroundColor,
-                child: Column(
-                  children: [
-                    // Global persistent header
-                    GlobalConfigBar(config: config),
-                    // Page content
-                    Expanded(child: child ?? const SizedBox()),
-                  ],
-                ),
-              );
-            },
-            home: const ExamplesHomePage(),
-          );
-        },
-      ),
+      child: const _ConfiguredApp(),
     );
   }
+}
 
-  ThemeData _buildTheme(AppConfig? config, bool isDark) {
-    final accentColor = _getAccentColor(config?.accentColor ?? 'indigo');
+/// App wrapper that listens to ConfigService
+class _ConfiguredApp extends HookWidget {
+  const _ConfiguredApp();
 
-    return ThemeData(
-      useMaterial3: true,
-      brightness: isDark ? Brightness.dark : Brightness.light,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: accentColor,
-        brightness: isDark ? Brightness.dark : Brightness.light,
-      ),
-      scaffoldBackgroundColor:
-          isDark ? const Color(0xFF0F0F1A) : Colors.grey[100],
-      textTheme: GoogleFonts.spaceGroteskTextTheme(
-        isDark ? ThemeData.dark().textTheme : ThemeData.light().textTheme,
-      ).copyWith(
-        headlineLarge: GoogleFonts.orbitron(
-          fontSize: _getFontSize(config?.fontSize, 28),
-          fontWeight: FontWeight.bold,
-          color: isDark ? Colors.white : Colors.black87,
-        ),
-        headlineMedium: GoogleFonts.orbitron(
-          fontSize: _getFontSize(config?.fontSize, 20),
-          fontWeight: FontWeight.w600,
-          color: isDark ? Colors.white : Colors.black87,
-        ),
-      ),
-      cardTheme: CardThemeData(
-        color: isDark ? const Color(0xFF1A1A2E) : Colors.white,
-        elevation: isDark ? 0 : 2,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(
-            color: isDark ? const Color(0x1AFFFFFF) : Colors.grey.shade200,
+  @override
+  Widget build(BuildContext context) {
+    // Use selector to get config from ConfigService
+    final config = useSelect<ConfigService, ConfigState, AppConfig?>((s) => s.config);
+    final isDark = config?.theme != 'light';
+
+    return MaterialApp(
+      title: 'FluQuery Examples',
+      debugShowCheckedModeBanner: false,
+      themeMode: isDark ? ThemeMode.dark : ThemeMode.light,
+      theme: _buildTheme(config, false),
+      darkTheme: _buildTheme(config, true),
+      builder: (context, child) {
+        return Material(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          child: Column(
+            children: [
+              // Global persistent header
+              const GlobalConfigBar(),
+              // Page content
+              Expanded(child: child ?? const SizedBox()),
+            ],
           ),
-        ),
-      ),
-      appBarTheme: AppBarTheme(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        titleTextStyle: GoogleFonts.orbitron(
-          fontSize: _getFontSize(config?.fontSize, 20),
-          fontWeight: FontWeight.bold,
-          color: isDark ? Colors.white : Colors.black87,
-        ),
-        iconTheme: IconThemeData(
-          color: isDark ? Colors.white70 : Colors.black54,
-        ),
-      ),
+        );
+      },
+      home: const ExamplesHomePage(),
     );
   }
+}
 
-  Color _getAccentColor(String colorName) {
-    switch (colorName) {
-      case 'purple':
-        return const Color(0xFF8B5CF6);
-      case 'teal':
-        return const Color(0xFF14B8A6);
-      case 'orange':
-        return const Color(0xFFF59E0B);
-      case 'pink':
-        return const Color(0xFFEC4899);
-      case 'blue':
-        return const Color(0xFF3B82F6);
-      case 'indigo':
-      default:
-        return const Color(0xFF6366F1);
-    }
+ThemeData _buildTheme(AppConfig? config, bool isDark) {
+  final accentColor = _getAccentColor(config?.accentColor ?? 'indigo');
+
+  return ThemeData(
+    useMaterial3: true,
+    brightness: isDark ? Brightness.dark : Brightness.light,
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: accentColor,
+      brightness: isDark ? Brightness.dark : Brightness.light,
+    ),
+    scaffoldBackgroundColor: isDark ? const Color(0xFF0F0F1A) : Colors.grey[100],
+    textTheme: GoogleFonts.spaceGroteskTextTheme(
+      isDark ? ThemeData.dark().textTheme : ThemeData.light().textTheme,
+    ).copyWith(
+      headlineLarge: GoogleFonts.orbitron(
+        fontSize: _getFontSize(config?.fontSize, 28),
+        fontWeight: FontWeight.bold,
+        color: isDark ? Colors.white : Colors.black87,
+      ),
+      headlineMedium: GoogleFonts.orbitron(
+        fontSize: _getFontSize(config?.fontSize, 20),
+        fontWeight: FontWeight.w600,
+        color: isDark ? Colors.white : Colors.black87,
+      ),
+    ),
+    cardTheme: CardThemeData(
+      color: isDark ? const Color(0xFF1A1A2E) : Colors.white,
+      elevation: isDark ? 0 : 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: isDark ? const Color(0x1AFFFFFF) : Colors.grey.shade200,
+        ),
+      ),
+    ),
+    appBarTheme: AppBarTheme(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      titleTextStyle: GoogleFonts.orbitron(
+        fontSize: _getFontSize(config?.fontSize, 20),
+        fontWeight: FontWeight.bold,
+        color: isDark ? Colors.white : Colors.black87,
+      ),
+      iconTheme: IconThemeData(
+        color: isDark ? Colors.white70 : Colors.black54,
+      ),
+    ),
+  );
+}
+
+Color _getAccentColor(String colorName) {
+  switch (colorName) {
+    case 'purple':
+      return const Color(0xFF8B5CF6);
+    case 'teal':
+      return const Color(0xFF14B8A6);
+    case 'orange':
+      return const Color(0xFFF59E0B);
+    case 'pink':
+      return const Color(0xFFEC4899);
+    case 'blue':
+      return const Color(0xFF3B82F6);
+    case 'indigo':
+    default:
+      return const Color(0xFF6366F1);
   }
+}
 
-  double _getFontSize(String? size, double base) {
-    switch (size) {
-      case 'small':
-        return base * 0.85;
-      case 'large':
-        return base * 1.15;
-      case 'medium':
-      default:
-        return base;
-    }
+double _getFontSize(String? size, double base) {
+  switch (size) {
+    case 'small':
+      return base * 0.85;
+    case 'large':
+      return base * 1.15;
+    case 'medium':
+    default:
+      return base;
   }
 }
 
 /// Global config bar that appears at the top of ALL pages
 class GlobalConfigBar extends HookWidget {
-  final AppConfig? config;
-
-  const GlobalConfigBar({super.key, this.config});
+  const GlobalConfigBar({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final isLoading = useValueListenable(GlobalConfigStore.isLoadingNotifier);
-    final isPaused = useState(GlobalConfigStore.isPaused);
+    // Use selectors - granular rebuilds
+    final config = useSelect<ConfigService, ConfigState, AppConfig?>((s) => s.config);
+    final isLoading = useSelect<ConfigService, ConfigState, bool>((s) => s.isLoading);
+    final isPaused = useSelect<ConfigService, ConfigState, bool>((s) => s.isPaused);
+
+    // Get service for actions
+    final configService = useService<ConfigService>();
 
     final isDark = config?.theme != 'light';
     final accentColor = _getAccentColor(config?.accentColor ?? 'indigo');
@@ -412,7 +345,7 @@ class GlobalConfigBar extends HookWidget {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  'v${config!.version}',
+                  'v${config.version}',
                   style: TextStyle(
                     color: isDark ? Colors.white38 : Colors.black38,
                     fontSize: 10,
@@ -436,14 +369,7 @@ class GlobalConfigBar extends HookWidget {
               ),
             // Pause/Resume button
             GestureDetector(
-              onTap: () {
-                if (isPaused.value) {
-                  GlobalConfigStore.resume();
-                } else {
-                  GlobalConfigStore.pause();
-                }
-                isPaused.value = !isPaused.value;
-              },
+              onTap: configService.togglePause,
               child: Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
@@ -453,9 +379,9 @@ class GlobalConfigBar extends HookWidget {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
-                  isPaused.value ? Icons.play_arrow : Icons.pause,
+                  isPaused ? Icons.play_arrow : Icons.pause,
                   size: 14,
-                  color: isPaused.value
+                  color: isPaused
                       ? const Color(0xFF22C55E)
                       : (isDark ? Colors.white54 : Colors.black45),
                 ),
@@ -467,7 +393,7 @@ class GlobalConfigBar extends HookWidget {
               onTap: () async {
                 try {
                   final newConfig = await ApiClient.randomizeConfig();
-                  GlobalConfigStore.configNotifier.value = newConfig;
+                  configService.setConfig(newConfig);
                 } catch (_) {}
               },
               child: Container(
@@ -487,24 +413,6 @@ class GlobalConfigBar extends HookWidget {
         ),
       ),
     );
-  }
-
-  Color _getAccentColor(String colorName) {
-    switch (colorName) {
-      case 'purple':
-        return const Color(0xFF8B5CF6);
-      case 'teal':
-        return const Color(0xFF14B8A6);
-      case 'orange':
-        return const Color(0xFFF59E0B);
-      case 'pink':
-        return const Color(0xFFEC4899);
-      case 'blue':
-        return const Color(0xFF3B82F6);
-      case 'indigo':
-      default:
-        return const Color(0xFF6366F1);
-    }
   }
 }
 
