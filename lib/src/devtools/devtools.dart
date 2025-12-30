@@ -15,7 +15,7 @@
 /// - Filter and search queries
 ///
 /// Toggle with the floating button or keyboard shortcut (Shift+D).
-library devtools;
+library;
 
 export 'devtools_controller.dart'
     show DevtoolsController, QuerySnapshot, DevtoolsStats, QueryStatusFilter;

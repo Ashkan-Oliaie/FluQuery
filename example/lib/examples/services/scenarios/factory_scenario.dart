@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:fluquery/fluquery.dart';
@@ -18,7 +17,7 @@ class FactoryScenario extends HookWidget {
 
   @override
   Widget build(BuildContext context) {
-    final selectedProduct = useState<_ProductInfo?>(null);
+    final selectedProduct = useState<ProductInfo?>(null);
 
     return Padding(
       padding: const EdgeInsets.all(20),
@@ -73,7 +72,7 @@ class FactoryScenario extends HookWidget {
 
 /// Product detail service - created per product via factory.
 class ProductDetailService extends Service {
-  final _ProductInfo product;
+  final ProductInfo product;
 
   // Reactive state
   final quantity = ReactiveState<int>(1);
@@ -148,7 +147,7 @@ class ProductDetailService extends Service {
 // MOCK DATA
 // ============================================================
 
-class _ProductInfo {
+class ProductInfo {
   final String id;
   final String name;
   final String image;
@@ -159,7 +158,7 @@ class _ProductInfo {
   final double rating;
   final int reviews;
 
-  const _ProductInfo({
+  const ProductInfo({
     required this.id,
     required this.name,
     required this.image,
@@ -173,7 +172,7 @@ class _ProductInfo {
 }
 
 const _products = [
-  _ProductInfo(
+  ProductInfo(
     id: '1',
     name: 'Classic Sneakers',
     image: '👟',
@@ -185,7 +184,7 @@ const _products = [
     rating: 4.8,
     reviews: 2341,
   ),
-  _ProductInfo(
+  ProductInfo(
     id: '2',
     name: 'Running Pro',
     image: '🏃',
@@ -196,7 +195,7 @@ const _products = [
     rating: 4.9,
     reviews: 1823,
   ),
-  _ProductInfo(
+  ProductInfo(
     id: '3',
     name: 'Hiking Boots',
     image: '🥾',
@@ -207,7 +206,7 @@ const _products = [
     rating: 4.7,
     reviews: 987,
   ),
-  _ProductInfo(
+  ProductInfo(
     id: '4',
     name: 'Sandals Comfort',
     image: '🩴',
@@ -225,7 +224,7 @@ const _products = [
 // ============================================================
 
 class _ProductGrid extends StatelessWidget {
-  final void Function(_ProductInfo) onSelectProduct;
+  final void Function(ProductInfo) onSelectProduct;
 
   const _ProductGrid({required this.onSelectProduct});
 
@@ -267,7 +266,7 @@ class _ProductGrid extends StatelessWidget {
 }
 
 class _ProductCard extends StatelessWidget {
-  final _ProductInfo product;
+  final ProductInfo product;
   final VoidCallback onTap;
 
   const _ProductCard({required this.product, required this.onTap});
@@ -338,7 +337,7 @@ class _ProductCard extends StatelessWidget {
 
 /// Product detail screen with its own service
 class _ProductDetailScreen extends HookWidget {
-  final _ProductInfo product;
+  final ProductInfo product;
   final VoidCallback onBack;
 
   const _ProductDetailScreen({
