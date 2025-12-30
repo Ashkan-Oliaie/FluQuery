@@ -9,7 +9,7 @@ import 'task_card.dart';
 /// TaskList - only rebuilds when:
 /// - isLoading changes
 /// - Task IDs change (add/remove/reorder)
-/// 
+///
 /// Does NOT rebuild when individual task properties change.
 class TaskList extends HookWidget {
   const TaskList({super.key});
@@ -17,7 +17,7 @@ class TaskList extends HookWidget {
   @override
   Widget build(BuildContext context) {
     debugPrint('🔄 BUILD: TaskList');
-    
+
     final theme = Theme.of(context);
 
     final isLoading = useSelect<TaskService, TaskState, bool>(

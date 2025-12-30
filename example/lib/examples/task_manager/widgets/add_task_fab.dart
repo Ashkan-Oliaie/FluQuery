@@ -11,9 +11,11 @@ class AddTaskFab extends HookWidget {
   @override
   Widget build(BuildContext context) {
     debugPrint('🔄 BUILD: AddTaskFab');
-    
+
     final service = useService<TaskService>(key: kTaskService);
-    final completedCount = useSelect<TaskService, TaskState, int>((s) => s.completedCount, key: kTaskService);
+    final completedCount = useSelect<TaskService, TaskState, int>(
+        (s) => s.completedCount,
+        key: kTaskService);
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -116,7 +118,8 @@ class AddTaskFab extends HookWidget {
                         child: FilledButton(
                           onPressed: () {
                             if (titleCtrl.text.isNotEmpty) {
-                              debugPrint('⚡ ACTION: addTask("${titleCtrl.text}")');
+                              debugPrint(
+                                  '⚡ ACTION: addTask("${titleCtrl.text}")');
                               service.addTask(
                                   titleCtrl.text,
                                   descCtrl.text.isEmpty ? null : descCtrl.text,

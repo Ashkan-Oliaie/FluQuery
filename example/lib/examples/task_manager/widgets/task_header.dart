@@ -31,7 +31,7 @@ class _TitleBar extends HookWidget {
   @override
   Widget build(BuildContext context) {
     debugPrint('🔄 BUILD: _TitleBar');
-    
+
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
@@ -42,37 +42,38 @@ class _TitleBar extends HookWidget {
     );
 
     return Row(
-            children: [
-              IconButton(
-                onPressed: () => Navigator.pop(context),
+      children: [
+        IconButton(
+          onPressed: () => Navigator.pop(context),
           icon: Icon(
             Icons.arrow_back,
             color: isDark ? Colors.white70 : Colors.black54,
           ),
-              ),
-              const SizedBox(width: 8),
+        ),
+        const SizedBox(width: 8),
         Text(
           'Task Manager',
-          style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+          style: theme.textTheme.headlineSmall
+              ?.copyWith(fontWeight: FontWeight.bold),
         ),
-              const Spacer(),
-              if (isLoading)
-                const Padding(
-                  padding: EdgeInsets.only(right: 12),
-                  child: SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                ),
-              IconButton(
+        const Spacer(),
+        if (isLoading)
+          const Padding(
+            padding: EdgeInsets.only(right: 12),
+            child: SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+        IconButton(
           onPressed: () {
             debugPrint('⚡ ACTION: refresh');
             service.refresh();
           },
           icon: const Icon(Icons.refresh),
         ),
-            ],
+      ],
     );
   }
 }
@@ -83,7 +84,7 @@ class _StatsRow extends HookWidget {
   @override
   Widget build(BuildContext context) {
     debugPrint('🔄 BUILD: _StatsRow');
-    
+
     final theme = Theme.of(context);
 
     final totalCount = useSelect<TaskService, TaskState, int>(
@@ -100,13 +101,16 @@ class _StatsRow extends HookWidget {
     );
 
     return Row(
-            children: [
-        _StatBadge(label: 'Total', value: totalCount, color: theme.colorScheme.primary),
-              const SizedBox(width: 12),
+      children: [
+        _StatBadge(
+            label: 'Total',
+            value: totalCount,
+            color: theme.colorScheme.primary),
+        const SizedBox(width: 12),
         _StatBadge(label: 'Active', value: activeCount, color: Colors.orange),
-              const SizedBox(width: 12),
+        const SizedBox(width: 12),
         _StatBadge(label: 'Done', value: completedCount, color: Colors.green),
-        ],
+      ],
     );
   }
 }
@@ -136,7 +140,8 @@ class _StatBadge extends StatelessWidget {
         children: [
           Text(
             value.toString(),
-            style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 16),
+            style: TextStyle(
+                color: color, fontWeight: FontWeight.bold, fontSize: 16),
           ),
           const SizedBox(width: 4),
           Text(

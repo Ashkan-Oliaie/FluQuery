@@ -17,9 +17,12 @@ class GlobalStoreExample extends HookWidget {
   Widget build(BuildContext context) {
     // Get service and select state
     final configService = useService<ConfigService>();
-    final config = useSelect<ConfigService, ConfigState, AppConfig?>((s) => s.config);
-    final isLoading = useSelect<ConfigService, ConfigState, bool>((s) => s.isLoading);
-    final isPaused = useSelect<ConfigService, ConfigState, bool>((s) => s.isPaused);
+    final config =
+        useSelect<ConfigService, ConfigState, AppConfig?>((s) => s.config);
+    final isLoading =
+        useSelect<ConfigService, ConfigState, bool>((s) => s.isLoading);
+    final isPaused =
+        useSelect<ConfigService, ConfigState, bool>((s) => s.isPaused);
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final accentColor = Theme.of(context).colorScheme.primary;

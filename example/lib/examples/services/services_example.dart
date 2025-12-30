@@ -279,7 +279,8 @@ class _ServiceStatusBadge extends HookWidget {
     }
 
     // Select status from session service
-    final status = useSelect<SessionService, SessionState, SessionStatus>((s) => s.status);
+    final status =
+        useSelect<SessionService, SessionState, SessionStatus>((s) => s.status);
 
     final (statusText, statusColor) = switch (status) {
       SessionStatus.unknown => ('Loading...', Colors.grey),

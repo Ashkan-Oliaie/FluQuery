@@ -87,7 +87,8 @@ T? useSelectItem<TService extends StatefulService<TState>, TState, T, TId>(
 }
 
 /// Select only IDs from a list. Only rebuilds when items added/removed/reordered.
-List<TId> useSelectIds<TService extends StatefulService<TState>, TState, T, TId>(
+List<TId>
+    useSelectIds<TService extends StatefulService<TState>, TState, T, TId>(
   List<T> Function(TState state) listSelector,
   TId Function(T item) getId, {
   String? key,

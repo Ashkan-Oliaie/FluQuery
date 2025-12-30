@@ -11,7 +11,7 @@ class TaskFilterBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     debugPrint('🔄 BUILD: TaskFilterBar');
-    
+
     return const Padding(
       padding: EdgeInsets.symmetric(horizontal: 20),
       child: Column(
@@ -38,7 +38,7 @@ class _SearchField extends HookWidget {
   @override
   Widget build(BuildContext context) {
     debugPrint('🔄 BUILD: _SearchField');
-    
+
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
@@ -53,27 +53,27 @@ class _SearchField extends HookWidget {
         debugPrint('⚡ ACTION: setSearchQuery("$v")');
         service.setSearchQuery(v);
       },
-            decoration: InputDecoration(
-              hintText: 'Search tasks...',
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: search.isNotEmpty
-                  ? IconButton(
+      decoration: InputDecoration(
+        hintText: 'Search tasks...',
+        prefixIcon: const Icon(Icons.search),
+        suffixIcon: search.isNotEmpty
+            ? IconButton(
                 onPressed: () {
                   debugPrint('⚡ ACTION: clearSearch');
                   service.setSearchQuery('');
                 },
                 icon: const Icon(Icons.clear),
               )
-                  : null,
-              filled: true,
-              fillColor: isDark
-                  ? Colors.white.withValues(alpha: 0.05)
-                  : Colors.black.withValues(alpha: 0.03),
-              border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+            : null,
+        filled: true,
+        fillColor: isDark
+            ? Colors.white.withValues(alpha: 0.05)
+            : Colors.black.withValues(alpha: 0.03),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
-            ),
-          ),
+        ),
+      ),
     );
   }
 }
@@ -84,7 +84,7 @@ class _FilterChips extends HookWidget {
   @override
   Widget build(BuildContext context) {
     debugPrint('🔄 BUILD: _FilterChips');
-    
+
     final theme = Theme.of(context);
     final service = useService<TaskService>(key: kTaskService);
     final currentFilter = useSelect<TaskService, TaskState, TaskFilter>(
@@ -96,16 +96,17 @@ class _FilterChips extends HookWidget {
       mainAxisSize: MainAxisSize.min,
       children: TaskFilter.values
           .map((f) => Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: FilterChip(
-                      label: Text(f.name.toUpperCase()),
-                      selected: currentFilter == f,
+                padding: const EdgeInsets.only(right: 8),
+                child: FilterChip(
+                  label: Text(f.name.toUpperCase()),
+                  selected: currentFilter == f,
                   onSelected: (_) {
                     debugPrint('⚡ ACTION: setFilter($f)');
                     service.setFilter(f);
                   },
-                  selectedColor: theme.colorScheme.primary.withValues(alpha: 0.2),
-                    ),
+                  selectedColor:
+                      theme.colorScheme.primary.withValues(alpha: 0.2),
+                ),
               ))
           .toList(),
     );
@@ -118,7 +119,7 @@ class _SortDropdown extends HookWidget {
   @override
   Widget build(BuildContext context) {
     debugPrint('🔄 BUILD: _SortDropdown');
-    
+
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
@@ -129,31 +130,31 @@ class _SortDropdown extends HookWidget {
     );
 
     return PopupMenuButton<TaskSort>(
-                initialValue: currentSort,
+      initialValue: currentSort,
       onSelected: (s) {
         debugPrint('⚡ ACTION: setSort($s)');
         service.setSort(s);
       },
-                itemBuilder: (_) => TaskSort.values
-                    .map((s) => PopupMenuItem(value: s, child: Text(s.name)))
-                    .toList(),
-                child: Container(
+      itemBuilder: (_) => TaskSort.values
+          .map((s) => PopupMenuItem(value: s, child: Text(s.name)))
+          .toList(),
+      child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? Colors.white.withValues(alpha: 0.05)
-                        : Colors.black.withValues(alpha: 0.03),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.sort, size: 16),
-                      const SizedBox(width: 4),
-                      Text(currentSort.name),
-                      const Icon(Icons.arrow_drop_down, size: 16),
-                    ],
-                  ),
+        decoration: BoxDecoration(
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.05)
+              : Colors.black.withValues(alpha: 0.03),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.sort, size: 16),
+            const SizedBox(width: 4),
+            Text(currentSort.name),
+            const Icon(Icons.arrow_drop_down, size: 16),
+          ],
+        ),
       ),
     );
   }

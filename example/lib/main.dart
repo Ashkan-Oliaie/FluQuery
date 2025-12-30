@@ -121,7 +121,8 @@ class _ConfiguredApp extends HookWidget {
   @override
   Widget build(BuildContext context) {
     // Select config from ConfigService
-    final config = useSelect<ConfigService, ConfigState, AppConfig?>((s) => s.config);
+    final config =
+        useSelect<ConfigService, ConfigState, AppConfig?>((s) => s.config);
     final isDark = config?.theme != 'light';
 
     return MaterialApp(
@@ -158,7 +159,8 @@ ThemeData _buildTheme(AppConfig? config, bool isDark) {
       seedColor: accentColor,
       brightness: isDark ? Brightness.dark : Brightness.light,
     ),
-    scaffoldBackgroundColor: isDark ? const Color(0xFF0F0F1A) : Colors.grey[100],
+    scaffoldBackgroundColor:
+        isDark ? const Color(0xFF0F0F1A) : Colors.grey[100],
     textTheme: GoogleFonts.spaceGroteskTextTheme(
       isDark ? ThemeData.dark().textTheme : ThemeData.light().textTheme,
     ).copyWith(
@@ -236,9 +238,12 @@ class GlobalConfigBar extends HookWidget {
   Widget build(BuildContext context) {
     // Get service and select state
     final configService = useService<ConfigService>();
-    final config = useSelect<ConfigService, ConfigState, AppConfig?>((s) => s.config);
-    final isLoading = useSelect<ConfigService, ConfigState, bool>((s) => s.isLoading);
-    final isPaused = useSelect<ConfigService, ConfigState, bool>((s) => s.isPaused);
+    final config =
+        useSelect<ConfigService, ConfigState, AppConfig?>((s) => s.config);
+    final isLoading =
+        useSelect<ConfigService, ConfigState, bool>((s) => s.isLoading);
+    final isPaused =
+        useSelect<ConfigService, ConfigState, bool>((s) => s.isPaused);
 
     final isDark = config?.theme != 'light';
     final accentColor = _getAccentColor(config?.accentColor ?? 'indigo');

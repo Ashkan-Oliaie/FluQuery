@@ -51,13 +51,13 @@ class TaskState {
       filteredTasks: needsRecompute
           ? _computeFiltered(newTasks, newFilter, newSort, newSearch)
           : filteredTasks,
-        isLoading: isLoading ?? this.isLoading,
+      isLoading: isLoading ?? this.isLoading,
       filter: newFilter,
       sort: newSort,
       searchQuery: newSearch,
-        selectedTaskId:
-            clearSelectedTaskId ? null : (selectedTaskId ?? this.selectedTaskId),
-      );
+      selectedTaskId:
+          clearSelectedTaskId ? null : (selectedTaskId ?? this.selectedTaskId),
+    );
   }
 
   static List<Task> _computeFiltered(
@@ -84,7 +84,8 @@ class TaskState {
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt)),
       TaskSort.oldest => result
         ..sort((a, b) => a.createdAt.compareTo(b.createdAt)),
-      TaskSort.alphabetical => result..sort((a, b) => a.title.compareTo(b.title)),
+      TaskSort.alphabetical => result
+        ..sort((a, b) => a.title.compareTo(b.title)),
     };
   }
 
@@ -225,37 +226,37 @@ class TaskService extends StatefulService<TaskState> {
       isLoading: false,
       tasks: [
         Task(
-            id: '1',
-            title: 'Set up FluQuery',
-            completed: true,
-            createdAt: DateTime.now().subtract(const Duration(days: 2)),
+          id: '1',
+          title: 'Set up FluQuery',
+          completed: true,
+          createdAt: DateTime.now().subtract(const Duration(days: 2)),
           priority: TaskPriority.high,
         ),
         Task(
-            id: '2',
-            title: 'Implement authentication',
-            description: 'Add login and session management',
-            createdAt: DateTime.now().subtract(const Duration(days: 1)),
+          id: '2',
+          title: 'Implement authentication',
+          description: 'Add login and session management',
+          createdAt: DateTime.now().subtract(const Duration(days: 1)),
           priority: TaskPriority.high,
         ),
         Task(
-            id: '3',
-            title: 'Create dashboard',
-            createdAt: DateTime.now().subtract(const Duration(hours: 5)),
+          id: '3',
+          title: 'Create dashboard',
+          createdAt: DateTime.now().subtract(const Duration(hours: 5)),
           priority: TaskPriority.medium,
         ),
         Task(
-            id: '4',
-            title: 'Write tests',
-            description: 'Cover services and state',
-            createdAt: DateTime.now().subtract(const Duration(hours: 2)),
+          id: '4',
+          title: 'Write tests',
+          description: 'Cover services and state',
+          createdAt: DateTime.now().subtract(const Duration(hours: 2)),
           priority: TaskPriority.low,
         ),
         Task(
-            id: '5',
-            title: 'Review PR',
-            completed: true,
-            createdAt: DateTime.now().subtract(const Duration(hours: 1)),
+          id: '5',
+          title: 'Review PR',
+          completed: true,
+          createdAt: DateTime.now().subtract(const Duration(hours: 1)),
           priority: TaskPriority.medium,
         ),
       ],
@@ -268,8 +269,7 @@ class TaskService extends StatefulService<TaskState> {
       state = state.copyWith(searchQuery: query);
 
   void selectTask(String? id) {
-    state =
-        state.copyWith(selectedTaskId: id, clearSelectedTaskId: id == null);
+    state = state.copyWith(selectedTaskId: id, clearSelectedTaskId: id == null);
   }
 
   void addTask(String title, String? description, TaskPriority priority) {

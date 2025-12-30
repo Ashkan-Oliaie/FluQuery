@@ -352,7 +352,8 @@ class _ProductDetailScreen extends HookWidget {
     final isDark = theme.brightness == Brightness.dark;
 
     // Create service for this screen instance
-    final service = useMemoized(() => ProductDetailService(product), [product.id]);
+    final service =
+        useMemoized(() => ProductDetailService(product), [product.id]);
 
     // Dispose service when screen closes
     useEffect(() => service.dispose, [service]);

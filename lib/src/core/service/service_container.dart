@@ -30,7 +30,7 @@ import 'internal/internal.dart';
 ///
 /// final auth = await container.get<AuthService>();
 /// ```
-/// 
+///
 /// Services access dependencies via [Service.ref]:
 /// ```dart
 /// class AuthService extends Service {
@@ -116,7 +116,7 @@ class ServiceContainer implements ServiceRef {
   ///
   /// The factory creates the service instance. Services can access
   /// dependencies via [Service.ref] in [Service.onInit].
-  /// 
+  ///
   /// [lazy] controls whether the service is created on first access (default)
   /// or during [initialize()].
   ///

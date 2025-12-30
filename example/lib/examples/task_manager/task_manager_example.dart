@@ -23,7 +23,8 @@ class TaskManagerExample extends HookWidget {
     useEffect(() {
       Future<void> init() async {
         services
-          ..registerNamed<AnalyticsService>(kAnalytics, (_) => AnalyticsService())
+          ..registerNamed<AnalyticsService>(
+              kAnalytics, (_) => AnalyticsService())
           ..registerNamed<StatsService>(kStats, (_) => StatsService())
           ..registerNamed<UndoService>(kUndo, (_) => UndoService())
           ..registerNamed<TaskService>(kTaskService, (_) => TaskService());

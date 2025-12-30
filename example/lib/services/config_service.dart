@@ -21,11 +21,12 @@ class ConfigState {
     bool? isLoading,
     bool? isPaused,
     bool clearConfig = false,
-  }) => ConfigState(
-    config: clearConfig ? null : (config ?? this.config),
-    isLoading: isLoading ?? this.isLoading,
-    isPaused: isPaused ?? this.isPaused,
-  );
+  }) =>
+      ConfigState(
+        config: clearConfig ? null : (config ?? this.config),
+        isLoading: isLoading ?? this.isLoading,
+        isPaused: isPaused ?? this.isPaused,
+      );
 
   @override
   bool operator ==(Object other) =>
@@ -116,5 +117,3 @@ class ConfigService extends StatefulService<ConfigState> {
     _refreshTimer = null;
   }
 }
-
-

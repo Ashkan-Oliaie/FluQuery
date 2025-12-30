@@ -22,7 +22,7 @@ class StoreControls extends HookWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final accentColor = Theme.of(context).colorScheme.primary;
     final isRandomizing = useState(false);
-    
+
     // Get service for setConfig action
     final configService = useService<ConfigService>();
 

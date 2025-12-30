@@ -72,5 +72,3 @@ class UndoAction {
         prev = null;
   UndoAction.update(this.task, this.prev) : type = 'update';
 }
-
-

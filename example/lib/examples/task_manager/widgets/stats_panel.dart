@@ -11,7 +11,7 @@ class StatsPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     debugPrint('🔄 BUILD: StatsPanel');
-    
+
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
@@ -45,11 +45,13 @@ class StatsPanel extends StatelessWidget {
             ),
             child: Row(
               children: [
-                Icon(Icons.analytics_rounded, size: 20, color: theme.colorScheme.primary),
+                Icon(Icons.analytics_rounded,
+                    size: 20, color: theme.colorScheme.primary),
                 const SizedBox(width: 8),
                 Text(
                   'Services & State',
-                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                  style: theme.textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -58,7 +60,7 @@ class StatsPanel extends StatelessWidget {
             child: SingleChildScrollView(
               padding: EdgeInsets.all(16),
               child: Column(
-              children: [
+                children: [
                   _TaskStateCard(),
                   SizedBox(height: 16),
                   _StatsServiceCard(),
@@ -82,35 +84,43 @@ class _TaskStateCard extends HookWidget {
   @override
   Widget build(BuildContext context) {
     debugPrint('🔄 BUILD: _TaskStateCard');
-    
+
     final taskService = useService<TaskService>(key: kTaskService);
-    final tasksCount = useSelect<TaskService, TaskState, int>((s) => s.tasks.length, key: kTaskService);
-    final activeCount = useSelect<TaskService, TaskState, int>((s) => s.activeCount, key: kTaskService);
-    final completedCount = useSelect<TaskService, TaskState, int>((s) => s.completedCount, key: kTaskService);
-    final isLoading = useSelect<TaskService, TaskState, bool>((s) => s.isLoading, key: kTaskService);
+    final tasksCount = useSelect<TaskService, TaskState, int>(
+        (s) => s.tasks.length,
+        key: kTaskService);
+    final activeCount = useSelect<TaskService, TaskState, int>(
+        (s) => s.activeCount,
+        key: kTaskService);
+    final completedCount = useSelect<TaskService, TaskState, int>(
+        (s) => s.completedCount,
+        key: kTaskService);
+    final isLoading = useSelect<TaskService, TaskState, bool>(
+        (s) => s.isLoading,
+        key: kTaskService);
 
     return _ServiceCard(
-                  icon: Icons.list_alt_rounded,
-                  title: 'TaskState',
-                  color: Colors.teal,
-                  children: [
-                    _StatRow('Count', tasksCount.toString()),
-                    _StatRow('Active', activeCount.toString()),
-                    _StatRow('Completed', completedCount.toString()),
-                    _StatRow('Loading', isLoading.toString()),
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
+      icon: Icons.list_alt_rounded,
+      title: 'TaskState',
+      color: Colors.teal,
+      children: [
+        _StatRow('Count', tasksCount.toString()),
+        _StatRow('Active', activeCount.toString()),
+        _StatRow('Completed', completedCount.toString()),
+        _StatRow('Loading', isLoading.toString()),
+        const SizedBox(height: 8),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
             onPressed: () {
               debugPrint('⚡ ACTION: refresh (from StatsPanel)');
               taskService.refresh();
             },
-                        icon: const Icon(Icons.refresh, size: 16),
-                        label: const Text('Reload'),
-                      ),
-                    ),
-                  ],
+            icon: const Icon(Icons.refresh, size: 16),
+            label: const Text('Reload'),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -121,20 +131,21 @@ class _StatsServiceCard extends HookWidget {
   @override
   Widget build(BuildContext context) {
     debugPrint('🔄 BUILD: _StatsServiceCard');
-    
+
     final statsService = useService<StatsService>(key: kStats);
-    final stats = useSelect<StatsService, StatsState, StatsState>((s) => s, key: kStats);
+    final stats =
+        useSelect<StatsService, StatsState, StatsState>((s) => s, key: kStats);
 
     return _ServiceCard(
-                  icon: Icons.bar_chart_rounded,
-                  title: 'StatsService',
-                  color: Colors.blue,
-                  children: [
-                    _StatRow('Created', stats.created.toString()),
-                    _StatRow('Completed', stats.completed.toString()),
-                    _StatRow('Deleted', stats.deleted.toString()),
-                    _StatRow('Session', _formatDuration(statsService.session)),
-                  ],
+      icon: Icons.bar_chart_rounded,
+      title: 'StatsService',
+      color: Colors.blue,
+      children: [
+        _StatRow('Created', stats.created.toString()),
+        _StatRow('Completed', stats.completed.toString()),
+        _StatRow('Deleted', stats.deleted.toString()),
+        _StatRow('Session', _formatDuration(statsService.session)),
+      ],
     );
   }
 
@@ -151,46 +162,50 @@ class _UndoServiceCard extends HookWidget {
   @override
   Widget build(BuildContext context) {
     debugPrint('🔄 BUILD: _UndoServiceCard');
-    
+
     final taskService = useService<TaskService>(key: kTaskService);
     final undoService = useService<UndoService>(key: kUndo);
     final undoStack = useValueListenable(undoService.undoStack);
     final redoStack = useValueListenable(undoService.redoStack);
 
     return _ServiceCard(
-                  icon: Icons.undo_rounded,
-                  title: 'UndoService',
-                  color: Colors.orange,
-                  children: [
-                    _StatRow('Undo Stack', undoStack.length.toString()),
-                    _StatRow('Redo Stack', redoStack.length.toString()),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                onPressed: undoService.canUndo ? () {
-                  debugPrint('⚡ ACTION: undoLast');
-                  taskService.undoLast();
-                } : null,
-                            icon: const Icon(Icons.undo, size: 16),
-                            label: const Text('Undo'),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: OutlinedButton.icon(
-                onPressed: undoService.canRedo ? () {
-                  debugPrint('⚡ ACTION: redoLast');
-                  taskService.redoLast();
-                } : null,
-                            icon: const Icon(Icons.redo, size: 16),
-                            label: const Text('Redo'),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+      icon: Icons.undo_rounded,
+      title: 'UndoService',
+      color: Colors.orange,
+      children: [
+        _StatRow('Undo Stack', undoStack.length.toString()),
+        _StatRow('Redo Stack', redoStack.length.toString()),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: undoService.canUndo
+                    ? () {
+                        debugPrint('⚡ ACTION: undoLast');
+                        taskService.undoLast();
+                      }
+                    : null,
+                icon: const Icon(Icons.undo, size: 16),
+                label: const Text('Undo'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: undoService.canRedo
+                    ? () {
+                        debugPrint('⚡ ACTION: redoLast');
+                        taskService.redoLast();
+                      }
+                    : null,
+                icon: const Icon(Icons.redo, size: 16),
+                label: const Text('Redo'),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }
@@ -201,20 +216,22 @@ class _AnalyticsServiceCard extends HookWidget {
   @override
   Widget build(BuildContext context) {
     debugPrint('🔄 BUILD: _AnalyticsServiceCard');
-    
+
     final theme = Theme.of(context);
     final analyticsService = useService<AnalyticsService>(key: kAnalytics);
     final events = useValueListenable(analyticsService.events);
 
     return _ServiceCard(
-                  icon: Icons.timeline_rounded,
-                  title: 'AnalyticsService',
-                  color: Colors.purple,
-                  children: [
-                    _StatRow('Total Events', events.length.toString()),
-                    const SizedBox(height: 8),
-        Text('Recent:', style: theme.textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 4),
+      icon: Icons.timeline_rounded,
+      title: 'AnalyticsService',
+      color: Colors.purple,
+      children: [
+        _StatRow('Total Events', events.length.toString()),
+        const SizedBox(height: 8),
+        Text('Recent:',
+            style: theme.textTheme.labelSmall
+                ?.copyWith(fontWeight: FontWeight.w600)),
+        const SizedBox(height: 4),
         ...events.reversed.take(5).map((e) => _EventRow(event: e)),
         if (events.isEmpty)
           Text(
@@ -239,25 +256,27 @@ class _EventRow extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Padding(
-                          padding: const EdgeInsets.only(bottom: 4),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 6,
-                                height: 6,
-            decoration: BoxDecoration(color: _eventColor(event.type), shape: BoxShape.circle),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(
+                color: _eventColor(event.type), shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
             child: Text(
               event.type,
-              style: theme.textTheme.labelSmall?.copyWith(fontFamily: 'monospace'),
+              style:
+                  theme.textTheme.labelSmall?.copyWith(fontFamily: 'monospace'),
               overflow: TextOverflow.ellipsis,
             ),
-                              ),
+          ),
           Text(
             _formatTime(event.timestamp),
-                          style: theme.textTheme.labelSmall?.copyWith(
+            style: theme.textTheme.labelSmall?.copyWith(
               color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
             ),
           ),
@@ -308,7 +327,9 @@ class _ServiceCard extends StatelessWidget {
             children: [
               Icon(icon, size: 16, color: color),
               const SizedBox(width: 8),
-              Text(title, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color)),
+              Text(title,
+                  style: TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w600, color: color)),
             ],
           ),
           const SizedBox(height: 12),
@@ -334,7 +355,9 @@ class _StatRow extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: theme.textTheme.labelSmall),
-          Text(value, style: theme.textTheme.labelSmall?.copyWith(fontWeight: FontWeight.bold)),
+          Text(value,
+              style: theme.textTheme.labelSmall
+                  ?.copyWith(fontWeight: FontWeight.bold)),
         ],
       ),
     );

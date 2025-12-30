@@ -286,7 +286,8 @@ void main() {
         expect(service.initComplete, true);
       });
 
-      test('getAsync prevents race condition - parallel calls share single init',
+      test(
+          'getAsync prevents race condition - parallel calls share single init',
           () async {
         await client.initServices((container) {
           container.register<AsyncInitService>((_) => AsyncInitService());
@@ -664,8 +665,8 @@ void main() {
     test('factory can depend on singletons', () async {
       await client.initServices((container) {
         container.register<LoggingService>((_) => LoggingService());
-        container.registerFactory<ApiRequestService>(
-            (_) => ApiRequestService());
+        container
+            .registerFactory<ApiRequestService>((_) => ApiRequestService());
       });
 
       final req1 = client.services!.create<ApiRequestService>();
@@ -842,7 +843,8 @@ void main() {
       await client.initServices((container) {
         container.registerNamed<TenantApiClient>(
           'acme',
-          (_) => TenantApiClient(tenantId: 'acme-parent', baseUrl: 'parent.com'),
+          (_) =>
+              TenantApiClient(tenantId: 'acme-parent', baseUrl: 'parent.com'),
         );
       });
 

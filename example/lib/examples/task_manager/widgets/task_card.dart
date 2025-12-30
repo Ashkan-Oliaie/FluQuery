@@ -8,7 +8,7 @@ import '../task_service.dart';
 /// TaskCard - only rebuilds when:
 /// - This specific task changes (title, completed, etc.)
 /// - This task's selection state changes
-/// 
+///
 /// Does NOT rebuild when other tasks change.
 class TaskCard extends HookWidget {
   final String taskId;
@@ -19,7 +19,7 @@ class TaskCard extends HookWidget {
   Widget build(BuildContext context) {
     // Select only THIS task - won't rebuild when other tasks change
     final task = useSelectItem<TaskService, TaskState, Task, String>(
-      (s) => s.tasks,  // Note: using tasks, not filteredTasks
+      (s) => s.tasks, // Note: using tasks, not filteredTasks
       taskId,
       (t) => t.id,
       key: kTaskService,
@@ -88,7 +88,8 @@ class _TaskCardContent extends HookWidget {
           color: Colors.transparent,
           child: InkWell(
             onTap: () {
-              debugPrint('⚡ ACTION: selectTask(${isSelected ? 'null' : task.id})');
+              debugPrint(
+                  '⚡ ACTION: selectTask(${isSelected ? 'null' : task.id})');
               service.selectTask(isSelected ? null : task.id);
             },
             borderRadius: BorderRadius.circular(12),
