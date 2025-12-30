@@ -18,13 +18,14 @@
 - 💾 **Persistence** - Save query data to disk
 - 🪝 **Hooks API** - Beautiful Flutter Hooks integration
 - 🔍 **Devtools** - Visual debugging tool for inspecting queries and cache
-- 🧩 **Services** (**Experimental**) - Built-in dependency injection with lifecycle management (**Work in progress**)
+- 🧩 **Services** (**Experimental**) - Built-in dependency injection with lifecycle management
+
 
 ## 📦 Installation
 
 ```yaml
 dependencies:
-  fluquery: ^1.3.2
+  fluquery: ^1.3.3
   flutter_hooks: ^0.21.3+1
 ```
 

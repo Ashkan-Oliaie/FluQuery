@@ -6,10 +6,10 @@ import 'package:fluquery/fluquery.dart';
 
 import '../../shared/shared.dart';
 
-/// Demonstrates Factory Services as ViewModels - one instance per screen.
+/// Demonstrates Factory Services - one service instance per screen.
 ///
-/// **Factory = ViewModel Pattern:**
-/// - Each screen gets its own ViewModel instance
+/// **Factory = Screen-Scoped Pattern:**
+/// - Each screen gets its own service instance
 /// - Isolated state: form data, selections, loading states
 /// - Disposed automatically when screen closes
 /// - Perfect for: Product pages, forms, wizards, modals
@@ -49,15 +49,15 @@ class FactoryScenario extends HookWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'ViewModel Pattern - Factory Services',
+          'Factory Pattern - Screen-Scoped Services',
           style: theme.textTheme.headlineSmall?.copyWith(
             fontWeight: FontWeight.bold,
           ),
         ),
         const SizedBox(height: 4),
         Text(
-          'Each product detail screen gets its own ViewModel with isolated state. '
-          'Select a product to see a ViewModel managing quantity, variants, and cart actions.',
+          'Each product detail screen gets its own service with isolated state. '
+          'Select a product to see a service managing quantity, variants, and cart actions.',
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
           ),
@@ -68,11 +68,11 @@ class FactoryScenario extends HookWidget {
 }
 
 // ============================================================
-// VIEWMODEL - Factory service for product detail screen
+// SERVICE - Factory service for product detail screen
 // ============================================================
 
-/// ViewModel for product detail screen - created per product via factory.
-class ProductDetailViewModel extends Service {
+/// Product detail service - created per product via factory.
+class ProductDetailService extends Service {
   final _ProductInfo product;
 
   // Reactive state
@@ -88,7 +88,7 @@ class ProductDetailViewModel extends Service {
   bool get canAddToCart =>
       selectedSize.value != null && selectedColor.value != null;
 
-  ProductDetailViewModel(this.product);
+  ProductDetailService(this.product);
 
   void incrementQuantity() {
     if (quantity.value < 10) quantity.value++;
@@ -237,7 +237,7 @@ class _ProductGrid extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Select a product to open its ViewModel:',
+          'Select a product to open its detail screen:',
           style: theme.textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.w600,
           ),
@@ -336,7 +336,7 @@ class _ProductCard extends StatelessWidget {
   }
 }
 
-/// Product detail screen with its own ViewModel
+/// Product detail screen with its own service
 class _ProductDetailScreen extends HookWidget {
   final _ProductInfo product;
   final VoidCallback onBack;
@@ -351,20 +351,19 @@ class _ProductDetailScreen extends HookWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    // Create ViewModel for this screen instance
-    final viewModel =
-        useMemoized(() => ProductDetailViewModel(product), [product.id]);
+    // Create service for this screen instance
+    final service = useMemoized(() => ProductDetailService(product), [product.id]);
 
-    // Dispose ViewModel when screen closes
-    useEffect(() => viewModel.dispose, [viewModel]);
+    // Dispose service when screen closes
+    useEffect(() => service.dispose, [service]);
 
     // Subscribe to reactive state
-    final quantity = useValueListenable(viewModel.quantity);
-    final selectedSize = useValueListenable(viewModel.selectedSize);
-    final selectedColor = useValueListenable(viewModel.selectedColor);
-    final isAddingToCart = useValueListenable(viewModel.isAddingToCart);
-    final cartMessage = useValueListenable(viewModel.cartMessage);
-    final isFavorite = useValueListenable(viewModel.isFavorite);
+    final quantity = useValueListenable(service.quantity);
+    final selectedSize = useValueListenable(service.selectedSize);
+    final selectedColor = useValueListenable(service.selectedColor);
+    final isAddingToCart = useValueListenable(service.isAddingToCart);
+    final cartMessage = useValueListenable(service.cartMessage);
+    final isFavorite = useValueListenable(service.isFavorite);
 
     return ThemedCard(
       child: Column(
@@ -396,7 +395,7 @@ class _ProductDetailScreen extends HookWidget {
                         ),
                       ),
                       Text(
-                        'ViewModel Hash: ${viewModel.hashCode.toRadixString(16)}',
+                        'Service Hash: ${service.hashCode.toRadixString(16)}',
                         style: theme.textTheme.labelSmall?.copyWith(
                           fontFamily: 'monospace',
                           color: theme.colorScheme.onSurface
@@ -407,7 +406,7 @@ class _ProductDetailScreen extends HookWidget {
                   ),
                 ),
                 IconButton(
-                  onPressed: viewModel.toggleFavorite,
+                  onPressed: service.toggleFavorite,
                   icon: Icon(
                     isFavorite ? Icons.favorite : Icons.favorite_border,
                     color: isFavorite ? Colors.red : null,
@@ -500,7 +499,7 @@ class _ProductDetailScreen extends HookWidget {
                       return ChoiceChip(
                         label: Text(size),
                         selected: isSelected,
-                        onSelected: (_) => viewModel.selectSize(size),
+                        onSelected: (_) => service.selectSize(size),
                       );
                     }).toList(),
                   ),
@@ -520,7 +519,7 @@ class _ProductDetailScreen extends HookWidget {
                       return ChoiceChip(
                         label: Text(color),
                         selected: isSelected,
-                        onSelected: (_) => viewModel.selectColor(color),
+                        onSelected: (_) => service.selectColor(color),
                       );
                     }).toList(),
                   ),
@@ -536,7 +535,7 @@ class _ProductDetailScreen extends HookWidget {
                   Row(
                     children: [
                       IconButton.filled(
-                        onPressed: viewModel.decrementQuantity,
+                        onPressed: service.decrementQuantity,
                         icon: const Icon(Icons.remove),
                         style: IconButton.styleFrom(
                           backgroundColor:
@@ -554,7 +553,7 @@ class _ProductDetailScreen extends HookWidget {
                         ),
                       ),
                       IconButton.filled(
-                        onPressed: viewModel.incrementQuantity,
+                        onPressed: service.incrementQuantity,
                         icon: const Icon(Icons.add),
                         style: IconButton.styleFrom(
                           backgroundColor:
@@ -564,7 +563,7 @@ class _ProductDetailScreen extends HookWidget {
                       ),
                       const Spacer(),
                       Text(
-                        'Total: \$${viewModel.totalPrice}',
+                        'Total: \$${service.totalPrice}',
                         style: theme.textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
@@ -602,7 +601,7 @@ class _ProductDetailScreen extends HookWidget {
             child: SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
-                onPressed: isAddingToCart ? null : () => viewModel.addToCart(),
+                onPressed: isAddingToCart ? null : () => service.addToCart(),
                 icon: isAddingToCart
                     ? const SizedBox(
                         width: 16,

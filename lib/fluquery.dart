@@ -24,7 +24,6 @@ export 'src/core/query_client.dart';
 // Widgets
 export 'src/widgets/query_client_provider.dart';
 export 'src/widgets/query_builder.dart';
-export 'src/widgets/viewmodel_provider.dart';
 
 // Hooks
 export 'src/hooks/use_query_client.dart';

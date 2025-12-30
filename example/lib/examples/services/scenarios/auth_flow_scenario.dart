@@ -19,9 +19,8 @@ class AuthFlowScenario extends HookWidget {
     final session = useService<SessionService>();
     final tracking = useService<ActivityTrackingService>();
 
-    // Subscribe to session changes using selector by type
-    final status =
-        useSelect<SessionService, SessionState, SessionStatus>((s) => s.status);
+    // Subscribe to session changes
+    final status = useSelect<SessionService, SessionState, SessionStatus>((s) => s.status);
 
     return Padding(
       padding: const EdgeInsets.all(20),

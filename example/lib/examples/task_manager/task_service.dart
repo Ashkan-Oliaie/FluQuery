@@ -1,90 +1,18 @@
 import 'package:flutter/foundation.dart';
 import 'package:fluquery/fluquery.dart';
 
-// ============================================================
-// MODELS
-// ============================================================
+import 'models/models.dart';
 
-enum TaskFilter { all, active, completed }
+/// Service keys for this screen - defined here to avoid circular imports
+const kTaskService = 'task-manager';
+const kAnalytics = 'task-analytics';
+const kStats = 'task-stats';
+const kUndo = 'task-undo';
 
-enum TaskSort { newest, oldest, alphabetical }
-
-enum TaskPriority { low, medium, high }
-
-class Task {
-  final String id;
-  final String title;
-  final String? description;
-  final bool completed;
-  final DateTime createdAt;
-  final TaskPriority priority;
-
-  const Task({
-    required this.id,
-    required this.title,
-    this.description,
-    this.completed = false,
-    required this.createdAt,
-    this.priority = TaskPriority.medium,
-  });
-
-  Task copyWith(
-          {String? title,
-          String? description,
-          bool? completed,
-          TaskPriority? priority}) =>
-      Task(
-        id: id,
-        title: title ?? this.title,
-        description: description ?? this.description,
-        completed: completed ?? this.completed,
-        createdAt: createdAt,
-        priority: priority ?? this.priority,
-      );
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is Task &&
-          id == other.id &&
-          title == other.title &&
-          description == other.description &&
-          completed == other.completed &&
-          priority == other.priority;
-
-  @override
-  int get hashCode => Object.hash(id, title, description, completed, priority);
-}
-
-class TaskEvent {
-  final String type;
-  final String taskId;
-  final DateTime timestamp;
-  TaskEvent(this.type, this.taskId) : timestamp = DateTime.now();
-}
-
-class UndoAction {
-  final String type;
-  final Task task;
-  final Task? prev;
-  UndoAction.create(this.task)
-      : type = 'create',
-        prev = null;
-  UndoAction.delete(this.task)
-      : type = 'delete',
-        prev = null;
-  UndoAction.update(this.task, this.prev) : type = 'update';
-}
-
-// ============================================================
-// STATE - Single immutable state object
-// ============================================================
-
-/// Immutable state for TaskViewModel.
-/// All UI state in one place, with proper equality checking.
 @immutable
 class TaskState {
   final List<Task> tasks;
+  final List<Task> filteredTasks;
   final bool isLoading;
   final TaskFilter filter;
   final TaskSort sort;
@@ -93,6 +21,7 @@ class TaskState {
 
   const TaskState({
     this.tasks = const [],
+    this.filteredTasks = const [],
     this.isLoading = true,
     this.filter = TaskFilter.all,
     this.sort = TaskSort.newest,
@@ -108,43 +37,54 @@ class TaskState {
     String? searchQuery,
     String? selectedTaskId,
     bool clearSelectedTaskId = false,
-  }) =>
-      TaskState(
-        tasks: tasks ?? this.tasks,
-        isLoading: isLoading ?? this.isLoading,
-        filter: filter ?? this.filter,
-        sort: sort ?? this.sort,
-        searchQuery: searchQuery ?? this.searchQuery,
-        selectedTaskId: clearSelectedTaskId
-            ? null
-            : (selectedTaskId ?? this.selectedTaskId),
-      );
+  }) {
+    final newTasks = tasks ?? this.tasks;
+    final newFilter = filter ?? this.filter;
+    final newSort = sort ?? this.sort;
+    final newSearch = searchQuery ?? this.searchQuery;
 
-  /// Computed: filtered and sorted tasks
-  List<Task> get filteredTasks {
+    final needsRecompute =
+        tasks != null || filter != null || sort != null || searchQuery != null;
+
+    return TaskState(
+      tasks: newTasks,
+      filteredTasks: needsRecompute
+          ? _computeFiltered(newTasks, newFilter, newSort, newSearch)
+          : filteredTasks,
+        isLoading: isLoading ?? this.isLoading,
+      filter: newFilter,
+      sort: newSort,
+      searchQuery: newSearch,
+        selectedTaskId:
+            clearSelectedTaskId ? null : (selectedTaskId ?? this.selectedTaskId),
+      );
+  }
+
+  static List<Task> _computeFiltered(
+    List<Task> tasks,
+    TaskFilter filter,
+    TaskSort sort,
+    String searchQuery,
+  ) {
     var result = tasks.toList();
 
-    // Apply search
     if (searchQuery.isNotEmpty) {
       final q = searchQuery.toLowerCase();
       result = result.where((t) => t.title.toLowerCase().contains(q)).toList();
     }
 
-    // Apply filter
     result = switch (filter) {
       TaskFilter.active => result.where((t) => !t.completed).toList(),
       TaskFilter.completed => result.where((t) => t.completed).toList(),
       TaskFilter.all => result,
     };
 
-    // Apply sort
     return switch (sort) {
       TaskSort.newest => result
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt)),
       TaskSort.oldest => result
         ..sort((a, b) => a.createdAt.compareTo(b.createdAt)),
-      TaskSort.alphabetical => result
-        ..sort((a, b) => a.title.compareTo(b.title)),
+      TaskSort.alphabetical => result..sort((a, b) => a.title.compareTo(b.title)),
     };
   }
 
@@ -156,6 +96,7 @@ class TaskState {
       identical(this, other) ||
       other is TaskState &&
           listEquals(tasks, other.tasks) &&
+          listEquals(filteredTasks, other.filteredTasks) &&
           isLoading == other.isLoading &&
           filter == other.filter &&
           sort == other.sort &&
@@ -165,6 +106,7 @@ class TaskState {
   @override
   int get hashCode => Object.hash(
         Object.hashAll(tasks),
+        Object.hashAll(filteredTasks),
         isLoading,
         filter,
         sort,
@@ -173,20 +115,16 @@ class TaskState {
       );
 }
 
-// ============================================================
-// SERVICES - Singleton services for side effects
-// ============================================================
-
-/// Tracks analytics events
 class AnalyticsService extends Service {
   final events = ReactiveList<TaskEvent>();
+
   void track(String event, String taskId) =>
       events.add(TaskEvent(event, taskId));
+
   @override
   Future<void> onDispose() async => events.dispose();
 }
 
-/// Stats state
 @immutable
 class StatsState {
   final int created;
@@ -214,7 +152,6 @@ class StatsState {
   int get hashCode => Object.hash(created, completed, deleted);
 }
 
-/// Tracks user stats - demonstrates StatefulService
 class StatsService extends StatefulService<StatsState> {
   final _start = DateTime.now();
 
@@ -228,10 +165,10 @@ class StatsService extends StatefulService<StatsState> {
   void recordDeleted() => state = state.copyWith(deleted: state.deleted + 1);
 }
 
-/// Manages undo/redo
 class UndoService extends Service {
   final undoStack = ReactiveList<UndoAction>();
   final redoStack = ReactiveList<UndoAction>();
+
   bool get canUndo => undoStack.value.isNotEmpty;
   bool get canRedo => redoStack.value.isNotEmpty;
 
@@ -266,72 +203,20 @@ class UndoService extends Service {
   }
 }
 
-// ============================================================
-// VIEWMODEL - StatefulService with single state
-// ============================================================
-
-/// TaskViewModel demonstrates the StatefulService pattern:
-///
-/// - **Single state object** - All UI state in one immutable [TaskState]
-/// - **Equality checking** - Only notifies when state actually changes
-/// - **Selector support** - Widgets subscribe to specific parts of state
-/// - **Atomic updates** - Multiple changes = single rebuild
-///
-/// ## Usage in widgets:
-/// ```dart
-/// class TaskList extends HookWidget {
-///   @override
-///   Widget build(BuildContext context) {
-///     final vm = ViewModelProvider.of<TaskViewModel>(context);
-///
-///     // Granular subscription - only rebuilds when tasks change
-///     final tasks = useSelector(vm, (s) => s.filteredTasks);
-///
-///     // Or subscribe to multiple parts
-///     final filter = useSelector(vm, (s) => s.filter);
-///     final isLoading = useSelector(vm, (s) => s.isLoading);
-///
-///     return ListView(...);
-///   }
-/// }
-/// ```
-class TaskViewModel extends StatefulService<TaskState> {
-  final ServiceRef _ref;
-
-  // Injected services
+class TaskService extends StatefulService<TaskState> {
   late final AnalyticsService _analytics;
   late final StatsService _stats;
   late final UndoService _undo;
 
-  TaskViewModel(this._ref) : super(const TaskState());
+  TaskService() : super(const TaskState());
 
   @override
   Future<void> onInit() async {
-    _analytics = await _ref.get<AnalyticsService>();
-    _stats = await _ref.get<StatsService>();
-    _undo = await _ref.get<UndoService>();
+    _analytics = ref.getSync<AnalyticsService>(name: kAnalytics);
+    _stats = ref.getSync<StatsService>(name: kStats);
+    _undo = ref.getSync<UndoService>(name: kUndo);
     await _loadMockData();
   }
-
-  // Expose services for widgets
-  AnalyticsService get analytics => _analytics;
-  StatsService get stats => _stats;
-  UndoService get undo => _undo;
-
-  // Convenience getters
-  List<Task> get tasks => state.tasks;
-  List<Task> get filteredTasks => state.filteredTasks;
-  bool get isLoading => state.isLoading;
-  TaskFilter get filter => state.filter;
-  TaskSort get sort => state.sort;
-  String get searchQuery => state.searchQuery;
-  String? get selectedTaskId => state.selectedTaskId;
-  int get activeCount => state.activeCount;
-  int get completedCount => state.completedCount;
-
-  // ============================================================
-  // ACTIONS
-  // ============================================================
 
   Future<void> _loadMockData() async {
     state = state.copyWith(isLoading: true);
@@ -344,48 +229,47 @@ class TaskViewModel extends StatefulService<TaskState> {
             title: 'Set up FluQuery',
             completed: true,
             createdAt: DateTime.now().subtract(const Duration(days: 2)),
-            priority: TaskPriority.high),
+          priority: TaskPriority.high,
+        ),
         Task(
             id: '2',
             title: 'Implement authentication',
             description: 'Add login and session management',
             createdAt: DateTime.now().subtract(const Duration(days: 1)),
-            priority: TaskPriority.high),
+          priority: TaskPriority.high,
+        ),
         Task(
             id: '3',
             title: 'Create dashboard',
             createdAt: DateTime.now().subtract(const Duration(hours: 5)),
-            priority: TaskPriority.medium),
+          priority: TaskPriority.medium,
+        ),
         Task(
             id: '4',
             title: 'Write tests',
-            description: 'Cover ViewModels and services',
+            description: 'Cover services and state',
             createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-            priority: TaskPriority.low),
+          priority: TaskPriority.low,
+        ),
         Task(
             id: '5',
             title: 'Review PR',
             completed: true,
             createdAt: DateTime.now().subtract(const Duration(hours: 1)),
-            priority: TaskPriority.medium),
+          priority: TaskPriority.medium,
+        ),
       ],
     );
   }
 
-  void setFilter(TaskFilter filter) {
-    state = state.copyWith(filter: filter);
-  }
-
-  void setSort(TaskSort sort) {
-    state = state.copyWith(sort: sort);
-  }
-
-  void setSearchQuery(String query) {
-    state = state.copyWith(searchQuery: query);
-  }
+  void setFilter(TaskFilter filter) => state = state.copyWith(filter: filter);
+  void setSort(TaskSort sort) => state = state.copyWith(sort: sort);
+  void setSearchQuery(String query) =>
+      state = state.copyWith(searchQuery: query);
 
   void selectTask(String? id) {
-    state = state.copyWith(selectedTaskId: id, clearSelectedTaskId: id == null);
+    state =
+        state.copyWith(selectedTaskId: id, clearSelectedTaskId: id == null);
   }
 
   void addTask(String title, String? description, TaskPriority priority) {

@@ -2,21 +2,10 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 
 import '../core/service/services.dart';
-import '../widgets/viewmodel_provider.dart';
 import 'use_query_client.dart';
 
-// ============================================================
-// CORE SERVICE HOOKS
-// ============================================================
-
-/// Hook to access a singleton service from the [ServiceContainer].
-///
-/// Example:
-/// ```dart
-/// final auth = useService<AuthService>();
-/// auth.login(email, password);
-/// ```
-T useService<T extends Service>() {
+/// Access a service from the container.
+T useService<T extends Service>({String? key}) {
   final client = useQueryClient();
   final services = client.services;
 
@@ -26,23 +15,28 @@ T useService<T extends Service>() {
     );
   }
 
-  return useMemoized(() => services.getSync<T>(), [services]);
+  return useMemoized(
+    () => services.getSync<T>(name: key),
+    [services, key],
+  );
 }
 
-/// Hook to select state from a singleton [StatefulService].
+/// Select state from a [StatefulService]. Only rebuilds when selected value changes.
 ///
-/// Only rebuilds when the selected value changes.
+/// Unfortunately Dart requires all 3 type parameters because it can't infer
+/// TState from TService. The selector parameter type helps with R inference.
 ///
-/// Example:
 /// ```dart
-/// // Select from global CartService
-/// final itemCount = useSelect<CartService, CartState, int>((s) => s.items.length);
-/// final isLoading = useSelect<CartService, CartState, bool>((s) => s.isLoading);
+/// final count = useSelect<TaskService, TaskState, int>(
+///   (s) => s.completedCount,
+///   key: kTaskService,
+/// );
 /// ```
 R useSelect<TService extends StatefulService<TState>, TState, R>(
-  R Function(TState state) selector,
-) {
-  final service = useService<TService>();
+  R Function(TState state) selector, {
+  String? key,
+}) {
+  final service = useService<TService>(key: key);
 
   final selectorListenable = useMemoized(
     () => service.select(selector),
@@ -60,46 +54,25 @@ R useSelect<TService extends StatefulService<TState>, TState, R>(
   return useValueListenable(selectorListenable);
 }
 
-// ============================================================
-// VIEWMODEL HOOKS - For ViewModelProvider scoped services
-// ============================================================
-
-/// Hook to get a ViewModel from [ViewModelProvider].
-///
-/// Example:
-/// ```dart
-/// final vm = useViewModel<TaskViewModel>(context);
-/// vm.addTask('New task');
-/// ```
-T useViewModel<T extends Service>(BuildContext context) {
-  return useMemoized(
-    () => ViewModelProvider.of<T>(context),
-    [context],
-  );
-}
-
-/// Hook to select state from a ViewModel [StatefulService].
-///
-/// Only rebuilds when the selected value changes.
-///
-/// Example:
-/// ```dart
-/// final isLoading = useViewModelSelect<TaskViewModel, TaskState, bool>(
-///   context, (s) => s.isLoading,
-/// );
-/// final tasks = useViewModelSelect<TaskViewModel, TaskState, List<Task>>(
-///   context, (s) => s.filteredTasks,
-/// );
-/// ```
-R useViewModelSelect<TService extends StatefulService<TState>, TState, R>(
-  BuildContext context,
-  R Function(TState state) selector,
-) {
-  final service = useViewModel<TService>(context);
+/// Select a single item by ID. Only rebuilds when that item changes.
+T? useSelectItem<TService extends StatefulService<TState>, TState, T, TId>(
+  List<T> Function(TState state) listSelector,
+  TId id,
+  TId Function(T item) getId, {
+  String? key,
+}) {
+  final service = useService<TService>(key: key);
 
   final selectorListenable = useMemoized(
-    () => service.select(selector),
-    [service],
+    () => service.select((state) {
+      final list = listSelector(state);
+      try {
+        return list.firstWhere((item) => getId(item) == id);
+      } catch (_) {
+        return null;
+      }
+    }),
+    [service, id],
   );
 
   useEffect(() {
@@ -111,4 +84,16 @@ R useViewModelSelect<TService extends StatefulService<TState>, TState, R>(
   }, [selectorListenable]);
 
   return useValueListenable(selectorListenable);
+}
+
+/// Select only IDs from a list. Only rebuilds when items added/removed/reordered.
+List<TId> useSelectIds<TService extends StatefulService<TState>, TState, T, TId>(
+  List<T> Function(TState state) listSelector,
+  TId Function(T item) getId, {
+  String? key,
+}) {
+  return useSelect<TService, TState, List<TId>>(
+    (state) => listSelector(state).map(getId).toList(),
+    key: key,
+  );
 }

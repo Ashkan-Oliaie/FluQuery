@@ -2,81 +2,63 @@ import 'dart:async';
 
 import 'service_ref.dart';
 
-/// Base class for all services in the application.
+/// Base class for all services managed by [ServiceContainer].
 ///
-/// Services are singletons managed by [ServiceContainer] that:
-/// - Can depend on other services via [ServiceRef]
-/// - Support async initialization via [onInit]
-/// - Support cleanup via [onDispose]
+/// Services support:
+/// - Dependency access via [ref]
+/// - Async initialization via [onInit]
+/// - Cleanup via [onDispose]
 ///
-/// For services that need reactive state, extend [StatefulService<TState>] instead.
+/// For services with reactive state, use [StatefulService] instead.
 ///
-/// ## Basic Service (no state)
-/// ```dart
-/// class LoggingService extends Service {
-///   void log(String message) => print('[LOG] $message');
-/// }
-/// ```
-///
-/// ## Service with Dependencies
 /// ```dart
 /// class AuthService extends Service {
-///   final ApiClient _api;
-///   final LoggingService _logger;
-///
-///   AuthService(ServiceRef ref)
-///     : _api = ref.getSync<ApiClient>(),
-///       _logger = ref.getSync<LoggingService>();
+///   late final ApiClient _api;
 ///
 ///   @override
 ///   Future<void> onInit() async {
+///     _api = await ref.get<ApiClient>();
 ///     await _loadTokenFromStorage();
-///   }
-///
-///   @override
-///   Future<void> onDispose() async {
-///     await _clearSession();
 ///   }
 /// }
 /// ```
-///
-/// ## Stateful Service
-/// For services with reactive state, see [StatefulService].
 abstract class Service {
   bool _isInitialized = false;
   bool _isDisposed = false;
+  ServiceRef? _ref;
 
-  /// Whether this service has been initialized.
   bool get isInitialized => _isInitialized;
-
-  /// Whether this service has been disposed.
   bool get isDisposed => _isDisposed;
 
-  /// Called after the service is created and all dependencies are resolved.
-  ///
-  /// Override this for async initialization like loading from storage.
-  /// This is called automatically by the container.
+  /// Access other services from the container.
+  ServiceRef get ref {
+    if (_ref == null) {
+      throw StateError(
+        'Service ref accessed before initialization. '
+        'This service was not created by ServiceContainer.',
+      );
+    }
+    return _ref!;
+  }
+
+  /// Called after creation. Override for async initialization.
   Future<void> onInit() async {}
 
-  /// Called when the service is being disposed.
-  ///
-  /// Override this to clean up resources, cancel subscriptions, etc.
+  /// Called on disposal. Override to clean up resources.
   Future<void> onDispose() async {}
 
-  /// Called when the service is being reset.
-  ///
-  /// Override this to reset service state (e.g., on logout).
-  /// Default implementation disposes and reinitializes.
+  /// Called on reset. Override to reset state without recreating.
   Future<void> onReset() async {}
 
-  /// Internal method called by container to initialize.
+  /// Internal: Set by container after creation.
+  void setRef(ServiceRef ref) => _ref = ref;
+
   Future<void> initialize() async {
     if (_isInitialized) return;
     await onInit();
     _isInitialized = true;
   }
 
-  /// Internal method called by container to dispose.
   Future<void> dispose() async {
     if (_isDisposed) return;
     await onDispose();
@@ -84,10 +66,7 @@ abstract class Service {
     _isInitialized = false;
   }
 
-  /// Internal method called by container to reset.
-  Future<void> reset() async {
-    await onReset();
-  }
+  Future<void> reset() async => onReset();
 }
 
 /// Factory function type for creating services.
@@ -98,8 +77,5 @@ class ServiceRegistration<T extends Service> {
   final ServiceFactory<T> factory;
   final bool lazy;
 
-  const ServiceRegistration({
-    required this.factory,
-    this.lazy = true,
-  });
+  const ServiceRegistration({required this.factory, this.lazy = true});
 }

@@ -13,7 +13,7 @@ import 'scenarios/factory_scenario.dart';
 /// This example uses a side navigation to showcase different real-world scenarios:
 /// 1. Authentication Flow - Login, verification, session management
 /// 2. Multi-Tenant - Named services for different API environments
-/// 3. ViewModel Pattern - Factory services as screen ViewModels
+/// 3. Factory Pattern - Screen-scoped services with isolated state
 class ServicesExample extends HookWidget {
   const ServicesExample({super.key});
 
@@ -38,8 +38,8 @@ class ServicesExample extends HookWidget {
       ),
       _ScenarioItem(
         icon: Icons.view_module_rounded,
-        title: 'ViewModel',
-        subtitle: 'Factory as screen ViewModel',
+        title: 'Factory',
+        subtitle: 'Screen-scoped services',
         color: const Color(0xFFF59E0B),
       ),
     ];
@@ -278,9 +278,8 @@ class _ServiceStatusBadge extends HookWidget {
       return _buildBadge('No Session', Colors.grey);
     }
 
-    // Use type-based selector - no need to pass service around
-    final status =
-        useSelect<SessionService, SessionState, SessionStatus>((s) => s.status);
+    // Select status from session service
+    final status = useSelect<SessionService, SessionState, SessionStatus>((s) => s.status);
 
     final (statusText, statusColor) = switch (status) {
       SessionStatus.unknown => ('Loading...', Colors.grey),

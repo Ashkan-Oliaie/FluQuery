@@ -12,7 +12,7 @@ import 'internal/internal.dart';
 /// [ServiceContainer] provides:
 /// - Service registration with factory functions
 /// - Lazy initialization by default
-/// - Automatic dependency resolution
+/// - Automatic dependency resolution via [Service.ref]
 /// - Circular dependency detection
 /// - Lifecycle management (init, dispose, reset)
 ///
@@ -20,14 +20,27 @@ import 'internal/internal.dart';
 /// ```dart
 /// final container = ServiceContainer(queryCache: queryCache);
 ///
+/// // No need to pass ref - it's injected automatically!
 /// container
-///   ..register<LoggingService>((ref) => LoggingService())
-///   ..register<ApiClient>((ref) => ApiClient(ref))
-///   ..register<AuthService>((ref) => AuthService(ref));
+///   ..register<LoggingService>((_) => LoggingService())
+///   ..register<ApiClient>((_) => ApiClient())
+///   ..register<AuthService>((_) => AuthService());
 ///
 /// await container.initialize();
 ///
 /// final auth = await container.get<AuthService>();
+/// ```
+/// 
+/// Services access dependencies via [Service.ref]:
+/// ```dart
+/// class AuthService extends Service {
+///   late final ApiClient _api;
+///
+///   @override
+///   Future<void> onInit() async {
+///     _api = await ref.get<ApiClient>();
+///   }
+/// }
 /// ```
 class ServiceContainer implements ServiceRef {
   // ============================================================
@@ -101,14 +114,16 @@ class ServiceContainer implements ServiceRef {
 
   /// Register a singleton service with a factory function.
   ///
-  /// [factory] receives a [ServiceRef] for accessing dependencies.
+  /// The factory creates the service instance. Services can access
+  /// dependencies via [Service.ref] in [Service.onInit].
+  /// 
   /// [lazy] controls whether the service is created on first access (default)
   /// or during [initialize()].
   ///
   /// Example:
   /// ```dart
-  /// container.register<AuthService>((ref) => AuthService(ref));
-  /// container.register<StartupService>((ref) => StartupService(ref), lazy: false);
+  /// container.register<AuthService>((_) => AuthService());
+  /// container.register<StartupService>((_) => StartupService(), lazy: false);
   /// ```
   void register<T extends Service>(
     ServiceFactory<T> factory, {
@@ -265,6 +280,7 @@ class ServiceContainer implements ServiceRef {
 
     try {
       final service = registration.factory(this);
+      service.setRef(this); // Inject container reference
       _instances[T] = service;
       return service;
     } finally {
@@ -298,6 +314,7 @@ class ServiceContainer implements ServiceRef {
 
     try {
       final service = registration.factory(this);
+      service.setRef(this); // Inject container reference
       _namedInstances.putIfAbsent(T, () => {})[name] = service;
 
       // Start initialization if container is initialized
@@ -335,7 +352,9 @@ class ServiceContainer implements ServiceRef {
           message: 'Factory $identifier is not registered.');
     }
 
-    return registration.factory(this);
+    final service = registration.factory(this);
+    service.setRef(this); // Inject container reference
+    return service;
   }
 
   /// Check if a service is registered.
@@ -397,6 +416,7 @@ class ServiceContainer implements ServiceRef {
     }
 
     final service = registration.factory(this);
+    service.setRef(this); // Inject container reference
     _instances[type] = service;
     return service;
   }

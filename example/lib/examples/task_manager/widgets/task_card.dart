@@ -2,18 +2,61 @@ import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:fluquery/fluquery.dart';
 
-import '../task_viewmodel.dart';
+import '../models/models.dart';
+import '../task_service.dart';
 
+/// TaskCard - only rebuilds when:
+/// - This specific task changes (title, completed, etc.)
+/// - This task's selection state changes
+/// 
+/// Does NOT rebuild when other tasks change.
 class TaskCard extends HookWidget {
-  final Task task;
-  final bool isSelected;
+  final String taskId;
 
-  const TaskCard({super.key, required this.task, required this.isSelected});
+  const TaskCard({super.key, required this.taskId});
 
   @override
   Widget build(BuildContext context) {
-    // Get VM for actions only
-    final vm = useViewModel<TaskViewModel>(context);
+    // Select only THIS task - won't rebuild when other tasks change
+    final task = useSelectItem<TaskService, TaskState, Task, String>(
+      (s) => s.tasks,  // Note: using tasks, not filteredTasks
+      taskId,
+      (t) => t.id,
+      key: kTaskService,
+    );
+
+    // Select only the selection state for this task
+    final isSelected = useSelect<TaskService, TaskState, bool>(
+      (s) => s.selectedTaskId == taskId,
+      key: kTaskService,
+    );
+
+    debugPrint('🔄 BUILD: TaskCard($taskId: ${task?.title ?? 'null'})');
+
+    if (task == null) {
+      return const SizedBox.shrink();
+    }
+
+    return _TaskCardContent(
+      task: task,
+      isSelected: isSelected,
+    );
+  }
+}
+
+/// Extracted content to avoid rebuilding service lookup
+class _TaskCardContent extends HookWidget {
+  final Task task;
+  final bool isSelected;
+
+  const _TaskCardContent({
+    required this.task,
+    required this.isSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final service = useService<TaskService>(key: kTaskService);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
@@ -44,7 +87,10 @@ class TaskCard extends HookWidget {
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: () => vm.selectTask(isSelected ? null : task.id),
+            onTap: () {
+              debugPrint('⚡ ACTION: selectTask(${isSelected ? 'null' : task.id})');
+              service.selectTask(isSelected ? null : task.id);
+            },
             borderRadius: BorderRadius.circular(12),
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -53,9 +99,11 @@ class TaskCard extends HookWidget {
                 children: [
                   Row(
                     children: [
-                      // Checkbox
                       GestureDetector(
-                        onTap: () => vm.toggleTask(task.id),
+                        onTap: () {
+                          debugPrint('⚡ ACTION: toggleTask(${task.id})');
+                          service.toggleTask(task.id);
+                        },
                         child: Container(
                           width: 24,
                           height: 24,
@@ -76,7 +124,6 @@ class TaskCard extends HookWidget {
                         ),
                       ),
                       const SizedBox(width: 12),
-                      // Title
                       Expanded(
                         child: Text(
                           task.title,
@@ -92,16 +139,17 @@ class TaskCard extends HookWidget {
                           ),
                         ),
                       ),
-                      // Priority
                       Container(
                           width: 8,
                           height: 8,
                           decoration: BoxDecoration(
                               color: priorityColor, shape: BoxShape.circle)),
                       const SizedBox(width: 8),
-                      // Delete
                       IconButton(
-                        onPressed: () => vm.deleteTask(task.id),
+                        onPressed: () {
+                          debugPrint('⚡ ACTION: deleteTask(${task.id})');
+                          service.deleteTask(task.id);
+                        },
                         icon: const Icon(Icons.delete_outline, size: 20),
                         color: Colors.red.withValues(alpha: 0.7),
                         visualDensity: VisualDensity.compact,

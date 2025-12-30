@@ -2,35 +2,41 @@ import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:fluquery/fluquery.dart';
 
-import '../task_viewmodel.dart';
+import '../models/models.dart';
+import '../task_service.dart';
 import 'task_card.dart';
 
+/// TaskList - only rebuilds when:
+/// - isLoading changes
+/// - Task IDs change (add/remove/reorder)
+/// 
+/// Does NOT rebuild when individual task properties change.
 class TaskList extends HookWidget {
   const TaskList({super.key});
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('🔄 BUILD: TaskList');
+    
     final theme = Theme.of(context);
 
-    // Use selectors by type - only rebuilds when selected value changes
-    final isLoading = useViewModelSelect<TaskViewModel, TaskState, bool>(
-      context,
+    final isLoading = useSelect<TaskService, TaskState, bool>(
       (s) => s.isLoading,
+      key: kTaskService,
     );
-    final tasks = useViewModelSelect<TaskViewModel, TaskState, List<Task>>(
-      context,
+
+    // Only get the IDs - rebuilds only when tasks added/removed/reordered
+    final taskIds = useSelectIds<TaskService, TaskState, Task, String>(
       (s) => s.filteredTasks,
-    );
-    final selectedId = useViewModelSelect<TaskViewModel, TaskState, String?>(
-      context,
-      (s) => s.selectedTaskId,
+      (task) => task.id,
+      key: kTaskService,
     );
 
     if (isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (tasks.isEmpty) {
+    if (taskIds.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -49,9 +55,9 @@ class TaskList extends HookWidget {
 
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      itemCount: tasks.length,
-      itemBuilder: (_, i) =>
-          TaskCard(task: tasks[i], isSelected: selectedId == tasks[i].id),
+      itemCount: taskIds.length,
+      // Each TaskCard handles its own state subscription
+      itemBuilder: (_, i) => TaskCard(taskId: taskIds[i]),
     );
   }
 }

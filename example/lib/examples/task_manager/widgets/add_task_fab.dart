@@ -2,21 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:fluquery/fluquery.dart';
 
-import '../task_viewmodel.dart';
+import '../models/models.dart';
+import '../task_service.dart';
 
 class AddTaskFab extends HookWidget {
   const AddTaskFab({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // Use selector by type - only rebuilds when completedCount changes
-    final completedCount = useViewModelSelect<TaskViewModel, TaskState, int>(
-      context,
-      (s) => s.completedCount,
-    );
-
-    // Get VM for actions
-    final vm = useViewModel<TaskViewModel>(context);
+    debugPrint('🔄 BUILD: AddTaskFab');
+    
+    final service = useService<TaskService>(key: kTaskService);
+    final completedCount = useSelect<TaskService, TaskState, int>((s) => s.completedCount, key: kTaskService);
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -27,14 +24,17 @@ class AddTaskFab extends HookWidget {
             padding: const EdgeInsets.only(bottom: 12),
             child: FloatingActionButton.small(
               heroTag: 'clear',
-              onPressed: vm.clearCompleted,
+              onPressed: () {
+                debugPrint('⚡ ACTION: clearCompleted');
+                service.clearCompleted();
+              },
               backgroundColor: Colors.red.shade400,
               child: const Icon(Icons.delete_sweep),
             ),
           ),
         FloatingActionButton.extended(
           heroTag: 'add',
-          onPressed: () => _showAddDialog(context, vm),
+          onPressed: () => _showAddDialog(context, service),
           icon: const Icon(Icons.add),
           label: const Text('Add Task'),
         ),
@@ -42,7 +42,7 @@ class AddTaskFab extends HookWidget {
     );
   }
 
-  void _showAddDialog(BuildContext context, TaskViewModel vm) {
+  void _showAddDialog(BuildContext context, TaskService service) {
     final titleCtrl = TextEditingController();
     final descCtrl = TextEditingController();
     var priority = TaskPriority.medium;
@@ -116,7 +116,8 @@ class AddTaskFab extends HookWidget {
                         child: FilledButton(
                           onPressed: () {
                             if (titleCtrl.text.isNotEmpty) {
-                              vm.addTask(
+                              debugPrint('⚡ ACTION: addTask("${titleCtrl.text}")');
+                              service.addTask(
                                   titleCtrl.text,
                                   descCtrl.text.isEmpty ? null : descCtrl.text,
                                   priority);

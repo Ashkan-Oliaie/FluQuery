@@ -1,102 +1,31 @@
 import 'package:flutter/foundation.dart';
 import 'service.dart';
 
-/// A service that maintains a single immutable state object.
+/// A service with reactive state and selector support.
 ///
-/// Use this for services that need reactive state with:
-/// - Single source of truth
-/// - Atomic updates (multiple changes = one notification)
-/// - Selector support for granular widget rebuilds
-/// - Built-in equality checking
-///
-/// ## Basic Usage
 /// ```dart
-/// // 1. Define your state (immutable)
-/// class CartState {
-///   final List<CartItem> items;
-///   final String? couponCode;
-///   final bool isLoading;
-///
-///   const CartState({
-///     this.items = const [],
-///     this.couponCode,
-///     this.isLoading = false,
-///   });
-///
-///   CartState copyWith({
-///     List<CartItem>? items,
-///     String? couponCode,
-///     bool? isLoading,
-///   }) => CartState(
-///     items: items ?? this.items,
-///     couponCode: couponCode ?? this.couponCode,
-///     isLoading: isLoading ?? this.isLoading,
-///   );
-///
-///   @override
-///   bool operator ==(Object other) =>
-///       identical(this, other) ||
-///       other is CartState &&
-///           listEquals(items, other.items) &&
-///           couponCode == other.couponCode &&
-///           isLoading == other.isLoading;
-///
-///   @override
-///   int get hashCode => Object.hash(items, couponCode, isLoading);
-/// }
-///
-/// // 2. Create the service
 /// class CartService extends StatefulService<CartState> {
 ///   CartService() : super(const CartState());
 ///
 ///   void addItem(CartItem item) {
 ///     state = state.copyWith(items: [...state.items, item]);
 ///   }
-///
-///   Future<void> applyCoupon(String code) async {
-///     state = state.copyWith(isLoading: true);
-///     try {
-///       await _api.validateCoupon(code);
-///       state = state.copyWith(couponCode: code, isLoading: false);
-///     } catch (e) {
-///       state = state.copyWith(isLoading: false);
-///       rethrow;
-///     }
-///   }
 /// }
-/// ```
 ///
-/// ## In Widgets (with selectors)
-/// ```dart
-/// class CartWidget extends HookWidget {
-///   @override
-///   Widget build(BuildContext context) {
-///     final cart = useService<CartService>();
-///
-///     // Only rebuilds when items change
-///     final items = useSelector(cart, (s) => s.items);
-///
-///     // Only rebuilds when isLoading changes
-///     final isLoading = useSelector(cart, (s) => s.isLoading);
-///
-///     return isLoading
-///         ? CircularProgressIndicator()
-///         : ListView(children: items.map(ItemTile.new).toList());
-///   }
-/// }
+/// // In widget:
+/// final items = useSelect<CartService, CartState, List<CartItem>>(
+///   (s) => s.items,
+/// );
 /// ```
 abstract class StatefulService<TState> extends Service {
   final _stateNotifier = _StateNotifier<TState>();
 
-  /// Create a stateful service with initial state.
   StatefulService(TState initialState) {
     _stateNotifier._value = initialState;
   }
 
-  /// Current state.
   TState get state => _stateNotifier.value;
 
-  /// Update state. Only notifies if state changed (via ==).
   set state(TState newState) {
     if (_stateNotifier._value != newState) {
       _stateNotifier._value = newState;
@@ -104,28 +33,13 @@ abstract class StatefulService<TState> extends Service {
     }
   }
 
-  /// Update state using a transformer function.
-  ///
-  /// ```dart
-  /// updateState((s) => s.copyWith(isLoading: true));
-  /// ```
   void updateState(TState Function(TState current) transformer) {
     state = transformer(state);
   }
 
-  /// Listenable for the entire state.
-  /// Use [select] for granular subscriptions.
   ValueListenable<TState> get stateListenable => _stateNotifier;
 
-  /// Select a part of state for granular subscriptions.
-  ///
-  /// Returns a [ValueListenable] that only notifies when the
-  /// selected value changes.
-  ///
-  /// ```dart
-  /// final itemsListenable = cart.select((s) => s.items);
-  /// final isLoadingListenable = cart.select((s) => s.isLoading);
-  /// ```
+  /// Select a part of state. Only notifies when selected value changes.
   ValueListenable<R> select<R>(R Function(TState state) selector) {
     return _SelectorNotifier<TState, R>(_stateNotifier, selector);
   }
@@ -137,7 +51,6 @@ abstract class StatefulService<TState> extends Service {
   }
 }
 
-/// Internal state notifier that exposes notifyListeners.
 class _StateNotifier<T> extends ChangeNotifier implements ValueListenable<T> {
   late T _value;
 
@@ -148,8 +61,7 @@ class _StateNotifier<T> extends ChangeNotifier implements ValueListenable<T> {
   void notifyListeners() => super.notifyListeners();
 }
 
-/// A listenable that selects part of a parent state.
-/// Only notifies when the selected value changes.
+/// Selector that only notifies when selected value changes (deep equality).
 class _SelectorNotifier<TState, TSelected> extends ChangeNotifier
     implements ValueListenable<TSelected> {
   final ValueListenable<TState> _source;
@@ -166,26 +78,24 @@ class _SelectorNotifier<TState, TSelected> extends ChangeNotifier
 
   void _onSourceChange() {
     final newValue = _selector(_source.value);
-    if (newValue != _selectedValue) {
+    if (!_deepEquals(newValue, _selectedValue)) {
       _selectedValue = newValue;
       notifyListeners();
     }
+  }
+
+  bool _deepEquals(TSelected a, TSelected b) {
+    if (identical(a, b)) return true;
+    if (a == b) return true;
+    if (a is List && b is List) return listEquals(a, b);
+    if (a is Map && b is Map) return mapEquals(a, b);
+    if (a is Set && b is Set) return setEquals(a, b);
+    return false;
   }
 
   @override
   void dispose() {
     _source.removeListener(_onSourceChange);
     super.dispose();
-  }
-}
-
-/// Extension for using selectors with hooks.
-extension StatefulServiceHooks<TState> on StatefulService<TState> {
-  /// Create a selector that can be used with useValueListenable.
-  ///
-  /// Note: For hooks, prefer the useSelector hook which handles
-  /// disposal correctly.
-  ValueListenable<R> selectListenable<R>(R Function(TState state) selector) {
-    return select(selector);
   }
 }

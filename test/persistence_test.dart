@@ -33,7 +33,7 @@ class Todo {
   int get hashCode => id.hashCode ^ title.hashCode ^ completed.hashCode;
 }
 
-/// Serializer for List<Todo>
+/// Serializer for `List<Todo>`
 class TodoListSerializer implements QueryDataSerializer<List<Todo>> {
   @override
   dynamic serialize(List<Todo> data) {
@@ -1463,103 +1463,7 @@ void main() {
     });
   });
 
-  group('QueryStore with Persistence', () {
-    late InMemoryPersister persister;
-    late QueryClient client;
-
-    setUp(() async {
-      persister = InMemoryPersister();
-      await persister.init();
-      client = QueryClient(persister: persister);
-    });
-
-    tearDown(() async {
-      client.dispose();
-      await persister.close();
-    });
-
-    test('createStore with persist option registers persistence', () async {
-      var fetchCount = 0;
-
-      final store = client.createStore<List<Todo>, Object>(
-        queryKey: ['store-persist'],
-        queryFn: (_) async {
-          fetchCount++;
-          return [
-            Todo(id: fetchCount, title: 'Store $fetchCount', completed: false)
-          ];
-        },
-        persist: PersistOptions(serializer: TodoListSerializer()),
-      );
-
-      // Wait for initial fetch
-      await Future.delayed(const Duration(milliseconds: 100));
-
-      // Data should be persisted
-      final hash = QueryKeyUtils.hashKey(['store-persist']);
-      final restored = await persister.restoreQuery(hash);
-      expect(restored, isNotNull);
-
-      store.dispose();
-    });
-
-    test('createStore restores persisted data on hydration', () async {
-      // Pre-persist data
-      await persister.persistQuery(PersistedQuery(
-        queryKey: ['store-hydrate'],
-        queryHash: QueryKeyUtils.hashKey(['store-hydrate']),
-        serializedData: [
-          {'id': 99, 'title': 'Persisted Store', 'completed': true}
-        ],
-        dataUpdatedAt: DateTime.now(),
-        persistedAt: DateTime.now(),
-        status: 'success',
-      ));
-
-      await client.hydrate();
-
-      // Register persistence (would normally happen in createStore)
-      client.registerPersistOptions<List<Todo>>(
-        ['store-hydrate'],
-        PersistOptions(serializer: TodoListSerializer()),
-      );
-
-      // Data should be deserialized
-      final data = client.getQueryData<List<Todo>>(['store-hydrate']);
-      expect(data, isNotNull);
-      expect(data!.first.id, equals(99));
-    });
-
-    test('createStore updates persistence on data change', () async {
-      var fetchCount = 0;
-
-      final store = client.createStore<List<Todo>, Object>(
-        queryKey: ['store-update'],
-        queryFn: (_) async {
-          fetchCount++;
-          return [
-            Todo(id: fetchCount, title: 'Fetch $fetchCount', completed: false)
-          ];
-        },
-        persist: PersistOptions(serializer: TodoListSerializer()),
-      );
-
-      // Wait for initial fetch
-      await Future.delayed(const Duration(milliseconds: 100));
-
-      // Trigger refetch
-      await store.refetch();
-      await Future.delayed(const Duration(milliseconds: 100));
-
-      // Should have updated data persisted
-      final hash = QueryKeyUtils.hashKey(['store-update']);
-      final restored = await persister.restoreQuery(hash);
-      expect(restored, isNotNull);
-      expect((restored!.serializedData as List).first['id'], equals(2));
-
-      store.dispose();
-    });
-  });
+  // NOTE: QueryStore with Persistence tests removed - createStore not implemented
 
   group('Schema Change Handling', () {
     late InMemoryPersister persister;

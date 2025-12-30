@@ -15,13 +15,11 @@ class GlobalStoreExample extends HookWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Use selectors - only rebuilds when selected value changes
+    // Get service and select state
+    final configService = useService<ConfigService>();
     final config = useSelect<ConfigService, ConfigState, AppConfig?>((s) => s.config);
     final isLoading = useSelect<ConfigService, ConfigState, bool>((s) => s.isLoading);
     final isPaused = useSelect<ConfigService, ConfigState, bool>((s) => s.isPaused);
-
-    // Get service for actions
-    final configService = useService<ConfigService>();
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final accentColor = Theme.of(context).colorScheme.primary;

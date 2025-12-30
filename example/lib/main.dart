@@ -16,7 +16,7 @@ import 'examples/nested_queries/screens/todo_list_screen.dart';
 import 'examples/global_store/global_store_example.dart';
 import 'examples/persistence/persistence_example.dart';
 import 'examples/services/services_example.dart';
-import 'examples/viewmodel/viewmodel_example.dart';
+import 'examples/task_manager/task_manager_example.dart';
 import 'services/services.dart';
 
 void main() {
@@ -120,7 +120,7 @@ class _ConfiguredApp extends HookWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Use selector to get config from ConfigService
+    // Select config from ConfigService
     final config = useSelect<ConfigService, ConfigState, AppConfig?>((s) => s.config);
     final isDark = config?.theme != 'light';
 
@@ -234,13 +234,11 @@ class GlobalConfigBar extends HookWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Use selectors - granular rebuilds
+    // Get service and select state
+    final configService = useService<ConfigService>();
     final config = useSelect<ConfigService, ConfigState, AppConfig?>((s) => s.config);
     final isLoading = useSelect<ConfigService, ConfigState, bool>((s) => s.isLoading);
     final isPaused = useSelect<ConfigService, ConfigState, bool>((s) => s.isPaused);
-
-    // Get service for actions
-    final configService = useService<ConfigService>();
 
     final isDark = config?.theme != 'light';
     final accentColor = _getAccentColor(config?.accentColor ?? 'indigo');
@@ -789,11 +787,11 @@ class _ExamplesHomePageState extends State<ExamplesHomePage> {
                   ),
                   _ExampleCard(
                     icon: Icons.view_module_rounded,
-                    title: 'ViewModel Pattern',
+                    title: 'Task Manager',
                     description:
                         'Task manager with filtering, CRUD, and real-time sync',
                     color: const Color(0xFFF59E0B),
-                    onTap: () => _navigate(context, const ViewModelExample()),
+                    onTap: () => _navigate(context, const TaskManagerExample()),
                   ),
                   const SizedBox(height: 24),
                 ]),
